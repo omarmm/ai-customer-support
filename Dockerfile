@@ -11,7 +11,7 @@ COPY tests ./tests
 COPY alembic.ini .
 COPY migrations ./migrations
 
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
 
 EXPOSE 8000
 

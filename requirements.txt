@@ -7,3 +7,6 @@ psycopg[binary]
 alembic
 
 pytest
+
+httpx
+pytest-asyncio
