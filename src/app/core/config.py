@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     ollama_url: str
     llm_provider: str
 
+    llm_max_retries: int = 2
+    llm_retry_base_delay: float = 0.5
+    llm_retry_max_delay: float = 8.0
+    llm_retry_jitter: float = 0.0
+
     model_config = SettingsConfigDict(
         case_sensitive=False,
     )

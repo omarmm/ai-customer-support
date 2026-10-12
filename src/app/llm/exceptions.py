@@ -7,6 +7,7 @@ class LLMError(Exception):
 
     category = "unclassified"
     retryable = False
+    retry_count = 0
 
 
 class LLMConnectionError(LLMError):
