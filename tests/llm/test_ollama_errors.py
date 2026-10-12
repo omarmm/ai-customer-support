@@ -3,10 +3,15 @@ import pytest
 
 from app.llm.contracts import LLMRequest
 from app.llm.providers.exceptions import (
+    LLMProviderAuthenticationError,
     LLMProviderConnectionError,
     LLMProviderHTTPError,
+    LLMProviderInvalidRequestError,
+    LLMProviderModelNotFoundError,
+    LLMProviderRateLimitError,
     LLMProviderResponseError,
     LLMProviderTimeoutError,
+    LLMProviderUnavailableError,
 )
 from app.llm.providers.ollama import OllamaProvider
 
@@ -99,6 +104,41 @@ async def test_malformed_response():
 
     with pytest.raises(LLMProviderResponseError):
         await provider.generate(make_request())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "status_code, expected_error_type",
+    [
+        (429, LLMProviderRateLimitError),
+        (401, LLMProviderAuthenticationError),
+        (403, LLMProviderAuthenticationError),
+        (400, LLMProviderInvalidRequestError),
+        (422, LLMProviderInvalidRequestError),
+        (404, LLMProviderModelNotFoundError),
+        (500, LLMProviderUnavailableError),
+        (503, LLMProviderUnavailableError),
+        # HTTP 408 stays generic: no Ollama-specific evidence it is a timeout.
+        (408, LLMProviderHTTPError),
+    ],
+)
+async def test_http_status_classification(status_code, expected_error_type):
+    async def handler(request):
+        return httpx.Response(
+            status_code,
+            json={"error": "provider error"},
+        )
+
+    provider = OllamaProvider(
+        base_url="http://ollama.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(expected_error_type) as exc_info:
+        await provider.generate(make_request())
+
+    assert type(exc_info.value) is expected_error_type
+    assert exc_info.value.status_code == status_code
 
 
 @pytest.mark.asyncio

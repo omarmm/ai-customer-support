@@ -18,5 +18,25 @@ class LLMProviderHTTPError(LLMProviderError):
         super().__init__(f"LLM provider returned HTTP {status_code}")
 
 
+class LLMProviderRateLimitError(LLMProviderHTTPError):
+    """Raised when the provider throttles the request."""
+
+
+class LLMProviderAuthenticationError(LLMProviderHTTPError):
+    """Raised when the provider rejects credentials."""
+
+
+class LLMProviderInvalidRequestError(LLMProviderHTTPError):
+    """Raised when the provider rejects the request as invalid."""
+
+
+class LLMProviderModelNotFoundError(LLMProviderHTTPError):
+    """Raised when the provider reports the requested model as unknown."""
+
+
+class LLMProviderUnavailableError(LLMProviderHTTPError):
+    """Raised when the provider reports a transient server-side fault."""
+
+
 class LLMProviderResponseError(LLMProviderError):
     """Raised when the provider response is invalid."""

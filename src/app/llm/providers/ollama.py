@@ -6,11 +6,41 @@ import httpx
 from app.llm.contracts import LLMRequest, LLMResponse, LLMUsage
 from app.llm.providers.base import LLMProvider
 from app.llm.providers.exceptions import (
+    LLMProviderAuthenticationError,
     LLMProviderConnectionError,
     LLMProviderHTTPError,
+    LLMProviderInvalidRequestError,
+    LLMProviderModelNotFoundError,
+    LLMProviderRateLimitError,
     LLMProviderResponseError,
     LLMProviderTimeoutError,
+    LLMProviderUnavailableError,
 )
+
+
+def _classify_http_error(status_code: int) -> LLMProviderHTTPError:
+    """Classify an Ollama HTTP error using Ollama-specific semantics.
+
+    This mapping is intentionally local to the Ollama adapter and must not be
+    generalized to other providers.
+    """
+
+    if status_code == 429:
+        return LLMProviderRateLimitError(status_code)
+
+    if status_code in (401, 403):
+        return LLMProviderAuthenticationError(status_code)
+
+    if status_code in (400, 422):
+        return LLMProviderInvalidRequestError(status_code)
+
+    if status_code == 404:
+        return LLMProviderModelNotFoundError(status_code)
+
+    if 500 <= status_code <= 599:
+        return LLMProviderUnavailableError(status_code)
+
+    return LLMProviderHTTPError(status_code)
 
 
 class OllamaProvider(LLMProvider):
@@ -72,7 +102,7 @@ class OllamaProvider(LLMProvider):
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
-            raise LLMProviderHTTPError(
+            raise _classify_http_error(
                 response.status_code
             ) from exc
 
