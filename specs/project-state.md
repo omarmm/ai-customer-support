@@ -3,42 +3,52 @@
 ## Current Position
 - Current Day: 25
 - Current Phase: Phase 3 — LLM Service
-- Day 24: Completed and closed
 - Day 25: In progress — Phase 3 completion review
 - RAG: Blocked until Phase 3 is verified complete
 
 ## Last Completed Task
-- Task: T251 — LLM Error Handling Specification
-- Artifact: specs/llm/error-handling.md (Status: Approved)
-- Source/tests modified: none (specification-only task)
-- Commit: not yet committed (docs change pending)
-- Git working tree: specs/llm/error-handling.md added; specs/project-state.md updated
+- Task: T252 — Error Normalization Implementation
+- Commit: 54cbc09
+- Artifacts:
+  - src/app/llm/exceptions.py (application error taxonomy)
+  - src/app/llm/services/llm_service.py (boundary normalization)
+  - src/app/llm/providers/exceptions.py (explicit provider HTTP types)
+  - src/app/llm/providers/ollama.py (adapter-local HTTP classification)
+  - tests/llm/test_error_normalization.py (new)
+  - tests/llm/test_ollama_errors.py (extended)
+- Focused tests: 35 passed
+- All LLM tests: 83 passed
+- Full suite: 95 passed
+- Git working tree: clean at closure
 
 ## Current Task
-- ID: T252
-- Title: Error Normalization Implementation
-- Status: Ready to start; specification approved at specs/llm/error-handling.md
-- Scope: implement the application-level error contract in
-  `src/app/llm/exceptions.py` and normalization at the LLM Service boundary.
-  Provider adapters own provider-specific classification via explicit provider
-  exception types. Unclassified provider errors map to a generic non-retryable
-  `LLMError`; unexpected internal/programming errors map to `LLMUnexpectedError`
-  with the original cause preserved. No retries in this task.
-- Depends on: T251 (complete)
-
-## Next Task After T252
 - ID: T253
 - Title: Retry Implementation
-- Status: Deferred; retry policy is defined in specs/llm/error-handling.md §6
+- Status: Ready to start; retry policy is defined in specs/llm/error-handling.md §6
+- Scope: implement bounded, configurable retries for retryable application errors.
+  Retry limits finite; backoff bounded and distinct from the per-attempt timeout;
+  no overall deadline; retry count observable. Non-retryable and unexpected
+  errors must not be retried.
+- Depends on: T252 (complete)
 
 ## Verified Findings
-- LLMService delegates directly to the configured provider (no normalization yet).
-- OllamaProvider normalizes connection, timeout, HTTP, and response errors into
-  the provider-level taxonomy (`LLMProvider*`).
-- LLMRequest supports a configurable timeout; LLMUsage carries token counts.
-- Latest LLM test run: 55 passed; full suite at Day 24 closure: 67 passed.
-- T251 specification approved; provider-vs-application error layers are defined
-  and separated, retry deferred to T253, normalization to T252.
+- Application error taxonomy in src/app/llm/exceptions.py: `LLMError` plus
+  connection, timeout, rate_limit, unavailable, authentication, invalid_request,
+  model_not_found, response, configuration, and unexpected subclasses, each with
+  class-level `category` and `retryable` attributes.
+- LLMService normalizes provider errors deterministically at the boundary;
+  provider-level exceptions do not escape to callers.
+- Unclassified provider failures map to the base `LLMError`
+  (category "unclassified", non-retryable).
+- Unexpected exceptions map to `LLMUnexpectedError` with `__cause__` preserved;
+  `BaseException`/cancellation is not caught.
+- Ollama maps HTTP statuses locally: 429 -> rate limit, 401/403 -> auth,
+  400/422 -> invalid request, 404 -> model not found, 5xx -> unavailable;
+  408 remains generic (no Ollama-specific timeout evidence).
+- Timeout contract: `LLMRequest.timeout` defaults to 30.0; no construction or
+  configuration path can supply `None`/invalid values; no timeout validation
+  added in T252.
+- Latest full test run: 95 passed (83 LLM, including 35 focused).
 
 ## Open Questions
 - Verify retry policy, cost tracking, and observability during Phase 3 review.
