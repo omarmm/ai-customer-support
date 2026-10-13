@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     llm_retry_max_delay: float = 8.0
     llm_retry_jitter: float = 0.0
 
+    llm_pricing: str = ""
+    llm_pricing_currency: str = "USD"
+
     model_config = SettingsConfigDict(
         case_sensitive=False,
     )

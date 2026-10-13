@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 
 from app.llm.contracts import LLMRequest, LLMResponse
+from app.llm.cost import CostCalculator
 from app.llm.exceptions import (
     LLMAuthenticationError,
     LLMConnectionError,
@@ -55,12 +56,18 @@ class LLMService:
         provider: LLMProvider,
         retry_policy: RetryPolicy | None = None,
         sleep: Callable[[float], Awaitable[None]] | None = None,
+        cost_calculator: CostCalculator | None = None,
     ):
         self.provider = provider
         self.retry_policy = (
             retry_policy if retry_policy is not None else RetryPolicy()
         )
         self._sleep = sleep if sleep is not None else asyncio.sleep
+        self.cost_calculator = (
+            cost_calculator
+            if cost_calculator is not None
+            else CostCalculator()
+        )
 
     async def generate(self, request: LLMRequest) -> LLMResponse:
         attempt = 0
@@ -80,6 +87,11 @@ class LLMService:
                     "Unexpected internal error during LLM generation."
                 ) from exc
             else:
+                result = self.cost_calculator.calculate(
+                    response.model, response.usage
+                )
+                response.cost = result.cost
+                response.metadata["cost_status"] = result.status
                 response.metadata["retry_count"] = attempt
                 return response
 

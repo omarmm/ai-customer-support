@@ -123,10 +123,16 @@ class OllamaProvider(LLMProvider):
         input_tokens = data.get("prompt_eval_count")
         output_tokens = data.get("eval_count")
 
-        total_tokens = None
+        # Preserve a provider-reported total when present. Otherwise derive it
+        # only when both components are known; unknown stays None.
+        total_tokens = data.get("total_tokens")
 
-        if input_tokens is not None or output_tokens is not None:
-            total_tokens = (input_tokens or 0) + (output_tokens or 0)
+        if (
+            total_tokens is None
+            and input_tokens is not None
+            and output_tokens is not None
+        ):
+            total_tokens = input_tokens + output_tokens
 
         usage = LLMUsage(
             input_tokens=input_tokens,
