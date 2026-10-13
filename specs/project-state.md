@@ -3,35 +3,32 @@
 ## Current Position
 - Current Day: 25
 - Current Phase: Phase 3 — LLM Service
-- Day 25: In progress — LLM Service implementation
+- Day 25: Prompt Management specification approved; Phase 3 verification unblocked, not yet started
 - RAG: Blocked until Phase 3 is verified complete
 
 ## Last Completed Task
-- Task: T254 — Token and cost tracking
-- Commit: b775d31
+- Task: Prompt Management specification approval
+- Commit: 8bc03aa
 - Artifacts:
-  - specs/llm/token-cost-tracking.md (Approved specification)
-  - src/app/llm/cost.py (ModelPricing; PricingTable; pure CostCalculator)
-  - src/app/llm/contracts.py (LLMCost value object; additive LLMResponse.cost)
-  - src/app/llm/services/llm_service.py (injected calculator; cost + cost_status on success)
-  - src/app/llm/providers/ollama.py (both-known total rule; provider totals preserved)
-  - src/app/core/config.py (llm_pricing; llm_pricing_currency)
-  - .env.example (documents pricing variables)
-  - tests/llm/test_cost.py (new)
-  - tests/llm/test_contracts.py, test_service.py, test_ollama_provider.py (extended)
-- Focused tests: 37 passed
-- All LLM tests: 130 passed
-- Full suite: 142 passed
+  - specs/llm/prompt-management.md (Draft -> Approved; decision note on path-traversal hardening)
+- No implementation or test code changed; specification-only task
+- Focused tests: 13 passed (tests/llm/test_prompt_management.py)
+- All LLM unit tests: 129 passed (tests/llm, excluding live-Ollama integration)
+- Live-Ollama integration test excluded: requires reachable Ollama at
+  host.docker.internal:11434 (ConnectError offline); not a unit regression
+- Domain suite not run to green here: requires provisioned Postgres
+  (12 domain failures on missing DB in this environment); unrelated to this task
 - `git diff --check`: clean
-- Git working tree: clean at closure
+- Git working tree: clean at spec commit (state update follows)
 
 ## Current Task
 - ID: Unassigned
 - Title: Phase 3 acceptance verification
-- Status: Not started; verify Phase 3 acceptance criteria against implementation and tests before RAG
+- Status: Not started; specification gate now cleared (prompt-management Approved).
+  Verify Phase 3 acceptance criteria against implementation and tests before RAG.
 - Scope: confirm LLM Service, structured output, prompt management, error handling,
   retries, and token/cost tracking meet their specifications; close Phase 3.
-- Depends on: T254 (complete)
+- Depends on: T254 (complete); Prompt Management specification approval (8bc03aa, complete)
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -63,10 +60,25 @@
 - Ollama preserves provider-reported totals; otherwise derives `total_tokens`
   only when both input and output counts are known. Unknown stays None.
 - Latest full test run: 142 passed (130 LLM, including 37 focused).
+- Prompt Management approval (8bc03aa): implementation
+  `src/app/llm/prompt_management.py` uses stdlib `string.Template` with
+  strict `substitute`; validates string names/values, then missing, then
+  unexpected before rendering, so no partial output. Values are single-pass
+  substituted (never re-evaluated as templates). Template/variable mismatch,
+  bad syntax, missing files, and render failures all map to
+  `InvalidPromptTemplateError`; unknown/missing/unexpected/invalid-value each
+  have a distinct testable type. Error messages carry identifiers/names only,
+  never variable values or secrets. No network, no code eval, template file
+  never modified. Single shipped template
+  `src/app/llm/prompts/support_message_analysis.txt` (`$customer_message`
+  only) matches its `PROMPT_DEFINITIONS` entry and contains no secrets.
+- Path-traversal hardening is consistent, not a scope expansion: absolute
+  paths, `..` segments, and resolved-path escape all raise the existing
+  `InvalidPromptTemplateError` (see spec decision log). Covered by
+  `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
 - Verify Phase 3 acceptance criteria against implementation and tests.
-- Prompt Management specification still has Draft status.
 - Retry concrete defaults (chosen in T253) may be revisited during Phase 3
   review.
 
