@@ -1,8 +1,15 @@
 # Prompt Management Specification
 
-**Status:** Draft  
-**Feature:** Prompt Management  
+**Status:** Approved
+**Feature:** Prompt Management
 **Phase:** LLM Service
+
+**Decision log:**
+- Path-traversal hardening (reject absolute paths and `..`; enforce
+  resolved-path containment under `src/app/llm/prompts/`) maps to the
+  existing `InvalidPromptTemplateError`. This is consistent with §4
+  template storage and §7 invalid-template/rendering-failure contract;
+  it introduces no new error type and expands no feature scope.
 
 ## 1. Purpose
 
