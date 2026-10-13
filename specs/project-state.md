@@ -1,34 +1,49 @@
 # AI Customer Support Backend — Project State
 
 ## Current Position
-- Current Day: 25
-- Current Phase: Phase 3 — LLM Service
-- Day 25: Prompt Management specification approved; Phase 3 verification unblocked, not yet started
-- RAG: Blocked until Phase 3 is verified complete
+- Current Phase: Phase 3 — LLM Service verified complete
+- Day 25: Phase 3 acceptance verification complete; RAG unblocked, not yet started
+- RAG: Unblocked (Phase 3 closed this session); no RAG specs exist yet
 
 ## Last Completed Task
-- Task: Prompt Management specification approval
-- Commit: 8bc03aa
-- Artifacts:
-  - specs/llm/prompt-management.md (Draft -> Approved; decision note on path-traversal hardening)
-- No implementation or test code changed; specification-only task
-- Focused tests: 13 passed (tests/llm/test_prompt_management.py)
-- All LLM unit tests: 129 passed (tests/llm, excluding live-Ollama integration)
-- Live-Ollama integration test excluded: requires reachable Ollama at
-  host.docker.internal:11434 (ConnectError offline); not a unit regression
-- Domain suite not run to green here: requires provisioned Postgres
-  (12 domain failures on missing DB in this environment); unrelated to this task
-- `git diff --check`: clean
-- Git working tree: clean at spec commit (state update follows)
+- Task: Phase 3 acceptance verification (specification gate review, no feature code)
+- Commit: (pending — state update commit follows)
+- Scope verified: LLM Service, structured output, prompt management, error handling,
+  retries, and token/cost tracking against their approved specifications
+- Evidence:
+  - Full suite: 142 passed (`pytest tests/`, includes live-Ollama integration
+    `test_ollama_real_integration` which now passes; Ollama reachable)
+  - LLM unit suite: 129 passed (`tests/llm --ignore=test_ollama_integration.py`)
+  - Focused: 13 passed (`tests/llm/test_prompt_management.py`); 104 passed across
+    prompt/structured-output/error-normalization/retry/cost/service files
+  - `git diff --check`: clean; working tree clean (verification-only session,
+    no implementation changes)
+- Verified findings carried forward plus closure checks:
+  - Provider abstraction holds: app depends on `LLMProvider` (`providers/base.py`);
+    provider errors (`providers/exceptions.py`) never escape — normalized at
+    `LLMService` boundary to `src/app/llm/exceptions.py` taxonomy; deterministic
+    map with unclassified -> generic non-retryable `LLMError`
+  - Structured output enforces 9 categories + 3 priorities (`StrEnum`,
+    `strict=True`, `extra="forbid"`); `StructuredOutputParseError` distinct from
+    `StructuredOutputValidationError`; whitespace-only summary rejected; no
+    coercion; no validated object on failure
+  - Prompt management uses stdlib `string.Template` + strict `substitute`;
+    validates value types, then missing, then unexpected before rendering;
+    path-traversal (absolute/`..`/escape) -> existing `InvalidPromptTemplateError`;
+    shipped template `support_message_analysis.txt` (`$customer_message` only)
+    matches `PROMPT_DEFINITIONS`
+  - Retry/cost/config externalized in `src/app/core/config.py`
+    (`llm_max_retries`, delays, `llm_pricing`, currency); service injects
+    `RetryPolicy`/`CostCalculator`, never eagerly calls `get_settings()`
+- Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- ID: Unassigned
-- Title: Phase 3 acceptance verification
-- Status: Not started; specification gate now cleared (prompt-management Approved).
-  Verify Phase 3 acceptance criteria against implementation and tests before RAG.
-- Scope: confirm LLM Service, structured output, prompt management, error handling,
-  retries, and token/cost tracking meet their specifications; close Phase 3.
-- Depends on: T254 (complete); Prompt Management specification approval (8bc03aa, complete)
+- ID: Unassigned (next: Phase 4 — RAG specification)
+- Title: Define RAG Phase 4 first specification (knowledge document ingestion)
+- Status: Not started
+- Scope: draft the first RAG specification before any RAG implementation,
+  per SDD workflow (spec approval required before code)
+- Depends on: Phase 3 verification (complete this session)
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -78,9 +93,10 @@
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Verify Phase 3 acceptance criteria against implementation and tests.
-- Retry concrete defaults (chosen in T253) may be revisited during Phase 3
-  review.
+- Phase 4 RAG: no specifications exist yet; first spec (ingestion) must be
+  drafted and approved before any RAG code.
+- Retry concrete defaults (chosen in T253) may be revisited during future
+  hardening; not a Phase 3 blocker.
 
 ## Rules
 - Specifications are the source of truth.
