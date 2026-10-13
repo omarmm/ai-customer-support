@@ -7,29 +7,31 @@
 - RAG: Blocked until Phase 3 is verified complete
 
 ## Last Completed Task
-- Task: T253 — Retry Implementation
-- Commit: c9da8c8
+- Task: T254 — Token and cost tracking
+- Commit: b775d31
 - Artifacts:
-  - src/app/llm/retry.py (RetryPolicy value object; validated defaults; from_settings)
-  - src/app/llm/services/llm_service.py (bounded retry loop at the service boundary)
-  - src/app/llm/exceptions.py (retry_count observable on LLMError)
-  - src/app/core/config.py (externalized retry settings)
-  - .env.example (documents retry variables)
-  - tests/llm/test_retry.py (new)
-- Focused tests: 15 passed
-- All LLM tests: 98 passed
-- Full suite: 110 passed
+  - specs/llm/token-cost-tracking.md (Approved specification)
+  - src/app/llm/cost.py (ModelPricing; PricingTable; pure CostCalculator)
+  - src/app/llm/contracts.py (LLMCost value object; additive LLMResponse.cost)
+  - src/app/llm/services/llm_service.py (injected calculator; cost + cost_status on success)
+  - src/app/llm/providers/ollama.py (both-known total rule; provider totals preserved)
+  - src/app/core/config.py (llm_pricing; llm_pricing_currency)
+  - .env.example (documents pricing variables)
+  - tests/llm/test_cost.py (new)
+  - tests/llm/test_contracts.py, test_service.py, test_ollama_provider.py (extended)
+- Focused tests: 37 passed
+- All LLM tests: 130 passed
+- Full suite: 142 passed
 - `git diff --check`: clean
 - Git working tree: clean at closure
 
 ## Current Task
-- ID: T254
-- Title: Token and cost tracking
-- Status: Not started; requires an approved specification before implementation
-- Scope: capture token usage and cost accounting at the LLM Service boundary.
-  Pricing and cost calculation remain out of scope for Phase 3 error handling;
-  a dedicated specification must be written and approved first.
-- Depends on: T253 (complete)
+- ID: Unassigned
+- Title: Phase 3 acceptance verification
+- Status: Not started; verify Phase 3 acceptance criteria against implementation and tests before RAG
+- Scope: confirm LLM Service, structured output, prompt management, error handling,
+  retries, and token/cost tracking meet their specifications; close Phase 3.
+- Depends on: T254 (complete)
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -49,10 +51,20 @@
   call, so concurrent requests do not share mutable retry state.
 - LLMService does not eagerly call `get_settings()`; the policy is injected.
   `RetryPolicy.from_settings(settings)` is available for the composition root.
-- Latest full test run: 110 passed (98 LLM, including 15 focused).
+- Token/cost tracking (T254): `LLMCost` carries Decimal input/output/total costs
+  plus currency; exposed via additive `LLMResponse.cost`. Cost is computed only
+  for the returned successful response and never affects retry decisions.
+- Pricing is externalized (`LLM_PRICING` JSON per 1M tokens, single currency);
+  absent/empty pricing is valid and means cost unavailable; malformed JSON and
+  negative prices fail clearly. Configured zero is a known zero, never missing.
+- `cost_status` is deterministic: pricing_missing -> usage_unavailable ->
+  partial -> complete. Costs quantize to 12 decimals, ROUND_HALF_UP, under a
+  local decimal context.
+- Ollama preserves provider-reported totals; otherwise derives `total_tokens`
+  only when both input and output counts are known. Unknown stays None.
+- Latest full test run: 142 passed (130 LLM, including 37 focused).
 
 ## Open Questions
-- Token/cost accounting needs its own approved specification before T254.
 - Verify Phase 3 acceptance criteria against implementation and tests.
 - Prompt Management specification still has Draft status.
 - Retry concrete defaults (chosen in T253) may be revisited during Phase 3
