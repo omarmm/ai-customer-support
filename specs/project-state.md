@@ -1,9 +1,17 @@
 # AI Customer Support Backend — Project State
 
 ## Current Position
-- Current Phase: Phase 3 — LLM Service verified complete
-- Day 25: Phase 3 acceptance verification complete; RAG unblocked, not yet started
-- RAG: Unblocked (Phase 3 closed this session); no RAG specs exist yet
+- Current Phase: Phase 3 — LLM Service verified complete and closed; Phase 4 — RAG active
+- Day 25: Phase 3 acceptance verification complete; RAG unblocked
+- RAG: Knowledge Document Ingestion Specification approved and saved at
+  `specs/rag/knowledge-document-ingestion.md` (specification-only session,
+  documentation-only changes, no commit, no implementation)
+- RAG ingestion architecture/contract design approved and recorded in the same
+  specification (§15 Placement and Contract Changes, §16 Task Breakdown);
+  sections 1–14 and the decisions log are byte-for-byte unchanged
+- Implementation tasks defined: T255–T258 plus required T259 integration
+  verification and closure; task IDs continue the sequence after T254
+- No RAG implementation has started
 
 ## Last Completed Task
 - Task: Phase 3 acceptance verification (specification gate review, no feature code)
@@ -38,12 +46,25 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- ID: Unassigned (next: Phase 4 — RAG specification)
-- Title: Define RAG Phase 4 first specification (knowledge document ingestion)
-- Status: Not started
-- Scope: draft the first RAG specification before any RAG implementation,
-  per SDD workflow (spec approval required before code)
-- Depends on: Phase 3 verification (complete this session)
+- ID: T255
+- Title: Contracts and error taxonomy (RAG ingestion)
+- Status: Not started (requires a separate authorized implementation session)
+- Depends on: approved Knowledge Document Ingestion Specification including
+  its approved architecture/contract design (§15–§16)
+- Scope: `src/app/rag/ingestion/__init__.py`, `contracts.py`, `exceptions.py`;
+  `tests/rag/__init__.py`, `tests/rag/ingestion/__init__.py`,
+  `tests/rag/ingestion/test_contracts.py`
+- Acceptance: §8, §9, and §15.2 of the specification — contract type shapes;
+  derived read-only counts with frozen tuple collections; `build()` as the
+  canonical construction path; ordering and count invariants not bypassable by
+  direct construction; every declared exception has a reachable role;
+  content-free messages
+- Remaining work after T255: T256 (discovery and limit), T257 (loading
+  pipeline), T258 (service, configuration, root resolution), and the mandatory
+  T259 integration verification and closure
+- Note: documentation-only session recorded this design; no commit; no
+  application code, tests, or configuration were changed. Implementation of
+  T255 is not authorized yet.
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -93,8 +114,11 @@
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: no specifications exist yet; first spec (ingestion) must be
-  drafted and approved before any RAG code.
+- Phase 4 RAG: ingestion specification and its architecture/contract design are
+  approved; implementation tasks T255–T258 and required verification T259 are
+  defined. No ingestion code may be written outside an authorized task session.
+  Remaining Phase 4 specifications (chunking, embeddings, Qdrant, retrieval,
+  etc.) are undefined and will follow their own SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
