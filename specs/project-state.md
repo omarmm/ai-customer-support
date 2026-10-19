@@ -11,40 +11,39 @@
   sections 1–14 and the decisions log are byte-for-byte unchanged
 - Implementation tasks defined: T255–T258 plus required T259 integration
   verification and closure; task IDs continue the sequence after T254
-- T255 complete: ingestion contracts and error taxonomy implemented and
-  committed (fda7b87); RAG implementation in progress
-- Remaining RAG implementation tasks: T256 (discovery and limit), T257 (loading
-  pipeline), T258 (service, configuration, root resolution), T259 (required
-  verification and closure)
+- T255 complete: ingestion contracts and error taxonomy (fda7b87)
+- T256 complete: deterministic discovery and document limit (f80f2db);
+  RAG implementation in progress
+- Remaining RAG implementation tasks: T257 (loading pipeline), T258 (service,
+  configuration, root resolution), T259 (required verification and closure)
 
 ## Last Completed Task
-- Task: T255 — RAG ingestion contracts and error taxonomy
-- Commit: fda7b87 (implementation); b568f20 records the approved specification
-  and architecture design
-- Scope delivered: `src/app/rag/ingestion/contracts.py`, `exceptions.py`, and
-  package `__init__.py` files; `tests/rag/ingestion/test_contracts.py` and test
-  package `__init__.py` files
+- Task: T256 — Deterministic discovery and document limit (RAG ingestion)
+- Commit: f80f2db
+- Scope delivered: `src/app/rag/ingestion/discovery.py` (`DiscoveryPlan`,
+  `discover`); `tests/rag/ingestion/test_discovery.py`
 - Outcome:
-  - `IngestionResult` is a frozen dataclass storing immutable tuple
-    collections; `__post_init__` sorts each collection ascending by relative
-    POSIX path and coerces to tuple, so ordering cannot be bypassed by direct
-    construction; `build()` is the canonical construction path
-  - Counts are derived read-only properties (`succeeded_count`, `skipped_count`,
-    `failed_count`, `candidate_count`, `discovered_count`, `has_failures`); no
-    stored counts, so no construction path can contradict the collections
-  - `candidate_count` adds skipped entries with reason
-    `document_limit_exceeded`; both §9 count invariants are covered by tests
-  - Error taxonomy: `IngestionError` base plus `SourceRootError` (structural)
-    and the five per-file classifications, each with a stable distinct
-    `error_type`; messages combine a fixed description with the path only —
-    never document content; `FailedEntry.from_error` derives the stable name
+  - Deterministic depth-first traversal with children visited in ascending name
+    order; reported paths are relative POSIX paths; supported extensions
+    (`.md`, `.txt`) are matched case-insensitively
+  - Unsupported extensions are reported in `skipped` as `unsupported_format`;
+    directory symlinks are ignored (not traversed, not reported); file symlinks
+    are classified by entry name and left for the loader; non-regular entries
+    (FIFO/socket/device) are ignored
+  - Candidates are sorted ascending (Unicode codepoint, case-sensitive) before
+    the limit; the first `max_documents_per_run` are candidates and the
+    remainder are `document_limit_exceeded` skips that are never read
+  - A missing, non-directory, or unreadable source root, and traversal
+    failures at any level, raise `SourceRootError`; discovery never reads
+    document content
 - Evidence:
-  - Focused: 18 passed (`pytest tests/rag`, run in the project Docker image)
-  - Full suite: 160 passed (`pytest tests`, includes live-Ollama integration)
+  - Focused: 37 passed, 2 skipped (`pytest tests/rag`; the 2 skips are
+    permission-denial tests skipped because the Docker image runs as root)
+  - Full suite: 179 passed, 2 skipped (`pytest tests`; includes live-Ollama
+    integration)
   - `git diff --check`: clean
-- Note: `src/app/rag/__init__.py` (empty) was added so the RAG package follows
-  the existing package convention; it is the only file beyond the T255 scope
-  listed in the previous state entry.
+- Previously completed: T255 — contracts and error taxonomy (fda7b87); see the
+  commit record and the T255 entry history for its detailed outcome.
 
 ## Phase 3 Closure Record — LLM Service (closed)
 - Task: Phase 3 acceptance verification (specification gate review, no feature code)
@@ -79,22 +78,20 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- ID: T256
-- Title: Deterministic discovery and limit (RAG ingestion)
+- ID: T257
+- Title: Per-file loading pipeline (RAG ingestion)
 - Status: Not started (requires a separate authorized implementation session)
-- Depends on: T255 (contracts and error taxonomy) — complete
-- Scope: `src/app/rag/ingestion/discovery.py`;
-  `tests/rag/ingestion/test_discovery.py`
-- Acceptance: §4, §5, §9, and §15.3–§15.4 of the specification — deterministic
-  depth-first traversal with children in ascending name order; POSIX relative
-  paths; unsupported extensions skipped as `unsupported_format`; candidates
-  sorted before the limit; `document_limit_exceeded` entries never stat'ed,
-  containment-checked, or read; directory symlinks never traversed; traversal
-  failures at any level raise `SourceRootError`; §12 tests 1, 2, 11
-- Remaining work after T256: T257 (loading pipeline), T258 (service,
-  configuration, root resolution), and required T259 (integration verification
-  and closure)
-- Note: no implementation of T256 is authorized yet
+- Depends on: T256 (discovery and limit) — complete
+- Scope: `src/app/rag/ingestion/loader.py`;
+  `tests/rag/ingestion/test_loader.py`
+- Acceptance: §6, §7, §7.1, §8, and §15.5 of the specification —
+  containment check before stat, size check before read, bounded read, strict
+  UTF-8 decode, CRLF/bare-CR normalization, whitespace validation, title
+  extraction, SHA-256 content ID, and first-failure classification; §12 tests
+  3–7, 10, 16
+- Remaining work after T257: T258 (service, configuration, root resolution),
+  and required T259 (integration verification and closure)
+- Note: no implementation of T257 is authorized yet
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -144,11 +141,11 @@
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: ingestion specification and architecture are approved; T255 is
-  complete and T256–T258 plus required T259 remain. No ingestion code may be
-  written outside an authorized task session. Remaining Phase 4 specifications
-  (chunking, embeddings, Qdrant, retrieval, etc.) are undefined and will follow
-  their own SDD cycles.
+- Phase 4 RAG: ingestion specification and architecture are approved; T255 and
+  T256 are complete and T257–T258 plus required T259 remain. No ingestion code
+  may be written outside an authorized task session. Remaining Phase 4
+  specifications (chunking, embeddings, Qdrant, retrieval, etc.) are undefined
+  and will follow their own SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
