@@ -1,53 +1,51 @@
 # AI Customer Support Backend — Project State
 
 ## Current Position
-- Current Phase: Phase 3 — LLM Service verified complete and closed; Phase 4 — RAG active
+- Current Phase: Phase 4 — RAG; first specification (knowledge document
+  ingestion) verified complete and closed
 - Day 25: Phase 3 acceptance verification complete; RAG unblocked
-- RAG: Knowledge Document Ingestion Specification approved and saved at
-  `specs/rag/knowledge-document-ingestion.md` (specification-only session,
-  documentation-only changes, no commit, no implementation)
-- RAG ingestion architecture/contract design approved and recorded in the same
-  specification (§15 Placement and Contract Changes, §16 Task Breakdown);
-  sections 1–14 and the decisions log are byte-for-byte unchanged
-- Implementation tasks defined: T255–T258 plus required T259 integration
-  verification and closure; task IDs continue the sequence after T254
-- T255 complete: ingestion contracts and error taxonomy (fda7b87)
-- T256 complete: deterministic discovery and document limit (f80f2db)
-- T257 complete: per-file loading pipeline (718ccd5)
-- T258 complete: ingestion service, configuration, and root resolution
-  (5da4f9d)
-- Remaining RAG task: T259 — required integration verification and closure
+- RAG: Knowledge Document Ingestion Specification approved at
+  `specs/rag/knowledge-document-ingestion.md`, including the §15 architecture
+  and §16 task breakdown
+- Ingestion implementation complete: T255 (fda7b87), T256 (f80f2db),
+  T257 (718ccd5), T258 (5da4f9d), and required T259 integration verification
+  and closure (this session)
+- No ingestion implementation work remains; no defect reopened a task
+- Next: define and approve the Chunking specification (Phase 4, second
+  specification). Chunking implementation is not authorized
 
 ## Last Completed Task
-- Task: T258 — Service, configuration, and root resolution (RAG ingestion)
-- Commit: 5da4f9d
-- Scope delivered: `src/app/rag/ingestion/service.py`,
-  `src/app/rag/ingestion/paths.py`; additive `knowledge_*` settings in
-  `src/app/core/config.py`; `.env.example`; `tests/rag/ingestion/test_service.py`,
-  `tests/rag/ingestion/test_paths.py`
-- Outcome:
-  - `default_repo_root()` derives the repository root from the imported `app`
-    package (`parents[2]`), never the process working directory, so local and
-    Docker (`/app`) layouts agree
-  - `resolve_source_root` returns absolute values unchanged and resolves
-    relative values against an injectable repository root; it performs no file
-    I/O, and the resolved root is reused for discovery and containment
-  - `KnowledgeIngestionService` composes `discover` and `load_document`,
-    processes candidates sequentially, collects per-file failures, and builds
-    the result through `IngestionResult.build`; structural errors still abort
-  - Constructor validates both limits as positive (`ValueError`, not an
-    ingestion exception); `from_settings` maps `knowledge_dir` and both limits
-    without importing, patching, or eagerly calling `get_settings()`
-  - Settings are additive with defaults `knowledge`, 1 MiB, and 1000; the two
-    limits use `Field(gt=0)` so invalid startup configuration fails via
-    Pydantic; `.env.example` documents all three variables
-- Evidence:
-  - Focused: 100 passed, 4 skipped (`pytest tests/rag`; skips are permission
-    fixtures under root plus existing environment-conditional cases)
-  - Full suite: 242 passed, 4 skipped (`pytest tests`; includes live-Ollama
-    integration)
-  - `git diff --check`: clean; diff reviewed against §10, §13, §15.6–§15.7
-- Previously completed: T257 — per-file loading pipeline (718ccd5).
+- Task: T259 — Final integration verification and closure (RAG ingestion)
+- Commit: (pending — closure commit follows)
+- Scope delivered: no feature code; this closure record in
+  `specs/project-state.md`
+- Verification against §13 and §16:
+  - Focused ingestion suite: 104 collected, 100 passed, 4 skipped
+    (`pytest tests/rag/ingestion`; skips are the unreadable-root/subdirectory
+    permission fixtures, which are environment-conditional under root)
+  - Offline rerun with no network: 100 passed, 4 skipped
+    (`docker run --network none ... pytest tests/rag/ingestion`), confirming the
+    §12 suite is offline and environment-independent
+  - Full regression: 242 passed, 4 skipped (`pytest tests`; includes the live
+    Ollama integration test)
+  - Docker root resolution: `docker compose run --rm api python -c "from
+    app.rag.ingestion.paths import default_repo_root; print(default_repo_root())"`
+    printed `/app`
+  - §13 checklist: documents carry complete metadata; discovery, ordering, IDs,
+    and counts are deterministic and repeatable; relative roots resolve against
+    the repository root, not the working directory; IDs are SHA-256 of
+    normalized UTF-8 bytes; the pipeline imports no network client and performs
+    no writes; per-file failures are collected while structural failures raise;
+    containment, size, and count limits report metadata only; every declared
+    exception has a tested role
+  - Change scope since the T254 record: only additive `src/app/rag/ingestion/`
+    modules, their tests, additive `knowledge_*` settings, `.env.example`, and
+    state documentation; LLM, domain, and database behavior unchanged
+  - `git diff --check`: clean
+- Outcome: the ingestion specification's acceptance criteria are met; no
+  defect was found within approved scope.
+- Previously completed: T258 — service, configuration, and root resolution
+  (5da4f9d).
 
 ## Phase 3 Closure Record — LLM Service (closed)
 - Task: Phase 3 acceptance verification (specification gate review, no feature code)
@@ -82,18 +80,17 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- ID: T259
-- Title: Final integration verification and closure (RAG ingestion)
-- Status: Not started (requires a separate authorized session)
-- Depends on: T258 (service, configuration, root resolution) — complete
-- Scope: no feature code
-- Acceptance: §16 T259 — focused ingestion suite and full regression suite
-  pass; Docker root-resolution check recorded (`default_repo_root()` must print
-  `/app`); `git diff --check` clean; diff reviewed against §13;
-  `specs/project-state.md` updated with task IDs, outcomes, commits, tests, and
-  exactly one next task; closure commit follows repository precedent
-- Note: T259 is mandatory. A defect found there within approved scope reopens
-  the owning task instead of being patched in T259.
+- ID: Phase 4 RAG — Chunking (specification cycle; task IDs are assigned only
+  after the specification is approved)
+- Title: Define and approve the knowledge document chunking specification
+- Status: Not started; not authorized
+- Depends on: ingestion closed (T259 complete)
+- Scope: specification-only session under `specs/rag/`; no implementation
+- Acceptance: a new approved specification defining the chunking boundary,
+  contract, configuration, testing requirements, acceptance criteria, and task
+  breakdown
+- Note: the roadmap lists chunking as the next Phase 4 item, but no chunking
+  specification exists, so no chunking code may be written.
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -132,6 +129,11 @@
   `knowledge_max_document_bytes` to 1 MiB, and
   `knowledge_max_documents_per_run` to 1000; both limits are `gt=0` and the
   service constructor rejects non-positive values before discovery.
+- T259 verification: ingestion acceptance criteria met and closed; focused
+  ingestion suite 100 passed / 4 skipped, including an offline rerun with
+  `--network none`; full regression 242 passed / 4 skipped; Docker
+  `default_repo_root()` prints `/app`; ingestion code imports no network client
+  and performs no writes.
 - Latest full test run: 242 passed, 4 skipped (`pytest tests`).
 - Prompt Management approval (8bc03aa): implementation
   `src/app/llm/prompt_management.py` uses stdlib `string.Template` with
@@ -151,11 +153,11 @@
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: ingestion specification and architecture are approved; T255–T258
-  are complete and required T259 remains. No new ingestion code may be written
-  outside an authorized task session. Remaining Phase 4 specifications
-  (chunking, embeddings, Qdrant, retrieval, etc.) are undefined and will follow
-  their own SDD cycles. Chunking must not start before T259 closes ingestion.
+- Phase 4 RAG: ingestion is complete and closed (T255–T259). The next boundary
+  is chunking, whose specification does not exist yet; it must be defined and
+  approved before any implementation. Remaining Phase 4 specifications
+  (embeddings, Qdrant, retrieval, etc.) are undefined and will follow their own
+  SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
