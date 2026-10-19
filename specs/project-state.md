@@ -16,7 +16,7 @@
 
 ## Last Completed Task
 - Task: T259 — Final integration verification and closure (RAG ingestion)
-- Commit: (pending — closure commit follows)
+- Commit: 36b4522 (closure record; verification-only, no implementation changes)
 - Scope delivered: no feature code; this closure record in
   `specs/project-state.md`
 - Verification against §13 and §16:
