@@ -11,9 +11,42 @@
   sections 1–14 and the decisions log are byte-for-byte unchanged
 - Implementation tasks defined: T255–T258 plus required T259 integration
   verification and closure; task IDs continue the sequence after T254
-- No RAG implementation has started
+- T255 complete: ingestion contracts and error taxonomy implemented and
+  committed (fda7b87); RAG implementation in progress
+- Remaining RAG implementation tasks: T256 (discovery and limit), T257 (loading
+  pipeline), T258 (service, configuration, root resolution), T259 (required
+  verification and closure)
 
 ## Last Completed Task
+- Task: T255 — RAG ingestion contracts and error taxonomy
+- Commit: fda7b87 (implementation); b568f20 records the approved specification
+  and architecture design
+- Scope delivered: `src/app/rag/ingestion/contracts.py`, `exceptions.py`, and
+  package `__init__.py` files; `tests/rag/ingestion/test_contracts.py` and test
+  package `__init__.py` files
+- Outcome:
+  - `IngestionResult` is a frozen dataclass storing immutable tuple
+    collections; `__post_init__` sorts each collection ascending by relative
+    POSIX path and coerces to tuple, so ordering cannot be bypassed by direct
+    construction; `build()` is the canonical construction path
+  - Counts are derived read-only properties (`succeeded_count`, `skipped_count`,
+    `failed_count`, `candidate_count`, `discovered_count`, `has_failures`); no
+    stored counts, so no construction path can contradict the collections
+  - `candidate_count` adds skipped entries with reason
+    `document_limit_exceeded`; both §9 count invariants are covered by tests
+  - Error taxonomy: `IngestionError` base plus `SourceRootError` (structural)
+    and the five per-file classifications, each with a stable distinct
+    `error_type`; messages combine a fixed description with the path only —
+    never document content; `FailedEntry.from_error` derives the stable name
+- Evidence:
+  - Focused: 18 passed (`pytest tests/rag`, run in the project Docker image)
+  - Full suite: 160 passed (`pytest tests`, includes live-Ollama integration)
+  - `git diff --check`: clean
+- Note: `src/app/rag/__init__.py` (empty) was added so the RAG package follows
+  the existing package convention; it is the only file beyond the T255 scope
+  listed in the previous state entry.
+
+## Phase 3 Closure Record — LLM Service (closed)
 - Task: Phase 3 acceptance verification (specification gate review, no feature code)
 - Commit: 1278734 (state record; verification-only, no implementation changes)
 - Scope verified: LLM Service, structured output, prompt management, error handling,
@@ -46,25 +79,22 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- ID: T255
-- Title: Contracts and error taxonomy (RAG ingestion)
+- ID: T256
+- Title: Deterministic discovery and limit (RAG ingestion)
 - Status: Not started (requires a separate authorized implementation session)
-- Depends on: approved Knowledge Document Ingestion Specification including
-  its approved architecture/contract design (§15–§16)
-- Scope: `src/app/rag/ingestion/__init__.py`, `contracts.py`, `exceptions.py`;
-  `tests/rag/__init__.py`, `tests/rag/ingestion/__init__.py`,
-  `tests/rag/ingestion/test_contracts.py`
-- Acceptance: §8, §9, and §15.2 of the specification — contract type shapes;
-  derived read-only counts with frozen tuple collections; `build()` as the
-  canonical construction path; ordering and count invariants not bypassable by
-  direct construction; every declared exception has a reachable role;
-  content-free messages
-- Remaining work after T255: T256 (discovery and limit), T257 (loading
-  pipeline), T258 (service, configuration, root resolution), and the mandatory
-  T259 integration verification and closure
-- Note: documentation-only session recorded this design; no commit; no
-  application code, tests, or configuration were changed. Implementation of
-  T255 is not authorized yet.
+- Depends on: T255 (contracts and error taxonomy) — complete
+- Scope: `src/app/rag/ingestion/discovery.py`;
+  `tests/rag/ingestion/test_discovery.py`
+- Acceptance: §4, §5, §9, and §15.3–§15.4 of the specification — deterministic
+  depth-first traversal with children in ascending name order; POSIX relative
+  paths; unsupported extensions skipped as `unsupported_format`; candidates
+  sorted before the limit; `document_limit_exceeded` entries never stat'ed,
+  containment-checked, or read; directory symlinks never traversed; traversal
+  failures at any level raise `SourceRootError`; §12 tests 1, 2, 11
+- Remaining work after T256: T257 (loading pipeline), T258 (service,
+  configuration, root resolution), and required T259 (integration verification
+  and closure)
+- Note: no implementation of T256 is authorized yet
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -114,11 +144,11 @@
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: ingestion specification and its architecture/contract design are
-  approved; implementation tasks T255–T258 and required verification T259 are
-  defined. No ingestion code may be written outside an authorized task session.
-  Remaining Phase 4 specifications (chunking, embeddings, Qdrant, retrieval,
-  etc.) are undefined and will follow their own SDD cycles.
+- Phase 4 RAG: ingestion specification and architecture are approved; T255 is
+  complete and T256–T258 plus required T259 remain. No ingestion code may be
+  written outside an authorized task session. Remaining Phase 4 specifications
+  (chunking, embeddings, Qdrant, retrieval, etc.) are undefined and will follow
+  their own SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
