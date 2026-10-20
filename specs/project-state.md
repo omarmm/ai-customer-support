@@ -1,20 +1,43 @@
 # AI Customer Support Backend — Project State
 
 ## Current Position
-- Current Phase: Phase 4 — RAG; first specification (knowledge document
-  ingestion) verified complete and closed
-- Day 25: Phase 3 acceptance verification complete; RAG unblocked
-- RAG: Knowledge Document Ingestion Specification approved at
-  `specs/rag/knowledge-document-ingestion.md`, including the §15 architecture
-  and §16 task breakdown
-- Ingestion implementation complete: T255 (fda7b87), T256 (f80f2db),
-  T257 (718ccd5), T258 (5da4f9d), and required T259 integration verification
-  and closure (this session)
-- No ingestion implementation work remains; no defect reopened a task
-- Next: define and approve the Chunking specification (Phase 4, second
-  specification). Chunking implementation is not authorized
+- Current Phase: Phase 4 — RAG; second specification (knowledge document
+  chunking) approved and documented
+- Day 26: chunking specification approved; no chunking implementation is
+  authorized
+- RAG: Knowledge Document Ingestion Specification approved and closed;
+  T255–T259 remain closed and unchanged
+- RAG: Knowledge Document Chunking Specification approved at
+  `specs/rag/knowledge-document-chunking.md`
+  (approval commit: 2bab0a1)
+- Next: T260 — Contracts, configuration identity, and tokenizer protocol.
+  T260 has not started and is not authorized
+- Production tokenizer/embedding model decision remains unresolved and blocks
+  T263
 
 ## Last Completed Task
+- Task: Day 26 — RAG Chunking Specification approval (specification gate;
+  no feature code)
+- Commit: 2bab0a1 (specification approval; this project-state record follows
+  in a separate documentation commit)
+- Scope delivered: approved `specs/rag/knowledge-document-chunking.md`; this
+  project-state record; no application, test, dependency, or environment
+  changes
+- Contract recorded: token-based chunking with 500-token default maximum and
+  75-token default overlap; configuration ID covering tokenizer identity,
+  algorithm version, maximum, and overlap; deterministic chunk IDs including
+  `source_path`; exact source slices and Unicode code-point offsets;
+  empty/whitespace documents represented with zero chunks; duplicate
+  `(source_path, document_id)` pairs rejected; no minimum chunk size in V1
+- Task breakdown recorded: T260–T264, with T263 blocked pending the separate
+  embedding model/tokenizer decision
+- Verification: `git diff --check` clean; documentation-only diff; no
+  implementation code or dependencies added
+- Outcome: specification approved; implementation is not authorized
+- Previously completed: T259 — Final integration verification and closure
+  (RAG ingestion)
+
+## Previously Completed Task — T259 (RAG ingestion closure)
 - Task: T259 — Final integration verification and closure (RAG ingestion)
 - Commit: 36b4522 (closure record; verification-only, no implementation changes)
 - Scope delivered: no feature code; this closure record in
@@ -80,17 +103,18 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- ID: Phase 4 RAG — Chunking (specification cycle; task IDs are assigned only
-  after the specification is approved)
-- Title: Define and approve the knowledge document chunking specification
+- ID: T260 — Contracts, configuration identity, and tokenizer protocol
+- Title: Define immutable chunking contracts, deterministic IDs, the tokenizer
+  protocol, and the span normalization contract
 - Status: Not started; not authorized
-- Depends on: ingestion closed (T259 complete)
-- Scope: specification-only session under `specs/rag/`; no implementation
-- Acceptance: a new approved specification defining the chunking boundary,
-  contract, configuration, testing requirements, acceptance criteria, and task
-  breakdown
-- Note: the roadmap lists chunking as the next Phase 4 item, but no chunking
-  specification exists, so no chunking code may be written.
+- Depends on: Knowledge Document Chunking Specification approved (2bab0a1)
+- Scope: `src/app/rag/chunking/__init__.py`, `contracts.py`, `tokenizer.py`,
+  `exceptions.py`; `tests/rag/chunking/` contract and tokenizer tests
+- Acceptance: specification §5, §7, §8, and §10; immutable contracts; exact
+  configuration and chunk ID formulas; raw-span validation and normalization;
+  construction invariants; tested tokenizer error roles
+- Note: T260 does not require the production tokenizer dependency. T263 is
+  blocked until the embedding model and tokenizer decision is approved.
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -135,6 +159,17 @@
   `default_repo_root()` prints `/app`; ingestion code imports no network client
   and performs no writes.
 - Latest full test run: 242 passed, 4 skipped (`pytest tests`).
+- Day 26 chunking approval (2bab0a1):
+  `specs/rag/knowledge-document-chunking.md` is Status: Approved. It defines
+  token-based chunking with provisional 500-token maximum and 75-token overlap
+  defaults; deterministic configuration and chunk IDs with `source_path`
+  included in chunk identity; exact Unicode code-point source slices; a precise
+  raw-token-span validation and whitespace-normalization contract;
+  zero-chunk representation for empty and whitespace-only documents; duplicate
+  `(source_path, document_id)` rejection; and a five-task breakdown T260–T264.
+  T260 is next but not started. T263 remains blocked by the unresolved
+  embedding model/tokenizer decision. No implementation code or dependencies
+  were added.
 - Prompt Management approval (8bc03aa): implementation
   `src/app/llm/prompt_management.py` uses stdlib `string.Template` with
   strict `substitute`; validates string names/values, then missing, then
@@ -153,11 +188,15 @@
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: ingestion is complete and closed (T255–T259). The next boundary
-  is chunking, whose specification does not exist yet; it must be defined and
-  approved before any implementation. Remaining Phase 4 specifications
+- Phase 4 RAG: ingestion (T255–T259) and the chunking specification are
+  complete; chunking implementation has not started. The production embedding
+  model and tokenizer implementation, version, and revision remain unresolved
+  and block T263. T260–T262 may proceed with the tokenizer protocol and a
+  deterministic fixture tokenizer. Remaining Phase 4 specifications
   (embeddings, Qdrant, retrieval, etc.) are undefined and will follow their own
   SDD cycles.
+- Chunking defaults of 500 tokens and 75 tokens of overlap are provisional
+  until T263 validates them against the approved embedding model's input limit.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
