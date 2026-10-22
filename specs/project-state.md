@@ -1,28 +1,46 @@
 # AI Customer Support Backend — Project State
 
 ## Current Position
-- Current Phase: Phase 4 — RAG; second specification (knowledge document
-  chunking) approved and documented
-- Day 26: chunking specification approved; no chunking implementation is
-  authorized
+- Current Phase: Phase 4 — RAG; chunking implementation underway
+- T260 — Contracts, configuration identity, and tokenizer protocol — complete
+  and committed
+- Next: T261 — Token-aware boundary selection and chunk assembly. T261 has not
+  started and is not authorized
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
-  `specs/rag/knowledge-document-chunking.md`
-  (approval commit: 2bab0a1)
-- Next: T260 — Contracts, configuration identity, and tokenizer protocol.
-  T260 has not started and is not authorized
+  `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1)
 - Production tokenizer/embedding model decision remains unresolved and blocks
   T263
 
 ## Last Completed Task
+- Task: T260 — Contracts, configuration identity, and tokenizer protocol
+- Commit: 8721376 (implementation; this project-state record follows in a
+  separate documentation commit)
+- Scope delivered: `src/app/rag/chunking/` contracts, configuration/chunk ID
+  formulas, tokenizer protocol, raw-span validation/normalization, and error
+  taxonomy; `tests/rag/chunking/`
+- Contract implemented: frozen `Chunk`, `DocumentChunking`, `ChunkingResult`,
+  and `ChunkingConfig`; §7.4 invariants enforced on direct and built
+  construction; canonical JSON SHA-256 configuration and chunk IDs per §8; §5
+  span validation and normalization, including byte-to-code-point conversion
+  with rejection of non-code-point byte boundaries; `ChunkingError` and
+  `TokenizerContractError` with content-free messages
+- Verification:
+  - Focused: 101 passed (`pytest tests/rag/chunking`)
+  - Full regression: 343 passed, 4 skipped (`pytest tests`; the skips are the
+    unchanged environment-conditional ingestion permission fixtures)
+  - `git diff --check`: clean; no changes outside T260 file scope
+- Outcome: T260 acceptance criteria and tests 1, 2, 16, and 17 pass
+- Previously completed: Day 26 — RAG Chunking Specification approval
+  (2bab0a1; state record 6d39a8e)
+
+## Previously Completed Task — Chunking specification approval
 - Task: Day 26 — RAG Chunking Specification approval (specification gate;
   no feature code)
-- Commit: 2bab0a1 (specification approval; this project-state record follows
-  in a separate documentation commit)
-- Scope delivered: approved `specs/rag/knowledge-document-chunking.md`; this
-  project-state record; no application, test, dependency, or environment
-  changes
+- Commit: 2bab0a1 (specification approval; state record 6d39a8e)
+- Scope delivered: approved `specs/rag/knowledge-document-chunking.md`; no
+  application, test, dependency, or environment changes
 - Contract recorded: token-based chunking with 500-token default maximum and
   75-token default overlap; configuration ID covering tokenizer identity,
   algorithm version, maximum, and overlap; deterministic chunk IDs including
@@ -31,9 +49,8 @@
   `(source_path, document_id)` pairs rejected; no minimum chunk size in V1
 - Task breakdown recorded: T260–T264, with T263 blocked pending the separate
   embedding model/tokenizer decision
-- Verification: `git diff --check` clean; documentation-only diff; no
-  implementation code or dependencies added
-- Outcome: specification approved; implementation is not authorized
+- Outcome: specification approved; T260–T264 remained unauthorized until a
+  separate session
 - Previously completed: T259 — Final integration verification and closure
   (RAG ingestion)
 
