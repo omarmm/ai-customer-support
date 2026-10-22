@@ -4,8 +4,10 @@
 - Current Phase: Phase 4 — RAG; chunking implementation underway
 - T260 — Contracts, configuration identity, and tokenizer protocol — complete
   and committed
-- Next: T261 — Token-aware boundary selection and chunk assembly. T261 has not
-  started and is not authorized
+- T261 — Token-aware boundary selection and chunk assembly — complete and
+  committed (f9030d3)
+- Next: T262 — Configuration and chunking service. T262 has not started and is
+  not authorized
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
@@ -14,9 +16,29 @@
   T263
 
 ## Last Completed Task
-- Task: T260 — Contracts, configuration identity, and tokenizer protocol
-- Commit: 8721376 (implementation; this project-state record follows in a
+- Task: T261 — Token-aware boundary selection and chunk assembly
+- Commit: f9030d3 (implementation; this project-state record follows in a
   separate documentation commit)
+- Scope delivered: `src/app/rag/chunking/chunker.py` and
+  `tests/rag/chunking/test_chunker.py` with deterministic fixture tokenizers;
+  no changes outside T261 file scope
+- Contract implemented: `chunk_document` follows §6 (token window, rightmost
+  paragraph → sentence → word boundary, hard cut, bounded overlap, forward
+  progress); exact source slices and token indexes via `Chunk.build`; empty and
+  whitespace-only documents short-circuit with zero tokens and zero chunks
+  without calling the tokenizer; tokenizer spans are validated and normalized
+  per §5
+- Verification:
+  - Focused: 199 passed (`pytest tests/rag/chunking`)
+  - Full regression: 441 passed, 4 skipped (`pytest tests`; the skips are the
+    unchanged environment-conditional ingestion permission fixtures)
+  - `git diff --check`: clean; no changes outside T261 file scope
+- Outcome: T261 acceptance criteria and tests 3–15 and 18 pass in addition to
+  the T260 tests
+
+## Previously Completed Task — T260 (chunking contracts)
+- Task: T260 — Contracts, configuration identity, and tokenizer protocol
+- Commit: 8721376 (state record 6262d5a)
 - Scope delivered: `src/app/rag/chunking/` contracts, configuration/chunk ID
   formulas, tokenizer protocol, raw-span validation/normalization, and error
   taxonomy; `tests/rag/chunking/`
@@ -26,14 +48,7 @@
   span validation and normalization, including byte-to-code-point conversion
   with rejection of non-code-point byte boundaries; `ChunkingError` and
   `TokenizerContractError` with content-free messages
-- Verification:
-  - Focused: 101 passed (`pytest tests/rag/chunking`)
-  - Full regression: 343 passed, 4 skipped (`pytest tests`; the skips are the
-    unchanged environment-conditional ingestion permission fixtures)
-  - `git diff --check`: clean; no changes outside T260 file scope
 - Outcome: T260 acceptance criteria and tests 1, 2, 16, and 17 pass
-- Previously completed: Day 26 — RAG Chunking Specification approval
-  (2bab0a1; state record 6d39a8e)
 
 ## Previously Completed Task — Chunking specification approval
 - Task: Day 26 — RAG Chunking Specification approval (specification gate;
@@ -120,18 +135,20 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- ID: T260 — Contracts, configuration identity, and tokenizer protocol
-- Title: Define immutable chunking contracts, deterministic IDs, the tokenizer
-  protocol, and the span normalization contract
+- ID: T262 — Configuration and chunking service
+- Title: Add additive chunking settings and aggregate document chunking through
+  a settings-independent service
 - Status: Not started; not authorized
-- Depends on: Knowledge Document Chunking Specification approved (2bab0a1)
-- Scope: `src/app/rag/chunking/__init__.py`, `contracts.py`, `tokenizer.py`,
-  `exceptions.py`; `tests/rag/chunking/` contract and tokenizer tests
-- Acceptance: specification §5, §7, §8, and §10; immutable contracts; exact
-  configuration and chunk ID formulas; raw-span validation and normalization;
-  construction invariants; tested tokenizer error roles
-- Note: T260 does not require the production tokenizer dependency. T263 is
-  blocked until the embedding model and tokenizer decision is approved.
+- Depends on: T261 (f9030d3)
+- Scope: `src/app/rag/chunking/service.py`; additive fields and cross-field
+  validation in `src/app/core/config.py`; `.env.example`;
+  `tests/rag/chunking/test_service.py`
+- Acceptance: specification §9; settings validation; `from_settings` without
+  eager settings access; aggregation; deterministic ordering; metadata;
+  input-order independence; purity. Tests 12, 13, 15, 17, and 18 pass at the
+  service level
+- Note: T263 remains blocked until the embedding model and tokenizer decision
+  is approved.
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -175,7 +192,16 @@
   `--network none`; full regression 242 passed / 4 skipped; Docker
   `default_repo_root()` prints `/app`; ingestion code imports no network client
   and performs no writes.
-- Latest full test run: 242 passed, 4 skipped (`pytest tests`).
+- T261 verification: `chunk_document` follows §6 with a deterministic fixture
+  tokenizer. Empty and whitespace-only content short-circuits to zero tokens
+  and zero chunks without calling the tokenizer; non-empty content tokenizes
+  exactly once and validates/normalizes spans per §5. Boundaries prefer the
+  rightmost paragraph, then sentence, then word boundary, with a hard cut;
+  chunks are exact source slices with code-point offsets and contiguous token
+  indexes; every chunk satisfies `token_count <= max_tokens`; overlap never
+  exceeds its target and the next window always advances. Focused chunking
+  suite: 199 passed; full regression: 441 passed, 4 skipped.
+- Latest full test run: 441 passed, 4 skipped (`pytest tests`).
 - Day 26 chunking approval (2bab0a1):
   `specs/rag/knowledge-document-chunking.md` is Status: Approved. It defines
   token-based chunking with provisional 500-token maximum and 75-token overlap
@@ -184,9 +210,9 @@
   raw-token-span validation and whitespace-normalization contract;
   zero-chunk representation for empty and whitespace-only documents; duplicate
   `(source_path, document_id)` rejection; and a five-task breakdown T260–T264.
-  T260 is next but not started. T263 remains blocked by the unresolved
-  embedding model/tokenizer decision. No implementation code or dependencies
-  were added.
+  T260 and T261 have since completed; T262 is next. T263 remains blocked by the
+  unresolved embedding model/tokenizer decision. No implementation code or
+  dependencies were added by the approval.
 - Prompt Management approval (8bc03aa): implementation
   `src/app/llm/prompt_management.py` uses stdlib `string.Template` with
   strict `substitute`; validates string names/values, then missing, then
@@ -205,10 +231,10 @@
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: ingestion (T255–T259) and the chunking specification are
-  complete; chunking implementation has not started. The production embedding
+- Phase 4 RAG: ingestion (T255–T259), the chunking specification, T260, and
+  T261 are complete. T262 is next but not started. The production embedding
   model and tokenizer implementation, version, and revision remain unresolved
-  and block T263. T260–T262 may proceed with the tokenizer protocol and a
+  and block T263. T262 may proceed with the tokenizer protocol and a
   deterministic fixture tokenizer. Remaining Phase 4 specifications
   (embeddings, Qdrant, retrieval, etc.) are undefined and will follow their own
   SDD cycles.
