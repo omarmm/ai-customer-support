@@ -6,8 +6,11 @@
   and committed
 - T261 — Token-aware boundary selection and chunk assembly — complete and
   committed (f9030d3)
-- Next: T262 — Configuration and chunking service. T262 has not started and is
-  not authorized
+- T262 — Configuration and chunking service — complete and committed (68dbf55)
+- Next: T263 — Production tokenizer adapter and conformance. T263 is blocked
+  pending separate approval of the embedding provider/model and tokenizer
+  implementation, version, and revision. It has not started and is not
+  authorized
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
@@ -16,23 +19,42 @@
   T263
 
 ## Last Completed Task
-- Task: T261 — Token-aware boundary selection and chunk assembly
-- Commit: f9030d3 (implementation; this project-state record follows in a
+- Task: T262 — Configuration and chunking service
+- Commit: 68dbf55 (implementation; this project-state record follows in a
   separate documentation commit)
+- Scope delivered: `src/app/rag/chunking/service.py`; additive chunking fields
+  and cross-field validation in `src/app/core/config.py`; `.env.example`;
+  `tests/rag/chunking/test_service.py`; no changes outside T262 file scope
+- Contract implemented: `knowledge_chunk_max_tokens` defaults to 500 with
+  `gt=0`; `knowledge_chunk_overlap_tokens` defaults to 75 with `ge=0`;
+  `Settings` rejects `overlap_tokens >= max_tokens` at construction.
+  `ChunkingService` builds one effective `ChunkingConfig` from explicit values
+  and the tokenizer identity, supports `from_settings(settings, tokenizer)`
+  without reading global settings, rejects duplicate
+  `(source_path, document_id)` pairs before chunking, preserves zero-chunk
+  documents, and aggregates deterministically through `ChunkingResult`.
+- Verification:
+  - Focused: 235 passed (`pytest tests/rag/chunking`)
+  - Full regression: 477 passed, 4 skipped (`pytest tests` with PostgreSQL
+    running; the skips are the unchanged environment-conditional ingestion
+    permission fixtures)
+  - `git diff --check`: clean; no changes outside T262 file scope
+  - Service-level tests 12, 13, 15, 17, and 18 pass, plus settings validation
+    and non-eager settings composition
+- Outcome: T262 acceptance criteria in §9 and §15 are met
+
+## Previously Completed Task — T261 (boundary selection and assembly)
+- Task: T261 — Token-aware boundary selection and chunk assembly
+- Commit: f9030d3 (state record c61676a)
 - Scope delivered: `src/app/rag/chunking/chunker.py` and
-  `tests/rag/chunking/test_chunker.py` with deterministic fixture tokenizers;
-  no changes outside T261 file scope
+  `tests/rag/chunking/test_chunker.py` with deterministic fixture tokenizers
 - Contract implemented: `chunk_document` follows §6 (token window, rightmost
   paragraph → sentence → word boundary, hard cut, bounded overlap, forward
   progress); exact source slices and token indexes via `Chunk.build`; empty and
   whitespace-only documents short-circuit with zero tokens and zero chunks
-  without calling the tokenizer; tokenizer spans are validated and normalized
-  per §5
-- Verification:
-  - Focused: 199 passed (`pytest tests/rag/chunking`)
-  - Full regression: 441 passed, 4 skipped (`pytest tests`; the skips are the
-    unchanged environment-conditional ingestion permission fixtures)
-  - `git diff --check`: clean; no changes outside T261 file scope
+  without calling the tokenizer; spans validated and normalized per §5
+- Verification: focused 199 passed (`pytest tests/rag/chunking`); full
+  regression 441 passed, 4 skipped (`pytest tests`); `git diff --check` clean
 - Outcome: T261 acceptance criteria and tests 3–15 and 18 pass in addition to
   the T260 tests
 
@@ -135,20 +157,22 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- ID: T262 — Configuration and chunking service
-- Title: Add additive chunking settings and aggregate document chunking through
-  a settings-independent service
-- Status: Not started; not authorized
-- Depends on: T261 (f9030d3)
-- Scope: `src/app/rag/chunking/service.py`; additive fields and cross-field
-  validation in `src/app/core/config.py`; `.env.example`;
-  `tests/rag/chunking/test_service.py`
-- Acceptance: specification §9; settings validation; `from_settings` without
-  eager settings access; aggregation; deterministic ordering; metadata;
-  input-order independence; purity. Tests 12, 13, 15, 17, and 18 pass at the
-  service level
-- Note: T263 remains blocked until the embedding model and tokenizer decision
-  is approved.
+- ID: T263 — Production tokenizer adapter and conformance
+- Title: Implement the approved production tokenizer adapter and verify
+  conformance
+- Status: Blocked; not started and not authorized. Requires a separate approved
+  decision before implementation
+- Depends on: T262 (68dbf55) and the approved embedding provider/model and
+  tokenizer implementation, version, revision, identity format, and
+  input-length compatibility decision
+- Scope: selected adapter module; approved dependency declaration;
+  `tests/rag/chunking/test_tokenizer_adapter.py`
+- Acceptance: specification §5 and test 19; partition; determinism; no
+  truncation; token limit; pinned identity; embedding input-length
+  compatibility (amend the specification if 500/75 does not fit)
+- Note: T264 (final integration verification and closure) follows T263. T263
+  must not begin until the embedding model/tokenizer decision is approved.
+  Specification §5.7 and §17 define the minimum decision required.
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -201,7 +225,17 @@
   indexes; every chunk satisfies `token_count <= max_tokens`; overlap never
   exceeds its target and the next window always advances. Focused chunking
   suite: 199 passed; full regression: 441 passed, 4 skipped.
-- Latest full test run: 441 passed, 4 skipped (`pytest tests`).
+- Latest full test run: 477 passed, 4 skipped (`pytest tests` with PostgreSQL
+  running; the skips are the unchanged environment-conditional ingestion
+  permission fixtures).
+- T262 verification: additive settings default to 500/75, are environment
+  configurable, and reject `overlap_tokens >= max_tokens` at `Settings`
+  construction. `ChunkingService` builds one config per service, uses
+  `from_settings` without importing or calling `get_settings`, rejects duplicate
+  `(source_path, document_id)` pairs before tokenizing, preserves zero-chunk
+  documents, and aggregates through `ChunkingResult` so ordering is independent
+  of input order. Focused chunking suite: 235 passed; full regression: 477
+  passed, 4 skipped. No changes outside T262 file scope.
 - Day 26 chunking approval (2bab0a1):
   `specs/rag/knowledge-document-chunking.md` is Status: Approved. It defines
   token-based chunking with provisional 500-token maximum and 75-token overlap
@@ -210,9 +244,9 @@
   raw-token-span validation and whitespace-normalization contract;
   zero-chunk representation for empty and whitespace-only documents; duplicate
   `(source_path, document_id)` rejection; and a five-task breakdown T260–T264.
-  T260 and T261 have since completed; T262 is next. T263 remains blocked by the
-  unresolved embedding model/tokenizer decision. No implementation code or
-  dependencies were added by the approval.
+  T260–T262 have since completed; T263 is next but blocked by the unresolved
+  embedding model/tokenizer decision. No implementation code or dependencies
+  were added by the approval.
 - Prompt Management approval (8bc03aa): implementation
   `src/app/llm/prompt_management.py` uses stdlib `string.Template` with
   strict `substitute`; validates string names/values, then missing, then
@@ -231,13 +265,12 @@
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: ingestion (T255–T259), the chunking specification, T260, and
-  T261 are complete. T262 is next but not started. The production embedding
-  model and tokenizer implementation, version, and revision remain unresolved
-  and block T263. T262 may proceed with the tokenizer protocol and a
-  deterministic fixture tokenizer. Remaining Phase 4 specifications
-  (embeddings, Qdrant, retrieval, etc.) are undefined and will follow their own
-  SDD cycles.
+- Phase 4 RAG: ingestion (T255–T259), the chunking specification, and
+  T260–T262 are complete. T263 is next but blocked. The production embedding
+  model and tokenizer implementation, version, revision, identity format, and
+  input-length compatibility remain unresolved; §5.7 and §17 define the required
+  decision. Remaining Phase 4 specifications (embeddings, Qdrant, retrieval,
+  etc.) are undefined and will follow their own SDD cycles.
 - Chunking defaults of 500 tokens and 75 tokens of overlap are provisional
   until T263 validates them against the approved embedding model's input limit.
 - Retry concrete defaults (chosen in T253) may be revisited during future
