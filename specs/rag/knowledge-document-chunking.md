@@ -160,7 +160,7 @@ The embedding provider/model and production tokenizer are approved in `specs/rag
 
 The tokenizer asset is vendored during T263 and its checksum is computed from the vendored file; it is never pre-filled. The adapter loads the pinned asset from a local filesystem path and must not depend on the Hugging Face Hub at runtime. The production tokenizer must be model-aligned and must provide source offsets that satisfy §5. A generation tokenizer is not assumed suitable for an embedding model.
 
-Input-length compatibility remains pending. The conservative limit is 2048 tokens; T263 must verify that `max_tokens` plus the embedding model's special or prefix tokens fits that limit. The 500/75 defaults remain provisional until this check is evidenced. If it fails, this specification must be amended before T263 implementation.
+Input-length compatibility was verified in T263: `500` maximum tokens plus `4` prefix tokens and `2` special tokens totals `506`, within the conservative 2048-token limit. The 500/75 defaults are retained. Had the check failed, this specification would have been amended before implementation; the defaults must not be changed silently.
 
 ### 6. Chunking Algorithm and Boundary Behavior
 
@@ -491,7 +491,7 @@ Requirements:
 - The tokenizer identity is selected in the composition root and pinned in code; it is not an environment override in the MVP, avoiding accidental tokenizer/config mismatch.
 - `ChunkingService` must not call `get_settings()` eagerly. It exposes `from_settings(settings, tokenizer)` for the composition root and accepts explicit configuration values at construction.
 - Retrieval-only settings, including `top_k`, belong to a later retrieval specification and must not enter the chunking configuration ID.
-- The approved defaults are `500` tokens and `75` tokens of overlap. They remain provisional until T263 conformance validates that `max_tokens` plus the embedding model's special or prefix tokens fits the model's input limit. If they do not fit, this specification must be amended before T263 implementation; the defaults must not be silently changed.
+- The approved defaults are `500` tokens and `75` tokens of overlap. T263 conformance verified `500 + 4 prefix + 2 special = 506 <= 2048`; the defaults are retained. If a future model or limit does not fit, this specification must be amended before implementation; the defaults must not be silently changed.
 
 There are no per-document or per-request overrides in V1.
 
@@ -698,7 +698,9 @@ This specification does not authorize implementation.
 | Embedding provider and model | Resolved — Ollama `nomic-embed-text:v1.5`; see `specs/rag/embedding-tokenizer-decision.md` | T263 implementation |
 | Tokenizer implementation, dependency, version, and revision | Resolved — `tokenizers==0.23.3`, repository `nomic-ai/nomic-embed-text-v1.5` at revision `e9b6763023c676ca8431644204f50c2b100d9aab`; see decision record | T263 implementation |
 | Exact tokenizer `identity` string format | Resolved — `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)>`; see decision record | T263 implementation |
-| Confirmation that `500/75` fits the embedding model input limit | Pending — conservative 2048-token limit; must be measured in T263; defaults remain provisional | T263 conformance |
+| Confirmation that `500/75` fits the embedding model input limit | Resolved — measured `506` (500 + 4 prefix + 2 special) against the conservative 2048 limit in T263; 500/75 retained | None |
+| Container packaging of the pinned tokenizer asset | Open — recorded in §20.1; not in T263 or T264 scope | Future packaging task (unnumbered) |
+| Chunking composition-root wiring for the approved adapter | Open — recorded in §20.2; not in T263 scope | Future integration task (unnumbered) |
 | Manifest persistence location: PostgreSQL, Qdrant payload, or dedicated manifest | Unresolved; no persistence contract exists | Future index-generation work |
 | Qdrant collection naming, alias strategy, and payload schema | Unresolved; no Qdrant integration exists | Future Qdrant specification |
 | Qdrant image version pin | Recommended before migration work | Future Qdrant specification |
@@ -710,7 +712,7 @@ Approved decisions recorded by this specification:
 - Reject duplicate `(source_path, document_id)` pairs.
 - No minimum chunk size in V1.
 - Empty and whitespace-only documents produce zero-token, zero-chunk records and do not call the tokenizer.
-- Defaults of 500 tokens and 75 tokens of overlap, provisional pending T263 conformance.
+- Defaults of 500 tokens and 75 tokens of overlap, verified in T263 conformance (`506 <= 2048`) and retained.
 - No automatic re-chunking, re-embedding, or index rebuilding when configuration changes.
 - The embedding provider/model and production tokenizer are recorded separately in `specs/rag/embedding-tokenizer-decision.md`.
 
@@ -767,6 +769,24 @@ Task IDs continue the project sequence after T259.
 Notes:
 
 - Each implementation task ends with focused tests green, no regression, and its own task commit.
-- The embedding model and tokenizer decision is approved in `specs/rag/embedding-tokenizer-decision.md`. T263 remains unimplemented and requires a separate authorized session; asset vendoring/checksum and the 2048-token compatibility check are T263 verification steps. T260–T262 remain complete with the tokenizer protocol and a deterministic fixture tokenizer, but chunking is not production-ready until T263 and T264 are complete.
+- The embedding model and tokenizer decision is approved in `specs/rag/embedding-tokenizer-decision.md`. Asset vendoring/checksum and the 2048-token compatibility check are T263 deliverables. T260–T262 remain complete with the tokenizer protocol and a deterministic fixture tokenizer, but chunking is not production-ready until T263 and T264 are complete.
 - T264 is mandatory. A defect found within approved scope reopens the owning task instead of being patched in T264.
 - Implementing any task requires a separate authorized session; approval of this specification does not authorize implementation.
+
+### 20. Follow-ups Recorded During T263 Review
+
+These items are not part of T263 and are not authorized by this specification. They are recorded so they are not lost. Each requires its own approved task; no task number is assigned here, and the T260–T264 sequence is unchanged.
+
+#### 20.1 Container packaging of the pinned tokenizer asset
+
+- Scope: package the pinned `assets/tokenizers/nomic-embed-text-v1.5/tokenizer.json` into the production image (for example, the image build context and `Dockerfile`). T263 scope covers the adapter, dependency, and tests only; T264 is verification-only.
+- Requirement: the production image must include the pinned asset, and the adapter must load it from the image filesystem without a repository bind mount.
+- Acceptance evidence: build the image from a clean context; run the adapter in that image with no host bind mount and no network; load the asset, tokenize a fixed sample, and confirm the identity digest equals the SHA-256 of the packaged file.
+- Status: Open. Do not mark resolved until the image build and no-bind-mount verification are recorded.
+
+#### 20.2 Chunking composition-root wiring
+
+- Scope: wire `NomicEmbedTextTokenizer` into the production chunking dependency construction and inject it into `ChunkingService` (using `from_settings` for configured max/overlap tokens). T263 delivered the adapter only; no production call site constructs it today.
+- Requirement: the production chunking path must construct and use the approved adapter, with the tokenizer identity pinned in code rather than selected by an environment variable.
+- Acceptance evidence: an integration test that exercises the actual production wiring, not the adapter in isolation; asserts `ChunkingService.config.tokenizer_id` equals the adapter identity; chunks a document end to end; and runs without network access.
+- Status: Open. Do not mark resolved until the wiring and integration test are verified.
