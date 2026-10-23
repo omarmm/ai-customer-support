@@ -7,16 +7,16 @@
 - T261 — Token-aware boundary selection and chunk assembly — complete and
   committed (f9030d3)
 - T262 — Configuration and chunking service — complete and committed (68dbf55)
-- Next: T263 — Production tokenizer adapter and conformance. T263 is blocked
-  pending separate approval of the embedding provider/model and tokenizer
-  implementation, version, and revision. It has not started and is not
-  authorized
+- Embedding and tokenizer decision approved (2026-10-23) at
+  `specs/rag/embedding-tokenizer-decision.md`; the T263 approval prerequisite
+  is satisfied
+- Next: T263 — Production tokenizer adapter and conformance. It has not started
+  and requires a separate authorized session. Tokenizer asset vendoring,
+  checksum computation, and the 2048-token compatibility check remain pending
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
   `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1)
-- Production tokenizer/embedding model decision remains unresolved and blocks
-  T263
 
 ## Last Completed Task
 - Task: T262 — Configuration and chunking service
@@ -42,6 +42,33 @@
   - Service-level tests 12, 13, 15, 17, and 18 pass, plus settings validation
     and non-eager settings composition
 - Outcome: T262 acceptance criteria in §9 and §15 are met
+
+## Approved Decision — Embedding and tokenizer (T263 prerequisite)
+- Task: Approve the embedding provider/model and production tokenizer decision
+  (specification/decision gate; documentation only)
+- Commit: this documentation commit (`docs(rag): approve embedding tokenizer
+  decision`); SHA is recorded in Git history
+- Scope delivered: `specs/rag/embedding-tokenizer-decision.md`; targeted updates
+  to §5.7, §17, and the task-breakdown note in
+  `specs/rag/knowledge-document-chunking.md`; this state record. No application
+  code, tests, dependencies, model pulls, or tokenizer assets
+- Decision recorded: Ollama serving model `nomic-embed-text:v1.5`;
+  tokenizer `tokenizers==0.23.3`; repository
+  `nomic-ai/nomic-embed-text-v1.5` at revision
+  `e9b6763023c676ca8431644204f50c2b100d9aab`; asset `tokenizer.json`;
+  identity format
+  `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)[:12]>`
+  with `model_id` denoting the tokenizer/model repository, not the Ollama
+  serving tag. Runtime is local-first with no remote downloads or remote model
+  code
+- Remaining prerequisites for T263: vendor the asset from the pinned revision
+  and compute its full SHA-256; add the approved dependency pin at
+  implementation time; evidence `500 + prefix + special` tokens against the
+  conservative 2048-token limit; authorize and execute T263 in a separate
+  session
+- Outcome: the T263 approval prerequisite is met. T263 is not complete and has
+  not started. The context-limit compatibility check was not performed and is
+  not claimed as passed
 
 ## Previously Completed Task — T261 (boundary selection and assembly)
 - Task: T261 — Token-aware boundary selection and chunk assembly
@@ -160,19 +187,21 @@
 - ID: T263 — Production tokenizer adapter and conformance
 - Title: Implement the approved production tokenizer adapter and verify
   conformance
-- Status: Blocked; not started and not authorized. Requires a separate approved
-  decision before implementation
-- Depends on: T262 (68dbf55) and the approved embedding provider/model and
-  tokenizer implementation, version, revision, identity format, and
-  input-length compatibility decision
+- Status: Decision approved; implementation not started. Requires a separate
+  authorized session
+- Depends on: T262 (68dbf55) and the approved embedding/tokenizer decision at
+  `specs/rag/embedding-tokenizer-decision.md`
 - Scope: selected adapter module; approved dependency declaration;
   `tests/rag/chunking/test_tokenizer_adapter.py`
 - Acceptance: specification §5 and test 19; partition; determinism; no
   truncation; token limit; pinned identity; embedding input-length
-  compatibility (amend the specification if 500/75 does not fit)
-- Note: T264 (final integration verification and closure) follows T263. T263
-  must not begin until the embedding model/tokenizer decision is approved.
-  Specification §5.7 and §17 define the minimum decision required.
+  compatibility against the conservative 2048-token limit (amend the
+  specification if 500/75 does not fit)
+- Note: T264 (final integration verification and closure) follows T263. The
+  tokenizer asset must be vendored from the pinned revision and its full
+  SHA-256 computed before the adapter identity is finalized. The compatibility
+  result remains unverified until T263 evidence exists; it must not be claimed
+  in advance.
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -236,6 +265,21 @@
   documents, and aggregates through `ChunkingResult` so ordering is independent
   of input order. Focused chunking suite: 235 passed; full regression: 477
   passed, 4 skipped. No changes outside T262 file scope.
+- Embedding/tokenizer decision approval (2026-10-23):
+  `specs/rag/embedding-tokenizer-decision.md` records Ollama
+  `nomic-embed-text:v1.5`, `tokenizers==0.23.3`, repository
+  `nomic-ai/nomic-embed-text-v1.5` at revision
+  `e9b6763023c676ca8431644204f50c2b100d9aab`, asset `tokenizer.json`, and the
+  identity format
+  `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)[:12]>`.
+  `model_id` is the tokenizer/model repository, not the Ollama serving tag; the
+  serving tag is excluded from the chunking identity so serving-side changes do
+  not force re-chunking. Runtime is local-first with no remote downloads or
+  remote model code; adapter behavior disables special tokens, truncation, and
+  padding. The conservative input limit is 2048 tokens. The asset checksum,
+  dependency installability, and the `500 + prefix + special <= 2048` check are
+  T263 verification items and were not performed by this documentation-only
+  approval.
 - Day 26 chunking approval (2bab0a1):
   `specs/rag/knowledge-document-chunking.md` is Status: Approved. It defines
   token-based chunking with provisional 500-token maximum and 75-token overlap
@@ -244,9 +288,9 @@
   raw-token-span validation and whitespace-normalization contract;
   zero-chunk representation for empty and whitespace-only documents; duplicate
   `(source_path, document_id)` rejection; and a five-task breakdown T260–T264.
-  T260–T262 have since completed; T263 is next but blocked by the unresolved
-  embedding model/tokenizer decision. No implementation code or dependencies
-  were added by the approval.
+  T260–T262 have since completed; T263 is next, and the embedding
+  model/tokenizer decision was subsequently approved (see above). No
+  implementation code or dependencies were added by the approval.
 - Prompt Management approval (8bc03aa): implementation
   `src/app/llm/prompt_management.py` uses stdlib `string.Template` with
   strict `substitute`; validates string names/values, then missing, then
@@ -265,14 +309,17 @@
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: ingestion (T255–T259), the chunking specification, and
-  T260–T262 are complete. T263 is next but blocked. The production embedding
-  model and tokenizer implementation, version, revision, identity format, and
-  input-length compatibility remain unresolved; §5.7 and §17 define the required
-  decision. Remaining Phase 4 specifications (embeddings, Qdrant, retrieval,
-  etc.) are undefined and will follow their own SDD cycles.
+- Phase 4 RAG: ingestion (T255–T259), the chunking specification, T260–T262,
+  and the embedding/tokenizer decision are complete. T263 is next; its approval
+  prerequisite is met, but it has not started and requires a separate
+  authorized session. Before T263 can close, the tokenizer asset must be
+  vendored with a computed checksum, the approved dependency pin added, and the
+  2048-token compatibility check evidenced. Remaining Phase 4 specifications
+  (embeddings, Qdrant, retrieval, etc.) are undefined and will follow their own
+  SDD cycles.
 - Chunking defaults of 500 tokens and 75 tokens of overlap are provisional
-  until T263 validates them against the approved embedding model's input limit.
+  until T263 records the compatibility result against the conservative
+  2048-token limit.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 

@@ -148,18 +148,19 @@ The adapter must not execute remote model code by default.
 
 Any violation of this section raises `TokenizerContractError`. The error message contains identifiers and positions only, never document content.
 
-#### 5.7 Unresolved production tokenizer dependency
+#### 5.7 Production tokenizer dependency (approved)
 
-No embedding model, tokenizer implementation, dependency, version, or revision is selected by this specification. The production tokenizer is a separate approval prerequisite for T263.
+The embedding provider/model and production tokenizer are approved in `specs/rag/embedding-tokenizer-decision.md`:
 
-The minimum additional decision required before T263 is:
+- Provider and serving model: Ollama `nomic-embed-text:v1.5`.
+- Tokenizer implementation: `tokenizers==0.23.3`.
+- Tokenizer/model repository: `nomic-ai/nomic-embed-text-v1.5` at revision `e9b6763023c676ca8431644204f50c2b100d9aab`, asset `tokenizer.json`.
+- Identity format: `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)[:12]>`, where `model_id` is the tokenizer/model repository identifier, not the Ollama serving tag.
+- Runtime mode: local-first; no remote downloads or remote model code at runtime.
 
-- Embedding provider and model.
-- Tokenizer implementation, version, and pinned revision.
-- The exact stable `identity` string format.
-- Confirmation that `max_tokens` plus the embedding model's special or prefix tokens fits the embedding model's input limit.
+The tokenizer asset is vendored during T263 and its checksum is computed from the vendored file; it is never pre-filled. The production tokenizer must be model-aligned and must provide source offsets that satisfy §5. A generation tokenizer is not assumed suitable for an embedding model.
 
-The production tokenizer must be model-aligned and must provide source offsets that satisfy §5. A generation tokenizer is not assumed suitable for an embedding model.
+Input-length compatibility remains pending. The conservative limit is 2048 tokens; T263 must verify that `max_tokens` plus the embedding model's special or prefix tokens fits that limit. The 500/75 defaults remain provisional until this check is evidenced. If it fails, this specification must be amended before T263 implementation.
 
 ### 6. Chunking Algorithm and Boundary Behavior
 
@@ -694,10 +695,10 @@ This specification does not authorize implementation.
 
 | Decision | Status | Blocks |
 | --- | --- | --- |
-| Embedding provider and model | Unresolved; no model selected | T263 |
-| Tokenizer implementation, dependency, version, and revision | Unresolved; no tokenizer dependency exists | T263 |
-| Exact tokenizer `identity` string format | Unresolved until tokenizer selection | T263 |
-| Confirmation that `500/75` fits the embedding model input limit | Unresolved until model selection; defaults remain provisional | T263 |
+| Embedding provider and model | Resolved — Ollama `nomic-embed-text:v1.5`; see `specs/rag/embedding-tokenizer-decision.md` | T263 implementation |
+| Tokenizer implementation, dependency, version, and revision | Resolved — `tokenizers==0.23.3`, repository `nomic-ai/nomic-embed-text-v1.5` at revision `e9b6763023c676ca8431644204f50c2b100d9aab`; see decision record | T263 implementation |
+| Exact tokenizer `identity` string format | Resolved — `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)[:12]>`; see decision record | T263 implementation |
+| Confirmation that `500/75` fits the embedding model input limit | Pending — conservative 2048-token limit; must be measured in T263; defaults remain provisional | T263 conformance |
 | Manifest persistence location: PostgreSQL, Qdrant payload, or dedicated manifest | Unresolved; no persistence contract exists | Future index-generation work |
 | Qdrant collection naming, alias strategy, and payload schema | Unresolved; no Qdrant integration exists | Future Qdrant specification |
 | Qdrant image version pin | Recommended before migration work | Future Qdrant specification |
@@ -711,6 +712,7 @@ Approved decisions recorded by this specification:
 - Empty and whitespace-only documents produce zero-token, zero-chunk records and do not call the tokenizer.
 - Defaults of 500 tokens and 75 tokens of overlap, provisional pending T263 conformance.
 - No automatic re-chunking, re-embedding, or index rebuilding when configuration changes.
+- The embedding provider/model and production tokenizer are recorded separately in `specs/rag/embedding-tokenizer-decision.md`.
 
 ### 18. File Placement and Interfaces
 
@@ -765,6 +767,6 @@ Task IDs continue the project sequence after T259.
 Notes:
 
 - Each implementation task ends with focused tests green, no regression, and its own task commit.
-- T263 is blocked until the embedding model and tokenizer decision is approved. T260–T262 can proceed with the tokenizer protocol and a deterministic fixture tokenizer, but chunking is not production-ready until T263 and T264 are complete.
+- The embedding model and tokenizer decision is approved in `specs/rag/embedding-tokenizer-decision.md`. T263 remains unimplemented and requires a separate authorized session; asset vendoring/checksum and the 2048-token compatibility check are T263 verification steps. T260–T262 remain complete with the tokenizer protocol and a deterministic fixture tokenizer, but chunking is not production-ready until T263 and T264 are complete.
 - T264 is mandatory. A defect found within approved scope reopens the owning task instead of being patched in T264.
 - Implementing any task requires a separate authorized session; approval of this specification does not authorize implementation.
