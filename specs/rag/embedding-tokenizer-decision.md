@@ -121,12 +121,15 @@ All T263 prerequisites were satisfied at the T263 review:
    special tokens, and record the evidence: satisfied. The measured total is
    `500 + 4 prefix + 2 special = 506 <= 2048`.
 5. Authorize and execute T263 in a separate session. T264 follows T263:
-   satisfied. T263 implementation and tests passed the latest reported runs;
-   commit and T264 closure follow.
+   satisfied. T263 is committed at
+   `0e5af08dc6c8ec3375a0361836e9d7e0c7196c31`; T264 verification and closure
+   follow.
 
 Container packaging and composition-root wiring are follow-ups recorded in §20
 of the chunking specification. They are not T263 prerequisites and are not
-authorized by this decision. Both remain open.
+authorized by this decision. T265 is the Docker tokenizer-asset packaging task
+and depends on T264 closure; T266 is the chunking composition-root wiring task
+and depends on T265 closure. Both remain open.
 
 ## 6. Out of Scope
 

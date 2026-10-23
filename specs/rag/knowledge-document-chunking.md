@@ -490,6 +490,7 @@ Requirements:
 - Both are documented in `.env.example` when T262 implements the settings.
 - The tokenizer identity is selected in the composition root and pinned in code; it is not an environment override in the MVP, avoiding accidental tokenizer/config mismatch.
 - `ChunkingService` must not call `get_settings()` eagerly. It exposes `from_settings(settings, tokenizer)` for the composition root and accepts explicit configuration values at construction.
+- The production composition root is `src/app/rag/chunking/composition.py` (T266). At application startup it constructs one `NomicEmbedTextTokenizer` from the pinned local asset and injects it into `ChunkingService.from_settings(settings, tokenizer)`; the composed service is exposed through `app.state`. The service is constructed once per application process, not per request. T266 adds no ingestion endpoint and no production consumer.
 - Retrieval-only settings, including `top_k`, belong to a later retrieval specification and must not enter the chunking configuration ID.
 - The approved defaults are `500` tokens and `75` tokens of overlap. T263 conformance verified `500 + 4 prefix + 2 special = 506 <= 2048`; the defaults are retained. If a future model or limit does not fit, this specification must be amended before implementation; the defaults must not be silently changed.
 
@@ -670,12 +671,38 @@ Tests 1–18 must pass with a deterministic fixture tokenizer before T263. Test 
 
 #### T264 — Final integration verification and closure
 
+- T264 is verification-only and adds no feature code.
 - The focused chunking suite, including T263 conformance, passes offline.
 - The full regression suite passes.
 - `git diff --check` is clean and the diff is reviewed against this specification.
 - Ingestion, LLM, domain, and database behavior is unchanged.
 - `specs/project-state.md` records task outcomes, commits, tests, and exactly one next task.
 - A closure commit follows repository precedent.
+
+#### T265 — Docker tokenizer asset packaging
+
+- Depends on T264 closure.
+- The `Dockerfile` explicitly copies the pinned `assets/tokenizers/nomic-embed-text-v1.5/tokenizer.json` into the image at the path expected by the adapter. The development Compose bind mount is not relied on and is not removed unless a demonstrated requirement arises; such a change requires amending this specification first.
+- The image builds successfully.
+- Verification runs against the image without a repository bind mount and with networking disabled.
+- The asset exists at the expected image path with SHA-256 `d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`.
+- The adapter loads the packaged asset and reports the approved identity
+  `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`.
+- A fixed sample tokenizes successfully inside the image.
+- The focused chunking tests pass in the image, and the full regression suite passes.
+- Actual commands and outcomes are recorded in `specs/project-state.md`; no success is claimed in advance.
+- T265 remains Open until implementation and verification are complete.
+
+#### T266 — Chunking composition-root wiring
+
+- Depends on T265 closure.
+- The canonical Python import root is `app`, consistent with `PYTHONPATH=/app/src`; the runtime entry point is `uvicorn app.main:app`. Import-root standardization is documented and tested so `app.*` and `src.app.*` do not produce duplicate module identities.
+- The composition factory lives in `src/app/rag/chunking/composition.py`.
+- The factory constructs one `NomicEmbedTextTokenizer` from the pinned local asset and injects it into `ChunkingService.from_settings(settings, tokenizer)`; the composed service is exposed through `app.state`.
+- No ingestion endpoint, new consumer, dependency-injection framework, runtime download, or environment-based tokenizer identity override is added.
+- The integration test lives at `tests/rag/chunking/test_composition.py` and exercises the production wiring rather than the adapter in isolation.
+- Acceptance verifies that the factory constructs the service with the approved tokenizer; `service.config.tokenizer_id` equals the adapter identity; maximum tokens and overlap come from application settings; a real `KnowledgeDocument` can be chunked through the composed service; chunk contents, source spans, and chunk IDs satisfy this specification; no network access is required; focused and full regression tests pass; image-level verification remains valid after T265; and `specs/project-state.md` records actual evidence.
+- T266 remains Open until implementation and verification are complete.
 
 ### 16. Out of Scope
 
@@ -699,8 +726,8 @@ This specification does not authorize implementation.
 | Tokenizer implementation, dependency, version, and revision | Resolved — `tokenizers==0.23.3`, repository `nomic-ai/nomic-embed-text-v1.5` at revision `e9b6763023c676ca8431644204f50c2b100d9aab`; see decision record | T263 implementation |
 | Exact tokenizer `identity` string format | Resolved — `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)>`; see decision record | T263 implementation |
 | Confirmation that `500/75` fits the embedding model input limit | Resolved — measured `506` (500 + 4 prefix + 2 special) against the conservative 2048 limit in T263; 500/75 retained | None |
-| Container packaging of the pinned tokenizer asset | Open — recorded in §20.1; not in T263 or T264 scope | Future packaging task (unnumbered) |
-| Chunking composition-root wiring for the approved adapter | Open — recorded in §20.2; not in T263 scope | Future integration task (unnumbered) |
+| Container packaging of the pinned tokenizer asset | Open — T265 (Docker tokenizer asset packaging); depends on T264 closure; recorded in §20.1; not in T263 or T264 scope | T265 implementation (depends on T264 closure) |
+| Chunking composition-root wiring for the approved adapter | Open — T266 (chunking composition-root wiring); recorded in §20.2; depends on T265 | Production chunking path |
 | Manifest persistence location: PostgreSQL, Qdrant payload, or dedicated manifest | Unresolved; no persistence contract exists | Future index-generation work |
 | Qdrant collection naming, alias strategy, and payload schema | Unresolved; no Qdrant integration exists | Future Qdrant specification |
 | Qdrant image version pin | Recommended before migration work | Future Qdrant specification |
@@ -726,6 +753,7 @@ src/app/rag/chunking/
     exceptions.py     # ChunkingError, TokenizerContractError
     chunker.py        # token-window and boundary assembly
     service.py        # ChunkingService, from_settings
+    composition.py    # production composition root (T266)
 ```
 
 Indicative interfaces:
@@ -754,6 +782,8 @@ class ChunkingService:
 
 The service accepts no per-request configuration overrides. The tokenizer is injected by the composition root.
 
+The production composition root is `src/app/rag/chunking/composition.py` (T266). At application startup it constructs one `NomicEmbedTextTokenizer` from the pinned local asset, calls `ChunkingService.from_settings(settings, tokenizer)`, and exposes the resulting service through `app.state`. It is constructed once per application process, not per request, and performs no runtime download. The canonical import root is `app` and the runtime entry point is `uvicorn app.main:app`; T266 must not leave duplicate `app.*` and `src.app.*` module identities.
+
 ### 19. Task Breakdown
 
 Task IDs continue the project sequence after T259.
@@ -765,28 +795,33 @@ Task IDs continue the project sequence after T259.
 | **T262 — Configuration and chunking service** | `service.py`; additive fields and cross-field validation in `src/app/core/config.py`; `.env.example`; `test_service.py` | T261 | §9; settings validation; `from_settings` without eager settings access; aggregation; ordering; metadata; input-order independence; purity |
 | **T263 — Production tokenizer adapter and conformance** | Selected adapter module; approved dependency declaration; `test_tokenizer_adapter.py` | T262 and approved embedding model/tokenizer decision | §5 with the real tokenizer; partition; determinism; no truncation; token limit; embedding input-length compatibility |
 | **T264 — Final integration verification and closure** | No feature code | T263 | Focused suite, full regression, `git diff --check`, diff review, ingestion regression unchanged, project-state update, closure commit |
+| **T265 — Docker tokenizer asset packaging** | `Dockerfile`; relevant task documentation and project-state updates | T264 | Image builds; asset copied to the adapter's expected path with the approved SHA-256; no bind mount; no network; focused chunking and full regression pass in the image; evidence recorded |
+| **T266 — Chunking composition-root wiring** | `src/app/rag/chunking/composition.py`; `src/app/main.py` startup wiring; `tests/rag/chunking/test_composition.py`; import-root standardization and relevant documentation | T265 | Canonical `app` import root via `uvicorn app.main:app`; factory builds the approved adapter and service from settings; `app.state` exposure; end-to-end `KnowledgeDocument` chunking; identity, spans, IDs, no network; focused and full regression pass; image verification remains valid |
 
 Notes:
 
 - Each implementation task ends with focused tests green, no regression, and its own task commit.
-- The embedding model and tokenizer decision is approved in `specs/rag/embedding-tokenizer-decision.md`. Asset vendoring/checksum and the 2048-token compatibility check are T263 deliverables. T260–T262 remain complete with the tokenizer protocol and a deterministic fixture tokenizer, but chunking is not production-ready until T263 and T264 are complete.
-- T264 is mandatory. A defect found within approved scope reopens the owning task instead of being patched in T264.
+- The embedding model and tokenizer decision is approved in `specs/rag/embedding-tokenizer-decision.md`. Asset vendoring/checksum and the 2048-token compatibility check are T263 deliverables. T260–T263 are complete; T264 is verification-only. Chunking is not production-ready until T264, T265, and T266 are complete.
+- T264 is mandatory and verification-only. A defect found within approved scope reopens the owning task instead of being patched in T264.
+- T265 and T266 are separate implementation tasks in that order. T265 depends on T264 closure, and T266 depends on T265 closure; they are not combined into one task.
 - Implementing any task requires a separate authorized session; approval of this specification does not authorize implementation.
 
 ### 20. Follow-ups Recorded During T263 Review
 
-These items are not part of T263 and are not authorized by this specification. They are recorded so they are not lost. Each requires its own approved task; no task number is assigned here, and the T260–T264 sequence is unchanged.
+These items are not part of T263 and are not authorized by this specification. They are recorded so they are not lost. They are defined as T265 (Docker tokenizer asset packaging) and T266 (chunking composition-root wiring); each remains a separate implementation task requiring its own authorized session. The T260–T264 sequence is unchanged.
 
-#### 20.1 Container packaging of the pinned tokenizer asset
+#### 20.1 T265 — Container packaging of the pinned tokenizer asset
 
-- Scope: package the pinned `assets/tokenizers/nomic-embed-text-v1.5/tokenizer.json` into the production image (for example, the image build context and `Dockerfile`). T263 scope covers the adapter, dependency, and tests only; T264 is verification-only.
-- Requirement: the production image must include the pinned asset, and the adapter must load it from the image filesystem without a repository bind mount.
-- Acceptance evidence: build the image from a clean context; run the adapter in that image with no host bind mount and no network; load the asset, tokenize a fixed sample, and confirm the identity digest equals the SHA-256 of the packaged file.
-- Status: Open. Do not mark resolved until the image build and no-bind-mount verification are recorded.
+- Dependency: T264 closure.
+- Scope: explicitly copy the pinned `assets/tokenizers/nomic-embed-text-v1.5/tokenizer.json` into the production image at the path expected by the adapter (primarily the image build context and `Dockerfile`). T263 scope covers the adapter, dependency, and tests only; T264 is verification-only. Compose configuration is not changed unless a demonstrated requirement arises, and such a change requires amending this specification first.
+- Requirement: the production image must include the pinned asset, and the adapter must load it from the image filesystem without a repository bind mount and without runtime network access.
+- Acceptance evidence: build the image from a clean context; run the adapter in that image with no host bind mount and no network; load the asset, tokenize a fixed sample, confirm the asset path and SHA-256 digest, and confirm the adapter identity equals the approved identity. Run the focused chunking tests in the image and the full regression suite. Record actual commands and outcomes in `specs/project-state.md`.
+- Status: Open, pending T264 closure and its own authorized implementation session. Do not mark resolved until the image build and no-bind-mount, no-network verification are recorded.
 
-#### 20.2 Chunking composition-root wiring
+#### 20.2 T266 — Chunking composition-root wiring
 
-- Scope: wire `NomicEmbedTextTokenizer` into the production chunking dependency construction and inject it into `ChunkingService` (using `from_settings` for configured max/overlap tokens). T263 delivered the adapter only; no production call site constructs it today.
-- Requirement: the production chunking path must construct and use the approved adapter, with the tokenizer identity pinned in code rather than selected by an environment variable.
-- Acceptance evidence: an integration test that exercises the actual production wiring, not the adapter in isolation; asserts `ChunkingService.config.tokenizer_id` equals the adapter identity; chunks a document end to end; and runs without network access.
-- Status: Open. Do not mark resolved until the wiring and integration test are verified.
+- Dependency: T265 closure.
+- Scope: place the production composition factory in `src/app/rag/chunking/composition.py`; construct one `NomicEmbedTextTokenizer` from the pinned local asset and inject it into `ChunkingService.from_settings(settings, tokenizer)`; expose the resulting service through `app.state`. Standardize on the canonical `app` import root and `uvicorn app.main:app`, and avoid duplicate `app.*` and `src.app.*` module identities. T263 delivered the adapter only; no production call site constructs it today.
+- Requirement: the production chunking path must construct and use the approved adapter, with the tokenizer identity pinned in code rather than selected by an environment variable. T266 adds no ingestion endpoint, new consumer, dependency-injection framework, runtime download, or environment-based tokenizer identity override.
+- Acceptance evidence: an integration test at `tests/rag/chunking/test_composition.py` that exercises the actual production wiring, not the adapter in isolation; asserts `ChunkingService.config.tokenizer_id` equals the adapter identity; verifies maximum tokens and overlap come from application settings; chunks a real `KnowledgeDocument` end to end with specification-compliant contents, source spans, and chunk IDs; and runs without network access. Focused and full regression tests pass, and image-level verification remains valid after T265. Record actual evidence in `specs/project-state.md`.
+- Status: Open, pending T265 closure and its own authorized implementation session. Do not mark resolved until the wiring and integration test are verified.

@@ -1,7 +1,8 @@
 # AI Customer Support Backend — Project State
 
 ## Current Position
-- Current Phase: Phase 4 — RAG; chunking implementation underway
+- Current Phase: Phase 4 — RAG; chunking implemented through T263 and awaiting
+  T264 verification
 - T260 — Contracts, configuration identity, and tokenizer protocol — complete
   and committed
 - T261 — Token-aware boundary selection and chunk assembly — complete and
@@ -10,20 +11,56 @@
 - Embedding and tokenizer decision approved (2026-10-23) at
   `specs/rag/embedding-tokenizer-decision.md`; the T263 approval prerequisite
   is satisfied
-- T263 — Production tokenizer adapter and conformance — implemented; review
-  documentation corrections applied; not committed or closed. The vendored
-  asset digest is computed by the adapter and the compatibility check measured
-  `506 <= 2048`
-- Next: T264 — Final integration verification and closure, only after T263 is
-  reviewed and committed. Two follow-ups (container packaging and
-  composition-root wiring) are recorded in the chunking specification §20
+- T263 — Production tokenizer adapter and conformance — complete and committed
+  at `0e5af08dc6c8ec3375a0361836e9d7e0c7196c31` (`feat(rag): add pinned
+  tokenizer adapter`). Adapter tests: 30 passed; focused chunking suite: 265
+  passed; full suite: 507 passed, 4 skipped; adapter tests with networking
+  disabled: 30 passed. Pinned identity:
+  `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`
+- Current task: T264 — Final integration verification and closure. It is
+  verification-only, has no feature code, and has not started or completed. It
+  must verify the committed T263 implementation against the approved
+  specification, run the focused offline and full regression suites, review
+  scope and repository cleanliness, update this file with actual results, and
+  create a closure commit
+- Next after T264 closure: T265 — Docker tokenizer asset packaging. T266 —
+  Chunking composition-root wiring depends on T265 closure. Both remain Open
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
   `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1)
 
 ## Last Completed Task
-- Task: T262 — Configuration and chunking service
+- Task: T263 — Production tokenizer adapter and conformance
+- Commit: `0e5af08dc6c8ec3375a0361836e9d7e0c7196c31`
+  (`feat(rag): add pinned tokenizer adapter`)
+- Scope delivered: `src/app/rag/chunking/tokenizer_adapter.py`; the approved
+  `tokenizers==0.23.3` dependency declaration; the vendored
+  `assets/tokenizers/nomic-embed-text-v1.5/tokenizer.json`; and
+  `tests/rag/chunking/test_tokenizer_adapter.py`, plus the targeted
+  specification/status reconciliation. No changes outside the approved T263
+  file scope
+- Contract implemented: the adapter loads the pinned local asset, computes the
+  full SHA-256 from the same bytes it parses, verifies code-point offsets
+  before using the existing `normalize_spans` helpers, requires truncation and
+  padding to be disabled without mutating the loaded configuration, and
+  disables special-token insertion per call. Identity:
+  `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`.
+  The vendored asset is 711,396 bytes with SHA-256
+  `d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`.
+  Input-length compatibility is `500 + 4 prefix + 2 special = 506 <= 2048`
+- Verification:
+  - Adapter tests: 30 passed
+  - Focused chunking suite: 265 passed (`pytest tests/rag/chunking`)
+  - Full regression: 507 passed, 4 skipped (`pytest tests`; the skips are the
+    unchanged environment-conditional ingestion permission fixtures)
+  - Adapter tests with networking disabled: 30 passed
+  - `git diff --check`: clean; working tree clean after the commit
+- Outcome: T263 acceptance criteria and specification test 19 are met. T264 is
+  the next and current task but has not yet been completed. T265 and T266
+  remain Open follow-ups
+
+## Previously Completed Task — T262 (configuration and chunking service)
 - Commit: 68dbf55 (implementation; this project-state record follows in a
   separate documentation commit)
 - Scope delivered: `src/app/rag/chunking/service.py`; additive chunking fields
@@ -192,24 +229,37 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- ID: T263 — Production tokenizer adapter and conformance
-- Title: Implement the approved production tokenizer adapter and verify
-  conformance
-- Status: Implemented; review documentation corrections applied; not committed
-  or closed. T264 has not started
-- Depends on: T262 (68dbf55) and the approved embedding/tokenizer decision at
+- ID: T264 — Final integration verification and closure
+- Title: Verify the committed chunking implementation end to end and close the
+  task
+- Status: Next and current task; verification-only with no feature code; not
+  started and not completed
+- Depends on: T263
+  (`0e5af08dc6c8ec3375a0361836e9d7e0c7196c31`) and the approved
+  embedding/tokenizer decision at
   `specs/rag/embedding-tokenizer-decision.md`
-- Scope: selected adapter module; approved dependency declaration;
-  `tests/rag/chunking/test_tokenizer_adapter.py`
-- Acceptance: specification §5 and test 19; partition; determinism; no
-  truncation; token limit; pinned identity; embedding input-length
-  compatibility against the conservative 2048-token limit. Measured in T263 as
-  `500 + 4 prefix + 2 special = 506 <= 2048`; 500/75 retained
-- Note: T264 (final integration verification and closure) follows T263 after
-  review. The tokenizer asset is vendored and its full SHA-256 is computed by
-  the adapter; no digest is hard-coded. Container packaging (§20.1) and
-  composition-root wiring (§20.2) are follow-ups outside T263 and T264; both
-  remain open
+- Scope: no feature code. Verify the committed T263 implementation against the
+  approved specification §5, §14, §15, and §20; run the focused chunking suite
+  offline, the full regression suite, and `git diff --check`; review the diff
+  and confirm that ingestion, LLM, domain, and database behavior are unchanged;
+  update this project state with actual outcomes, commits, and tests; record
+  exactly one next task; and create a closure commit following repository
+  precedent
+- Acceptance: the focused chunking suite, including T263 conformance, passes
+  offline; the full regression suite passes; `git diff --check` is clean; the
+  diff is reviewed against the specification; no behavior outside the approved
+  scope changed; this file records the actual evidence and exactly one next
+  task; and a closure commit exists. T264 must not claim results before they
+  are measured
+- Note: T265 — Docker tokenizer asset packaging — is the single next task after
+  T264 closure. T266 — Chunking composition-root wiring — depends on T265
+  closure. Both are separate approved follow-ups and remain Open; neither is
+  part of T264 scope
+
+## Task Ordering
+1. T264 — Final integration verification and closure; verification-only.
+2. T265 — Docker tokenizer asset packaging.
+3. T266 — Production chunking composition-root wiring.
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -262,7 +312,7 @@
   indexes; every chunk satisfies `token_count <= max_tokens`; overlap never
   exceeds its target and the next window always advances. Focused chunking
   suite: 199 passed; full regression: 441 passed, 4 skipped.
-- Latest full test run: 477 passed, 4 skipped (`pytest tests` with PostgreSQL
+- Latest full test run: 507 passed, 4 skipped (`pytest tests` with PostgreSQL
   running; the skips are the unchanged environment-conditional ingestion
   permission fixtures).
 - T262 verification: additive settings default to 500/75, are environment
@@ -289,7 +339,8 @@
   truncation, and padding. The conservative input limit is 2048 tokens. The
   asset checksum, dependency installability, local runtime behavior, and the
   `500 + prefix + special <= 2048` check are T263 verification items and were
-  not performed by this documentation-only approval.
+  not performed by this documentation-only approval. They were subsequently
+  verified in T263; see the T263 implementation finding below.
 - T263 implementation (review documentation corrections applied):
   `src/app/rag/chunking/tokenizer_adapter.py` loads the vendored asset from
   disk, computes the full SHA-256 from the same bytes it parses, and verifies
@@ -303,7 +354,9 @@
   measured at `500 + 4 prefix + 2 special = 506 <= 2048`. Focused adapter
   tests: 30 passed (including four configuration-mutation tests); chunking
   suite: 265 passed; full suite: 507 passed, 4 skipped; adapter suite with
-  `--network none`: 30 passed. No T263 commit yet.
+  `--network none`: 30 passed. Committed at
+  `0e5af08dc6c8ec3375a0361836e9d7e0c7196c31`; the working tree was clean after
+  the commit. T264 remains pending.
 - Day 26 chunking approval (2bab0a1):
   `specs/rag/knowledge-document-chunking.md` is Status: Approved. It defines
   token-based chunking with a 500-token maximum and 75-token overlap that were
@@ -311,10 +364,10 @@
   `source_path` included in chunk identity; exact Unicode code-point source
   slices; a precise raw-token-span validation and whitespace-normalization
   contract; zero-chunk representation for empty and whitespace-only documents;
-  duplicate `(source_path, document_id)` rejection; and a five-task breakdown
-  T260–T264.
-  T260–T262 have since completed; T263 has since been implemented and tested,
-  pending review and commit; T264 is next after T263 closure. The embedding
+  duplicate `(source_path, document_id)` rejection; and an original five-task
+  breakdown T260–T264, to which T265 and T266 were added later.
+  T260–T262 have since completed; T263 has since completed and is committed at
+  `0e5af08dc6c8ec3375a0361836e9d7e0c7196c31`; T264 is next. The embedding
   model/tokenizer decision was subsequently approved (see above). No
   implementation code or dependencies were added by the approval.
 - Prompt Management approval (8bc03aa): implementation
@@ -335,21 +388,25 @@
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: ingestion (T255–T259), the chunking specification, T260–T262,
-  and the embedding/tokenizer decision are complete. T263 is implemented and
-  its review documentation corrections are applied; it is not committed or
-  closed. The asset is vendored, the
-  dependency pin is present, and the context compatibility is measured at
-  `506 <= 2048`. Remaining Phase 4 specifications (embeddings, Qdrant,
-  retrieval, etc.) are undefined and will follow their own SDD cycles.
+- Phase 4 RAG: ingestion (T255–T259), the chunking specification, T260–T263,
+  and the embedding/tokenizer decision are complete. T263 is committed at
+  `0e5af08dc6c8ec3375a0361836e9d7e0c7196c31`; the asset is vendored, the
+  dependency pin is present, and input-length compatibility is recorded as
+  `506 <= 2048`. T264 is verification-only and remains pending. Remaining
+  Phase 4 specifications (embeddings, Qdrant, retrieval, etc.) are undefined and
+  will follow their own SDD cycles.
 - Chunking defaults of 500 tokens and 75 tokens of overlap are confirmed for
   the approved model: `500 + 4 prefix + 2 special = 506 <= 2048`.
-- T263 review follow-ups (open and unscheduled; see chunking specification
-  §20): (1) the production image must include the pinned tokenizer asset and be
-  verified without a repository bind mount; (2) the production chunking
-  composition root must construct and use the approved adapter, verified by an
-  integration test. Both require separate approved tasks; no task number is
-  assigned.
+- T265 — Docker tokenizer asset packaging — is Open and is the single next task
+  after T264 closure. It must explicitly package the pinned asset in the image
+  and verify adapter operation without a repository bind mount and without
+  network access.
+- T266 — Chunking composition-root wiring — is Open and depends on T265
+  closure. It must use the canonical `app` import root and
+  `uvicorn app.main:app`, add the composition factory at
+  `src/app/rag/chunking/composition.py`, expose the service through `app.state`,
+  and verify the production wiring with an integration test. Neither follow-up
+  is resolved; see `specs/rag/knowledge-document-chunking.md` §20.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
