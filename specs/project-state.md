@@ -57,18 +57,18 @@
   `nomic-ai/nomic-embed-text-v1.5` at revision
   `e9b6763023c676ca8431644204f50c2b100d9aab`; asset `tokenizer.json`;
   identity format
-  `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)[:12]>`
+  `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)>`
   with `model_id` denoting the tokenizer/model repository, not the Ollama
-  serving tag. Runtime is local-first with no remote downloads or remote model
-  code
+  serving tag. Runtime is a local tokenizer runtime with no runtime network
+  access or downloads; dependency installation is normal development setup
 - Remaining prerequisites for T263: vendor the asset from the pinned revision
   and compute its full SHA-256; add the approved dependency pin at
   implementation time; evidence `500 + prefix + special` tokens against the
-  conservative 2048-token limit; authorize and execute T263 in a separate
-  session
+  conservative 2048-token limit; evidence local runtime behavior; authorize and
+  execute T263 in a separate session
 - Outcome: the T263 approval prerequisite is met. T263 is not complete and has
-  not started. The context-limit compatibility check was not performed and is
-  not claimed as passed
+  not started. The context-limit compatibility check and local runtime behavior
+  were not tested and are not claimed
 
 ## Previously Completed Task — T261 (boundary selection and assembly)
 - Task: T261 — Token-aware boundary selection and chunk assembly
@@ -271,15 +271,17 @@
   `nomic-ai/nomic-embed-text-v1.5` at revision
   `e9b6763023c676ca8431644204f50c2b100d9aab`, asset `tokenizer.json`, and the
   identity format
-  `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)[:12]>`.
+  `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)>`.
   `model_id` is the tokenizer/model repository, not the Ollama serving tag; the
   serving tag is excluded from the chunking identity so serving-side changes do
-  not force re-chunking. Runtime is local-first with no remote downloads or
-  remote model code; adapter behavior disables special tokens, truncation, and
-  padding. The conservative input limit is 2048 tokens. The asset checksum,
-  dependency installability, and the `500 + prefix + special <= 2048` check are
-  T263 verification items and were not performed by this documentation-only
-  approval.
+  not force re-chunking. The adapter loads the pinned asset from a local
+  filesystem path and tokenizes without runtime network access or Hugging Face
+  Hub access; dependency installation is normal development setup, with no
+  offline-installation requirement. Adapter behavior disables special tokens,
+  truncation, and padding. The conservative input limit is 2048 tokens. The
+  asset checksum, dependency installability, local runtime behavior, and the
+  `500 + prefix + special <= 2048` check are T263 verification items and were
+  not performed by this documentation-only approval.
 - Day 26 chunking approval (2bab0a1):
   `specs/rag/knowledge-document-chunking.md` is Status: Approved. It defines
   token-based chunking with provisional 500-token maximum and 75-token overlap

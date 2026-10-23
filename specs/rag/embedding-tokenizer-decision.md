@@ -19,32 +19,48 @@ Status: Approved
 | Tokenizer/model repository | `nomic-ai/nomic-embed-text-v1.5` |
 | Pinned repository revision | `e9b6763023c676ca8431644204f50c2b100d9aab` |
 | Tokenizer asset | `tokenizer.json` from that exact revision |
-| Runtime mode | local-first; no remote downloads or remote model code at runtime |
+| Runtime mode | local tokenizer runtime; no runtime network access or downloads |
 
 `model_id` in the tokenizer identity denotes the tokenizer/model repository
 identifier, not the Ollama serving tag. The serving tag is embedding metadata
 and is deliberately excluded from the chunking identity (see §4).
+
+### Runtime and installation
+
+- The production adapter loads the pinned `tokenizer.json` from a local
+  filesystem path.
+- Tokenization must work locally without network access or runtime downloads.
+- The tokenizer must not depend on the Hugging Face Hub at runtime.
+- Dependency installation is part of normal development setup. No offline
+  wheelhouse or offline-installation requirement is imposed.
+- Runtime tokenizer configuration must not override the vendored asset's
+  configuration.
+- Special-token insertion, truncation, and padding remain disabled according to
+  §5.4 of the chunking specification.
+- Local runtime behavior is a design requirement and is not yet tested; T263
+  must provide the evidence.
 
 ## 2. Tokenizer identity
 
 Format:
 
 ```text
-tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)[:12]>
+tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)>
 ```
 
 Resolved example with the checksum still unknown:
 
 ```text
-tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:<sha256[:12]>
+tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:<sha256>
 ```
 
 Rules:
 
 - The checksum is computed from the actually vendored `tokenizer.json` during
   T263. It must never be invented, pre-filled, or hard-coded.
-- The provenance record captures the full SHA-256 of the vendored asset; the
-  identity uses its first 12 hex characters (48 bits) as approved.
+- The provenance record captures the full SHA-256 of the vendored asset, and the
+  identity uses that full digest as approved.
+- The actual digest remains unknown until the asset is vendored and hashed.
 - The asset hash covers the tokenizer's normalization and flag configuration.
   Loading must not apply runtime overrides to that configuration.
 - Adapter behavior is pinned: special tokens disabled, truncation disabled,
@@ -81,10 +97,14 @@ chunks.
    `e9b6763023c676ca8431644204f50c2b100d9aab`, verify its presence and
    integrity, and compute the full SHA-256 from the vendored file.
 2. Add the approved `tokenizers==0.23.3` dependency at T263 implementation
-   time; this decision does not modify dependencies.
-3. Measure the 2048-token compatibility check including embedding prefix and
+   time as part of normal development setup; this decision does not modify
+   dependencies and does not require an offline wheelhouse.
+3. Verify local runtime behavior: the adapter loads the local asset and
+   tokenizes without network access or Hugging Face Hub access, and record the
+   evidence.
+4. Measure the 2048-token compatibility check including embedding prefix and
    special tokens, and record the evidence.
-4. Authorize and execute T263 in a separate session. T264 follows T263.
+5. Authorize and execute T263 in a separate session. T264 follows T263.
 
 ## 6. Out of Scope
 

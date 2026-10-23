@@ -155,10 +155,10 @@ The embedding provider/model and production tokenizer are approved in `specs/rag
 - Provider and serving model: Ollama `nomic-embed-text:v1.5`.
 - Tokenizer implementation: `tokenizers==0.23.3`.
 - Tokenizer/model repository: `nomic-ai/nomic-embed-text-v1.5` at revision `e9b6763023c676ca8431644204f50c2b100d9aab`, asset `tokenizer.json`.
-- Identity format: `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)[:12]>`, where `model_id` is the tokenizer/model repository identifier, not the Ollama serving tag.
-- Runtime mode: local-first; no remote downloads or remote model code at runtime.
+- Identity format: `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)>`, where `model_id` is the tokenizer/model repository identifier, not the Ollama serving tag.
+- Runtime mode: local tokenizer runtime; no runtime network access or downloads. Dependency installation is part of normal development setup and does not require an offline wheelhouse.
 
-The tokenizer asset is vendored during T263 and its checksum is computed from the vendored file; it is never pre-filled. The production tokenizer must be model-aligned and must provide source offsets that satisfy §5. A generation tokenizer is not assumed suitable for an embedding model.
+The tokenizer asset is vendored during T263 and its checksum is computed from the vendored file; it is never pre-filled. The adapter loads the pinned asset from a local filesystem path and must not depend on the Hugging Face Hub at runtime. The production tokenizer must be model-aligned and must provide source offsets that satisfy §5. A generation tokenizer is not assumed suitable for an embedding model.
 
 Input-length compatibility remains pending. The conservative limit is 2048 tokens; T263 must verify that `max_tokens` plus the embedding model's special or prefix tokens fits that limit. The 500/75 defaults remain provisional until this check is evidenced. If it fails, this specification must be amended before T263 implementation.
 
@@ -697,7 +697,7 @@ This specification does not authorize implementation.
 | --- | --- | --- |
 | Embedding provider and model | Resolved — Ollama `nomic-embed-text:v1.5`; see `specs/rag/embedding-tokenizer-decision.md` | T263 implementation |
 | Tokenizer implementation, dependency, version, and revision | Resolved — `tokenizers==0.23.3`, repository `nomic-ai/nomic-embed-text-v1.5` at revision `e9b6763023c676ca8431644204f50c2b100d9aab`; see decision record | T263 implementation |
-| Exact tokenizer `identity` string format | Resolved — `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)[:12]>`; see decision record | T263 implementation |
+| Exact tokenizer `identity` string format | Resolved — `tokenizers:<lib_version>:<model_id>@<revision_sha>:<sha256(tokenizer.json)>`; see decision record | T263 implementation |
 | Confirmation that `500/75` fits the embedding model input limit | Pending — conservative 2048-token limit; must be measured in T263; defaults remain provisional | T263 conformance |
 | Manifest persistence location: PostgreSQL, Qdrant payload, or dedicated manifest | Unresolved; no persistence contract exists | Future index-generation work |
 | Qdrant collection naming, alias strategy, and payload schema | Unresolved; no Qdrant integration exists | Future Qdrant specification |
