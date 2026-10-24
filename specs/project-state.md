@@ -1,10 +1,13 @@
 # AI Customer Support Backend — Project State
 
 ## Current Position
-- Current Phase: Phase 4 — RAG. Ingestion (T255–T259) and chunking
-  (T260–T266) are complete; chunking is production-wired. Embedding contracts
-  (T267), the Ollama embedding adapter (T268), and the embedding service with
-  batching, validation, retries, and settings (T269) are complete and verified.
+- Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
+  and embeddings contracts through live conformance (T267–T270) are complete.
+  T271 composition-root wiring is the single next authorized task.
+- T270 — Live Ollama conformance, dimension verification, regression, and
+  closure — complete and committed at
+  `95eb8ed1a1a29c5701dcb849c90c353673f2ba70`
+  (`test(rag): add live ollama embedding conformance evidence`)
 - T269 — Embedding service, batching, ordering, validation, retries, and
   settings integration — complete and committed at
   `3d756db1dc484dcc63a0cb6d0c00652bc6e5cf38`
@@ -27,21 +30,87 @@
 - Embedding and tokenizer decision approved (2026-10-23) at
   `specs/rag/embedding-tokenizer-decision.md`; pinned tokenizer identity:
   `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`
-- Current task: none. No implementation task is in progress. T270 is authorized
-  by the approved sequence but has not started and requires a separate session.
-- Current activity: T269 was implemented, verified, and committed on 2026-10-25.
+- Live conformance evidence (2026-10-25): served model `nomic-embed-text:v1.5`;
+  response `model` equals the pinned tag; observed dimension `768`, equal to
+  `PROVISIONAL_EMBEDDING_DIMENSION`; all 2,304 returned values finite; digest
+  reported by `GET /api/tags` recorded verbatim as
+  `0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f`
+  (evidence only, not runtime verification). `768` is confirmed by live
+  measurement; no specification amendment is required.
+- Current task: none. No implementation task is in progress. T270 is complete;
+  T271 is authorized by the approved sequence and requires a separate session.
+- Current activity: T270 was implemented, verified, and committed on 2026-10-25.
 - Status: `Approved`. The Phase 4 embeddings specification remains the source
-  of truth; T267–T269 are complete and T270 is the single next authorized task.
+  of truth; T267–T270 are complete and T271 is the single next authorized task.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
   `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1);
   T260–T266 are complete
 - RAG: Knowledge Document Embeddings Specification approved at Revision 2;
-  T267–T271 are the approved implementation sequence; T267–T269 are complete
-  and T270 is the single next authorized task
+  T267–T271 are the approved implementation sequence; T267–T270 are complete
+  and T271 is the single next authorized task
 
 ## Last Completed Task
+- Task: T270 — Live Ollama conformance, dimension verification, regression, and
+  closure
+- Commit: `95eb8ed1a1a29c5701dcb849c90c353673f2ba70`
+  (`test(rag): add live ollama embedding conformance evidence`); this project
+  state record follows in a separate documentation commit
+- Scope delivered: new `tests/rag/embeddings/test_ollama_conformance.py`; this
+  project-state record. No production, adapter, service, retry, settings,
+  composition-root, endpoint, persistence, Qdrant, metadata-client, chunking,
+  ingestion, LLM, domain, Dockerfile, or dependency code was added or changed
+- Contract implemented: the live suite is opt-in behind `RUN_LIVE_OLLAMA=1`
+  (D-5) and is skipped in the default and offline focused suites. It reads the
+  existing `OLLAMA_URL` setting (D-6) with a `http://localhost:11434` fallback,
+  records the model entry reported by `GET /api/tags`, and records the raw
+  `POST /api/embed` response model and measured dimension. It asserts the
+  response model equals `nomic-embed-text:v1.5`, the observed dimension equals
+  `PROVISIONAL_EMBEDDING_DIMENSION`, and every returned value is finite. A
+  third test exercises `OllamaEmbeddingProvider` against the live model. The
+  digest is recorded verbatim as evidence only; no test or document claims
+  runtime digest verification
+- Live evidence (2026-10-25; host Ollama 0.33.2; model pulled locally):
+  - Metadata command: `curl -s http://localhost:11434/api/tags`
+  - Served model name: `nomic-embed-text:v1.5`
+  - Served digest (verbatim):
+    `0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f`
+  - Reported details: `family=nomic-bert`, `parameter_size=137M`,
+    `quantization_level=F16`, `context_length=2048`, `embedding_length=768`,
+    `size=274302450`, `capabilities=["embedding"]`
+  - Response `model`: `nomic-embed-text:v1.5`
+  - Observed dimension: `768` (three vectors; 2,304 values total), all finite
+  - Result: `768` equals the provisional expected dimension and is confirmed by
+    live measurement; no specification amendment is required
+- Verification (2026-10-25; image `ai-customer-support-t270:local`, ID
+  `sha256:27dc10ce59319cf3f9ccda4b1d45558d3f6efb1cedc5f670538c08e2417e7ee4`;
+  no repository bind mount in image verification runs):
+  - Build: `docker build -t ai-customer-support-t270:local .` → exit 0
+  - Live conformance: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    -e RUN_LIVE_OLLAMA=1 ai-customer-support-t270:local python -m pytest
+    tests/rag/embeddings/test_ollama_conformance.py -q -s` → 3 passed, exit 0
+  - Focused offline suite: `docker run --rm --network none
+    ai-customer-support-t270:local python -m pytest tests/rag/embeddings -q` →
+    300 passed, 3 skipped, exit 0
+  - Full regression: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    ai-customer-support-t270:local python -m pytest tests -q` → 812 passed,
+    7 skipped, exit 0. Networking was required for PostgreSQL and the live
+    Ollama integration test; the 7 skips are the 4 unchanged
+    environment-conditional ingestion permission fixtures plus the 3 opt-in
+    live embedding conformance tests. No repository bind mount was used
+  - `git diff --cached --check`: clean, exit 0; the implementation diff is
+    limited to the new conformance test file
+- Outcome: T270 acceptance criteria in §11.4, §12, and §13 are met. The live
+  model name, response model, dimension, and digest are recorded as evidence;
+  the observed dimension matches `768`, so no amendment is required; the
+  offline and full suites pass; and no runtime digest verification is claimed.
+  No next implementation task was started; T271 is the single next authorized
+  task.
+
+## Previously Completed Task — T269 (embedding service)
 - Task: T269 — Embedding service, batching, ordering, validation, retries, and
   settings integration
 - Commit: `3d756db1dc484dcc63a0cb6d0c00652bc6e5cf38`
@@ -516,36 +585,55 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- No implementation task is in progress. T270 is authorized but has not
-  started.
-- T269 — Embedding service, batching, ordering, validation, retries, and
-  settings integration — is complete and committed at
-  `3d756db1dc484dcc63a0cb6d0c00652bc6e5cf38`.
-- Current activity: T269 implementation and closure on 2026-10-25. This
-  documentation record is the only remaining change for the task.
-- Status: T269 complete; the Phase 4 embeddings specification at
+- No implementation task is in progress. T270 is complete; T271 is authorized
+  but has not started.
+- T270 — Live Ollama conformance, dimension verification, regression, and
+  closure — is complete and committed at
+  `95eb8ed1a1a29c5701dcb849c90c353673f2ba70`.
+- Current activity: T270 implementation, live verification, and closure on
+  2026-10-25. This documentation record is the only remaining change for the
+  task.
+- Status: T270 complete; the Phase 4 embeddings specification at
   `specs/rag/knowledge-document-embeddings.md` remains the source of truth.
 - Decisions D-1 through D-6 remain approved as recorded in the specification's
   §2.3 and §2.4.
 - Approved implementation sequence: T267–T271 in the specification's §13. Each
   task requires its own authorized session; multiple tasks must not be combined.
-- Exactly one next authorized task: T270 — Live Ollama conformance, dimension
-  verification, regression, and closure. It has not started and must be
-  executed in a separate session.
-- Verification for T269: focused offline embeddings suite 300 passed; adjacent
-  RAG suite 670 passed / 4 skipped; full regression 812 passed / 4 skipped;
-  static import and no-write checks clean; `git diff --check` clean. No
-  application source outside the approved T269 scope changed.
-- Do not begin T270 in this session.
+- Exactly one next authorized task: T271 — Composition-root wiring and Docker
+  image verification. It has not started and must be executed in a separate
+  session.
+- Verification for T270: live conformance 3 passed; focused offline embeddings
+  suite 300 passed / 3 skipped; full regression 812 passed / 7 skipped; the
+  observed dimension is 768 and matches the provisional value; `git diff
+  --cached --check` clean. No application source outside the approved T270
+  scope changed.
+- Do not begin T271 in this session.
 
 ## Task Ordering
-1. T270 — Live Ollama conformance, dimension verification, regression, and
-   closure (authorized; not started; separate session).
-2. T271 — Composition-root wiring and Docker image verification.
+1. T271 — Composition-root wiring and Docker image verification (authorized;
+   not started; separate session).
 
 Each task requires its own authorized session.
 
 ## Verified Findings
+- T270 live conformance (2026-10-25):
+  `tests/rag/embeddings/test_ollama_conformance.py` adds three opt-in live
+  tests gated by `RUN_LIVE_OLLAMA=1`; the default and offline focused suites
+  skip them. The metadata test records the `GET /api/tags` entry for
+  `nomic-embed-text:v1.5`; the raw response test records the `POST /api/embed`
+  response model and measured dimension; the adapter test exercises
+  `OllamaEmbeddingProvider` against the live model. Observed evidence: model
+  name `nomic-embed-text:v1.5`; digest
+  `0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f`
+  (verbatim, evidence only, not runtime verification); response model equal to
+  the pinned tag; dimension `768` (three vectors, 2,304 values) with all values
+  finite; reported details include `family=nomic-bert`, `parameter_size=137M`,
+  `quantization_level=F16`, `context_length=2048`, and
+  `embedding_length=768`. The observed dimension equals
+  `PROVISIONAL_EMBEDDING_DIMENSION`; the value is confirmed by live measurement
+  and no specification amendment is required. Live conformance: 3 passed;
+  focused offline embeddings suite: 300 passed / 3 skipped; full regression:
+  812 passed / 7 skipped; `git diff --cached --check` clean.
 - T269 implementation (2026-10-25):
   `src/app/rag/embeddings/service.py` defines
   `EmbeddingService(provider, config=None, batch_size=16, timeout=30.0,
@@ -714,10 +802,11 @@ Each task requires its own authorized session.
   4 skipped (exit 0); `uvicorn app.main:app` served `/health` with HTTP 200 and
   shut down cleanly under `--network none`; `alembic upgrade head` exited 0; and
   `git diff --check` was clean (exit 0).
-- Latest full test run: 812 passed, 4 skipped (2026-10-25, `pytest tests` from
-  `ai-customer-support-t269:local` with PostgreSQL running and network access
-  for the live Ollama integration test; the skips are the unchanged
-  environment-conditional ingestion permission fixtures).
+- Latest full test run: 812 passed, 7 skipped (2026-10-25, `pytest tests` from
+  `ai-customer-support-t270:local` with PostgreSQL running and network access
+  for the live Ollama integration test; the skips are the 4 unchanged
+  environment-conditional ingestion permission fixtures plus the 3 opt-in live
+  embedding conformance tests).
 - T262 verification: additive settings default to 500/75, are environment
   configurable, and reject `overlap_tokens >= max_tokens` at `Settings`
   construction. `ChunkingService` builds one config per service, uses
