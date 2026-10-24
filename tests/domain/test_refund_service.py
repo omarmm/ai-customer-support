@@ -5,17 +5,17 @@ from uuid import uuid4
 
 import pytest
 
-from src.app.domain.exceptions import (
+from app.domain.exceptions import (
     InvalidRefundAmountError,
     OrderNotFoundError,
     RefundAmountExceedsOrderError,
     RefundWindowExpiredError,
 )
-from src.app.domain.models.customer import Customer
-from src.app.domain.models.order import Order, OrderStatus
-from src.app.domain.models.refund import Refund, RefundStatus
-from src.app.domain.services.refund_service import RefundService
-from src.app.infrastructure.database.session import SessionLocal
+from app.domain.models.customer import Customer
+from app.domain.models.order import Order, OrderStatus
+from app.domain.models.refund import Refund, RefundStatus
+from app.domain.services.refund_service import RefundService
+from app.infrastructure.database.session import SessionLocal
 
 
 def create_customer(session):

@@ -3,10 +3,10 @@ from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
 
-from src.app.domain.models.customer import Customer
-from src.app.domain.models.order import Order, OrderStatus
-from src.app.domain.models.refund import Refund, RefundStatus
-from src.app.infrastructure.database.session import SessionLocal
+from app.domain.models.customer import Customer
+from app.domain.models.order import Order, OrderStatus
+from app.domain.models.refund import Refund, RefundStatus
+from app.infrastructure.database.session import SessionLocal
 
 
 def test_customer_email_must_be_unique():

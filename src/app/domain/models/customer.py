@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.app.infrastructure.database.base import Base
+from app.infrastructure.database.base import Base
 
 if TYPE_CHECKING:
-    from src.app.domain.models.order import Order
+    from app.domain.models.order import Order
 
 
 class Customer(Base):

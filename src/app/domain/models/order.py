@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING
 from sqlalchemy import DateTime, Enum as SQLEnum, ForeignKey, Numeric, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.app.infrastructure.database.base import Base
+from app.infrastructure.database.base import Base
 
 if TYPE_CHECKING:
-    from src.app.domain.models.customer import Customer
-    from src.app.domain.models.refund import Refund
+    from app.domain.models.customer import Customer
+    from app.domain.models.refund import Refund
 
 
 class OrderStatus(str, Enum):
