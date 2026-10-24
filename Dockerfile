@@ -10,6 +10,10 @@ COPY src ./src
 COPY tests ./tests
 COPY alembic.ini .
 COPY migrations ./migrations
+COPY .env.example .
+
+# Pinned tokenizer asset required by the chunking adapter at runtime.
+COPY assets/tokenizers/nomic-embed-text-v1.5/tokenizer.json ./assets/tokenizers/nomic-embed-text-v1.5/tokenizer.json
 
 ENV PYTHONPATH=/app/src
 
