@@ -19,13 +19,18 @@
   exposes the service through `app.state`. The canonical import root is `app`
   and the runtime entry point is `uvicorn app.main:app`. Pinned identity:
   `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`
-- Current task: none. No implementation task is approved. The next SDD step is
-  the Phase 4 embeddings specification gate; it is not yet defined or approved
+- Current task: none. No implementation task is approved or in progress.
+- Current activity: the Phase 4 embeddings specification has been drafted at
+  `specs/rag/knowledge-document-embeddings.md` with status
+  `Draft — Pending Review and Explicit Approval`. It is not approved. T267–T271
+  are proposed only; no embedding implementation is authorized.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
   `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1);
   T260–T266 are now complete
+- RAG: Knowledge Document Embeddings Specification is an unapproved draft; the
+  only next action is review and approval or revision
 
 ## Last Completed Task
 - Task: T266 — Chunking composition-root wiring
@@ -340,19 +345,22 @@
 
 ## Current Task
 - No implementation task is approved or in progress.
-- Just completed: T266 — Chunking composition-root wiring, committed at 35e869b
-  and verified against `specs/rag/knowledge-document-chunking.md` §15 and §20.2.
-- Next task: Phase 4 embeddings specification and decision gate.
-- Status: Not defined or approved; no implementation is authorized.
-- Required outcome: define and approve the embeddings specification (model and
-  runtime boundary, batching, input shape, failure handling, and the boundary to
-  vector storage) before writing implementation code. Qdrant and retrieval
-  remain separate later specifications.
-- Do not start the next task automatically.
+- T266 — Chunking composition-root wiring — remains complete and committed at
+  35e869b.
+- Current activity: the Phase 4 embeddings specification draft at
+  `specs/rag/knowledge-document-embeddings.md` awaits review; drafting is
+  complete.
+- Status: `Draft — Pending Review and Explicit Approval`. The draft does not
+  authorize implementation.
+- Proposed follow-up tasks: T267–T271 in the draft's §13. They remain proposed
+  and are not approved.
+- Exactly one next action: review the draft and approve it or request revisions.
+- Do not begin T267 or any other embedding implementation task.
 
 ## Task Ordering
-1. Phase 4 embeddings specification gate — define and approve the specification;
-   implementation requires a separately authorized session.
+1. Review and approve or revise `specs/rag/knowledge-document-embeddings.md`.
+2. After explicit approval only: T267 (proposed first implementation task).
+   Each later task requires its own authorized session.
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -526,6 +534,12 @@
   T265 packaged and verified the asset in the image, and T266 production-wired
   the composition root with no repository bind mount. No implementation task is
   currently approved.
+- Embeddings specification: `specs/rag/knowledge-document-embeddings.md` is a
+  draft pending review. `768` dimensions are provisional and unverified until
+  T270 measures the live model; the served model digest/runtime version is not
+  yet recorded; and the retry implementation location (reuse
+  `app.llm.retry.RetryPolicy` or an embeddings-local equivalent) requires an
+  implementation-review decision. None of these may be treated as confirmed.
 - Chunking defaults of 500 tokens and 75 tokens of overlap are confirmed for
   the approved model: `500 + 4 prefix + 2 special = 506 <= 2048`.
 - T265 — Docker tokenizer asset packaging — is complete and committed at
@@ -536,11 +550,11 @@
   35e869b. The canonical `app` import root is used throughout, `uvicorn
   app.main:app` is the runtime entry point, and the composed service is exposed
   through `app.state`.
-- Remaining Phase 4 specifications (embeddings, Qdrant, semantic retrieval,
-  metadata filtering, context construction, source attribution, evaluation, and
-  failure handling) are undefined and follow their own SDD cycles. The next
-  step is the embeddings specification and decision gate; it is not approved and
-  no implementation is authorized.
+- Remaining Phase 4 specifications (Qdrant, semantic retrieval, metadata
+  filtering, context construction, source attribution, evaluation, and failure
+  handling) are undefined and follow their own SDD cycles. The embeddings draft
+  is the current gate; until it is approved, no embedding implementation or
+  later Phase 4 implementation is authorized.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
