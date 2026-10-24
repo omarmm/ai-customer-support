@@ -3,7 +3,12 @@
 ## Current Position
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259) and chunking
   (T260–T266) are complete; chunking is production-wired. Embedding contracts
-  (T267) and the Ollama embedding adapter (T268) are complete and verified.
+  (T267), the Ollama embedding adapter (T268), and the embedding service with
+  batching, validation, retries, and settings (T269) are complete and verified.
+- T269 — Embedding service, batching, ordering, validation, retries, and
+  settings integration — complete and committed at
+  `3d756db1dc484dcc63a0cb6d0c00652bc6e5cf38`
+  (`feat(rag): add embedding service and retry policy`)
 - T268 — Ollama embedding adapter and offline HTTP-mock tests — complete and
   committed at `b66d3c1d01efe758707e51af59d1a133f4451ac4`
   (`feat(rag): add ollama embedding adapter`)
@@ -22,22 +27,91 @@
 - Embedding and tokenizer decision approved (2026-10-23) at
   `specs/rag/embedding-tokenizer-decision.md`; pinned tokenizer identity:
   `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`
-- Current task: none. No implementation task is in progress. T269 is authorized
+- Current task: none. No implementation task is in progress. T270 is authorized
   by the approved sequence but has not started and requires a separate session.
-- Current activity: T268 was implemented, verified, and committed on 2026-10-25.
+- Current activity: T269 was implemented, verified, and committed on 2026-10-25.
 - Status: `Approved`. The Phase 4 embeddings specification remains the source
-  of truth; T267 and T268 are complete and T269 is the single next authorized
-  task.
+  of truth; T267–T269 are complete and T270 is the single next authorized task.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
   `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1);
   T260–T266 are complete
 - RAG: Knowledge Document Embeddings Specification approved at Revision 2;
-  T267–T271 are the approved implementation sequence; T267 and T268 are
-  complete and T269 is the single next authorized task
+  T267–T271 are the approved implementation sequence; T267–T269 are complete
+  and T270 is the single next authorized task
 
 ## Last Completed Task
+- Task: T269 — Embedding service, batching, ordering, validation, retries, and
+  settings integration
+- Commit: `3d756db1dc484dcc63a0cb6d0c00652bc6e5cf38`
+  (`feat(rag): add embedding service and retry policy`); this project state
+  record follows in a separate documentation commit
+- Scope delivered: new `src/app/rag/embeddings/service.py` and
+  `src/app/rag/embeddings/retry.py`; additive `embedding_*` settings in
+  `src/app/core/config.py`; `.env.example`; and
+  `tests/rag/embeddings/test_service.py` and `test_retry.py`. No composition
+  root, startup wiring, endpoint, persistence, Qdrant, metadata client,
+  provider-adapter, chunking, ingestion, LLM, or domain code was added or
+  changed
+- Contract implemented: `EmbeddingService(provider, config=None, batch_size=16,
+  timeout=30.0, retry_policy=None, sleep=None)` builds one effective
+  `EmbeddingConfig`, validates `provider.identity` against
+  `f"{config.provider}:{config.model}"`, validates positive `batch_size` and
+  `timeout`, and accepts only the embeddings-local policy. `embed_chunks`
+  rejects duplicate `chunk_id` values before any provider call, returns an empty
+  `EmbeddingResult` for empty input without calling the provider, prepends
+  `search_document: ` without modifying chunk text, splits consecutive batches,
+  preserves input order across batches, copies chunk provenance into each
+  `ChunkEmbedding`, and aborts the whole run on the first failed batch.
+  Service-layer validation raises `EmbeddingResponseError` with reasons
+  `empty_embeddings`, `count_mismatch`, `dimension_mismatch`, and
+  `non_finite_value`; provider response errors retain their reason code.
+  Provider errors are normalized by explicit type, `EmbeddingError` passes
+  through un-re-normalized, unexpected exceptions become
+  `EmbeddingUnexpectedError` with the original cause, and `CancelledError` is
+  not swallowed. Retries apply only to connection, timeout, rate-limit, and
+  unavailable application errors; attempts are bounded to `1 + max_retries`;
+  backoff is bounded exponential with injectable sleep and is separate from the
+  per-attempt timeout; no overall deadline is introduced. Successful and failed
+  calls report the aggregate `retry_count` defined in §8.7, including retries
+  spent in earlier successful batches and excluding the terminal attempt.
+  `EmbeddingRetryPolicy` is embeddings-local (approved D-3) with defaults
+  `2 / 0.5 / 8.0 / 0.0` and mirrors the approved LLM validation and delay
+  semantics without importing `app.llm`. `from_settings` reads only
+  `embedding_*` values and does not call `get_settings()`. Settings are
+  `embedding_batch_size` (16, `gt=0`), `embedding_timeout_seconds` (30.0,
+  `gt=0`), `embedding_max_retries` (2, `ge=0`), `embedding_retry_base_delay`
+  (0.5, `ge=0`), `embedding_retry_max_delay` (8.0, `ge=0`), and
+  `embedding_retry_jitter` (0.0, `ge=0`), with `max_delay >= base_delay`
+  enforced at settings construction
+- Verification (2026-10-25; image `ai-customer-support-t269:local`, ID
+  `sha256:858b6f2c2397e7fa02378555871090a1ef6bc6bc29b53d668a18fe5de37c3fa5`;
+  no repository bind mount in image verification runs):
+  - Build: `docker build -t ai-customer-support-t269:local .` → exit 0
+  - Focused offline suite: `docker run --rm --network none
+    ai-customer-support-t269:local python -m pytest tests/rag/embeddings -q` →
+    300 passed, exit 0
+  - Adjacent RAG suite: `pytest tests/rag/chunking tests/rag/ingestion
+    tests/rag/embeddings` with `--network none` → 670 passed, 4 skipped, exit 0
+  - Full regression: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    ai-customer-support-t269:local python -m pytest tests -q` → 812 passed,
+    4 skipped, exit 0. Networking was required for PostgreSQL and the live
+    Ollama integration test; no repository bind mount was used
+  - Static import scan: the service and retry modules import no `app.llm`,
+    Qdrant, SQLAlchemy, psycopg, FastAPI endpoint, or persistence module; the
+    test suite parses both modules with `ast` and asserts the approved boundary
+  - No-write test: the service path completes with `builtins.open`,
+    `Path.write_text`, and `Path.write_bytes` replaced by failing stubs
+  - `git diff --check`: clean, exit 0; the implementation diff is limited to
+    the six T269 files
+- Outcome: T269 acceptance criteria in §11.3, §12, and §13 are met. The
+  embedding boundary now has an ordered, validated, bounded-retry service and
+  embeddings-local retry policy wired to additive settings. No next
+  implementation task was started; T270 is the single next authorized task.
+
+## Previously Completed Task — T268 (Ollama embedding adapter)
 - Task: T268 — Ollama embedding adapter and offline HTTP-mock tests
 - Commit: `b66d3c1d01efe758707e51af59d1a133f4451ac4`
   (`feat(rag): add ollama embedding adapter`); this project state record follows
@@ -442,37 +516,75 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- No implementation task is in progress. T269 is authorized but has not
+- No implementation task is in progress. T270 is authorized but has not
   started.
-- T268 — Ollama embedding adapter and offline HTTP-mock tests — is complete and
-  committed at `b66d3c1d01efe758707e51af59d1a133f4451ac4`.
-- Current activity: T268 implementation and closure on 2026-10-25. This
+- T269 — Embedding service, batching, ordering, validation, retries, and
+  settings integration — is complete and committed at
+  `3d756db1dc484dcc63a0cb6d0c00652bc6e5cf38`.
+- Current activity: T269 implementation and closure on 2026-10-25. This
   documentation record is the only remaining change for the task.
-- Status: T268 complete; the Phase 4 embeddings specification at
+- Status: T269 complete; the Phase 4 embeddings specification at
   `specs/rag/knowledge-document-embeddings.md` remains the source of truth.
 - Decisions D-1 through D-6 remain approved as recorded in the specification's
   §2.3 and §2.4.
 - Approved implementation sequence: T267–T271 in the specification's §13. Each
   task requires its own authorized session; multiple tasks must not be combined.
-- Exactly one next authorized task: T269 — Embedding service, batching,
-  ordering, validation, retries, and settings integration. It has not started
-  and must be executed in a separate session.
-- Verification for T268: focused offline embeddings suite 221 passed; adjacent
-  RAG suite 591 passed / 4 skipped; full regression 733 passed / 4 skipped;
-  static import scan clean; `git diff --check` clean. No application source
-  outside the approved T268 scope changed.
-- Do not begin T269 in this session.
+- Exactly one next authorized task: T270 — Live Ollama conformance, dimension
+  verification, regression, and closure. It has not started and must be
+  executed in a separate session.
+- Verification for T269: focused offline embeddings suite 300 passed; adjacent
+  RAG suite 670 passed / 4 skipped; full regression 812 passed / 4 skipped;
+  static import and no-write checks clean; `git diff --check` clean. No
+  application source outside the approved T269 scope changed.
+- Do not begin T270 in this session.
 
 ## Task Ordering
-1. T269 — Embedding service, batching, ordering, validation, retries, and
-   settings integration (authorized; not started; separate session).
-2. T270 — Live Ollama conformance, dimension verification, regression, and
-   closure.
-3. T271 — Composition-root wiring and Docker image verification.
+1. T270 — Live Ollama conformance, dimension verification, regression, and
+   closure (authorized; not started; separate session).
+2. T271 — Composition-root wiring and Docker image verification.
 
 Each task requires its own authorized session.
 
 ## Verified Findings
+- T269 implementation (2026-10-25):
+  `src/app/rag/embeddings/service.py` defines
+  `EmbeddingService(provider, config=None, batch_size=16, timeout=30.0,
+  retry_policy=None, sleep=None)`. Construction builds one effective
+  `EmbeddingConfig`, validates `provider.identity` against
+  `f"{config.provider}:{config.model}"` (`EmbeddingConfigurationError` on
+  mismatch or non-string identity), rejects non-positive `batch_size` and
+  `timeout`, and accepts only `EmbeddingRetryPolicy`.
+  `embed_chunks` returns an empty `EmbeddingResult` with `retry_count == 0` for
+  empty input without calling the provider, rejects duplicate `chunk_id` values
+  with `ValueError("duplicate chunk_id")` before any call, prepends
+  `search_document: ` exactly, splits consecutive batches of at most
+  `batch_size`, preserves input order across batches, copies all chunk
+  provenance, and aborts the whole run on any failed batch. Service validation
+  raises `EmbeddingResponseError` with `empty_embeddings`, `count_mismatch`,
+  `dimension_mismatch`, or `non_finite_value`; provider response reasons are
+  preserved through normalization; invalid vector element types are rejected as
+  `malformed_response` without leaking a raw `TypeError`. Provider errors
+  normalize by explicit type, already-normalized `EmbeddingError` values pass
+  through, unexpected exceptions become `EmbeddingUnexpectedError` with
+  `__cause__`, and `CancelledError` is not swallowed. Retries are per batch,
+  bounded to `1 + max_retries`, use bounded exponential backoff with injectable
+  sleep, pass the configured timeout to every attempt, and do not introduce an
+  overall deadline. Aggregate `retry_count` includes retries from earlier
+  successful batches, excludes the terminal attempt, and is attached to
+  successful results and terminal application errors, including validation
+  failures after earlier retries. `src/app/rag/embeddings/retry.py` defines the
+  approved embeddings-local `EmbeddingRetryPolicy` with defaults
+  `2 / 0.5 / 8.0 / 0.0`, mirrored validation and delay semantics, and
+  `from_settings` over `embedding_*` values; neither module imports `app.llm`.
+  Additive settings are `embedding_batch_size` (16, `gt=0`),
+  `embedding_timeout_seconds` (30.0, `gt=0`), `embedding_max_retries`
+  (2, `ge=0`), `embedding_retry_base_delay` (0.5, `ge=0`),
+  `embedding_retry_max_delay` (8.0, `ge=0`), and `embedding_retry_jitter`
+  (0.0, `ge=0`), with `max_delay >= base_delay` enforced at construction;
+  `.env.example` documents all six. Focused offline embeddings suite: 300
+  passed; adjacent RAG suite: 670 passed / 4 skipped; full regression: 812
+  passed / 4 skipped; static import scan and no-write test clean; `git diff
+  --check` clean.
 - T268 implementation (2026-10-25):
   `src/app/rag/embeddings/providers/ollama.py` defines
   `OllamaEmbeddingProvider(base_url, transport=None)`. The base URL is explicit
@@ -602,8 +714,8 @@ Each task requires its own authorized session.
   4 skipped (exit 0); `uvicorn app.main:app` served `/health` with HTTP 200 and
   shut down cleanly under `--network none`; `alembic upgrade head` exited 0; and
   `git diff --check` was clean (exit 0).
-- Latest full test run: 733 passed, 4 skipped (2026-10-25, `pytest tests` from
-  `ai-customer-support-t268:local` with PostgreSQL running and network access
+- Latest full test run: 812 passed, 4 skipped (2026-10-25, `pytest tests` from
+  `ai-customer-support-t269:local` with PostgreSQL running and network access
   for the live Ollama integration test; the skips are the unchanged
   environment-conditional ingestion permission fixtures).
 - T262 verification: additive settings default to 500/75, are environment
@@ -681,12 +793,13 @@ Each task requires its own authorized session.
 
 ## Open Questions
 - Phase 4 RAG: ingestion (T255–T259), chunking (T260–T266), embedding contracts
-  (T267), and the Ollama embedding adapter (T268) are complete. The asset is
+  (T267), the Ollama embedding adapter (T268), and the embedding service with
+  batching, validation, retries, and settings (T269) are complete. The asset is
   vendored, the dependency pin is present, and input-length compatibility is
   recorded as `506 <= 2048`. T264 closed verification-only, T265 packaged and
   verified the asset in the image, and T266 production-wired the chunking
   composition root with no repository bind mount. The embeddings sequence
-  T267–T271 is approved; T267 and T268 are complete and T269 is the single next
+  T267–T271 is approved; T267–T269 are complete and T270 is the single next
   authorized task.
 - Embeddings specification: `specs/rag/knowledge-document-embeddings.md` is
   approved at Revision 2 (2026-10-24). Decisions D-1 through D-6 are resolved
@@ -714,7 +827,7 @@ Each task requires its own authorized session.
   filtering, context construction, source attribution, evaluation, and failure
   handling) are undefined and follow their own SDD cycles. Embedding
   implementation is authorized only as the approved sequence T267–T271, one
-  task per session; T267 and T268 are complete and T269 is next.
+  task per session; T267–T269 are complete and T270 is next.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
