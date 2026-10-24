@@ -1,21 +1,25 @@
 # Knowledge Document Embeddings Specification
 
-**Status:** Draft — Pending Review and Explicit Approval
+**Status:** Approved
 **Feature:** Knowledge document embeddings
 **Phase:** Phase 4 — RAG
+**Revision:** 2
+**Approved:** 2026-10-24
 **Depends on:** T266 closure; `specs/rag/embedding-tokenizer-decision.md`; `specs/rag/knowledge-document-chunking.md`
-**Authorizes implementation:** No
+**Authorizes implementation:** Yes — T267–T271, one task per session
 
-This document defines the Embeddings subsystem. It is a draft for review and
-does not authorize implementation. T267–T271 in §13 are proposed and remain
-unapproved until this specification and its task breakdown are explicitly
-approved in a separate review.
+This document defines the approved Embeddings subsystem. Revision 2 is the
+source of truth for implementation. Decisions D-1 through D-6 and the
+implementation sequence T267–T271 were explicitly approved on 2026-10-24.
 
-**Revision 2** addresses the review findings on model identity and digest,
-the provisional dimension, retry dependency, retry-count semantics,
-provider-to-application error mapping, and task acceptance criteria. It
-remains unapproved. Decisions that still require human approval are listed in
-the decision register in §2.4.
+Approval authorizes each implementation task individually under the project's
+SDD workflow. It does not authorize combining tasks in one session. No
+implementation was performed as part of this approval.
+
+**Revision 2** resolved the review findings on model identity and digest, the
+provisional dimension, retry dependency, retry-count semantics,
+provider-to-application error mapping, and task acceptance criteria. The
+approved decisions are recorded in §2.4 and §2.5.
 
 ## 1. Purpose
 
@@ -38,7 +42,7 @@ The subsystem must:
 
 ### 2.1 Approved existing decisions
 
-The following decisions are already approved and are inputs to this draft:
+The following decisions are already approved and are inputs to this specification:
 
 | Decision | Source |
 | --- | --- |
@@ -52,12 +56,11 @@ The following decisions are already approved and are inputs to this draft:
 | The existing LLM retry policy is bounded, retries only normalized errors with `retryable=True`, exposes `retry_count`, and uses `max_retries=2`, `base_delay=0.5`, `max_delay=8.0`, `jitter=0.0`. | `specs/llm/error-handling.md` §6; `src/app/llm/retry.py`; `src/app/llm/services/llm_service.py` |
 | Ollama-specific HTTP status interpretation belongs to the Ollama adapter and is not treated as a universal status-code rule. The existing adapter maps 404 to `LLMProviderModelNotFoundError`. | `specs/llm/error-handling.md` §5; `src/app/llm/providers/ollama.py` |
 
-### 2.2 Proposed decisions in this draft
+### 2.2 Decisions approved with this specification
 
-These decisions are proposed by this draft and are not approved until the
-specification is approved:
+These decisions are approved as part of Revision 2:
 
-| Decision | Proposal |
+| Decision | Approved decision |
 | --- | --- |
 | Provider endpoint | `POST {OLLAMA_URL}/api/embed` with batched `input`. |
 | Document prefix | `search_document: `, prepended to every chunk before embedding. |
@@ -66,41 +69,53 @@ specification is approved:
 | Expected dimension | `768` is the provisional expected dimension used by configuration and offline validation until T270 observes the live value. It is never described as verified. |
 | Batch size | Configurable, default `16`. |
 | Request timeout | Configurable per attempt, default `30` seconds. |
-| Retry policy | Reuse the approved bounded-retry semantics and concrete defaults of the LLM policy. The code-level dependency remains open; see D-3. |
+| Retry policy | Reuse the approved bounded-retry semantics and concrete defaults of the LLM policy. The implementation is the approved embeddings-local policy; see D-3. |
 | Vector normalization | V1 preserves provider-returned values unchanged. No L2 normalization is added. |
 | Result ordering | Preserve input chunk order exactly. |
 | Duplicate handling | Reject duplicate `chunk_id` values before any provider call. |
 | Failure handling | Any failed batch invalidates the overall result; no partial success is returned. |
 | Persistence | None. The subsystem returns in-memory results only. |
 
-### 2.3 Unresolved decisions requiring evidence or approval
+### 2.3 Decision outcomes
 
-The following items are not approved by this draft. Each maps to an entry in
-the decision register in §2.4.
+All review-gated decisions are resolved. No decision remains open for approval.
+The only outstanding evidence is the live dimension measurement in T270 (D-4);
+it does not reopen this approval unless the observed value differs from `768`.
 
-| Decision | Why unresolved | Required evidence or action |
-| --- | --- | --- |
-| Served model digest | The approved decision names the serving tag, not an observed digest. A tag can be re-pulled or re-quantized and produce different vectors. No repository code currently retrieves model metadata. | T270 records the digest reported by the live Ollama instance as conformance evidence. Whether the digest belongs in `embedding_config_id` or must be enforced at runtime is D-1 and D-2. |
-| Runtime digest verification | Reliable verification requires a metadata call outside `POST /api/embed` and a failure policy. Adding that to the runtime path would extend the approved architecture. | A human decision is required before adding a metadata client or startup digest check (D-2). |
-| Actual embedding dimension | `768` is provisional; this draft must not claim it is verified. | T270 must call the live model and record the observed dimension. If it is not `768`, stop and amend this specification and the pinned constant before closure (D-4). |
-| Retry implementation location | Importing `app.llm.retry` from the RAG subsystem would introduce the first `app.rag.* -> app.llm.*` production dependency. | Choose one of the options in §8.8 before T269 begins (D-3). |
-| Live conformance test gating | Offline unit tests must not require Ollama. | T270 must define and record the opt-in live test mechanism. A marker such as `RUN_LIVE_OLLAMA=1` is proposed, not approved (D-5). |
-| Ollama base URL setting | `Settings.ollama_url` (`OLLAMA_URL`) exists, while the existing LLM Ollama adapter reads `OLLAMA_BASE_URL` directly. The embeddings adapter must not repeat direct environment access. | Confirm that the embeddings composition root passes `settings.ollama_url` and that the existing LLM behavior is left unchanged (D-6). |
+| ID | Approved outcome |
+| --- | --- |
+| D-1 | The served model digest is excluded from `embedding_config_id` in V1. |
+| D-2 | Runtime digest verification is not implemented in V1; any future verification requires a separate specification and approval. |
+| D-3 | An embeddings-local `EmbeddingRetryPolicy` is used. The existing LLM retry implementation is not reused or refactored as part of this work. |
+| D-4 | `768` remains the provisional expected dimension until T270 verifies the actual model output. A different observed dimension stops work and requires a specification amendment. |
+| D-5 | Live Ollama conformance tests are gated behind the explicit opt-in environment variable `RUN_LIVE_OLLAMA=1`. Default test execution does not require a live Ollama service. |
+| D-6 | The existing `settings.ollama_url` value is passed explicitly to the Ollama embedding adapter. No competing setting or silent rename is introduced. |
 
-### 2.4 Decision register
+### 2.4 Decision register (approved)
 
-No item in this register is approved by the draft. Explicit specification
-approval may approve the recommendations; otherwise the named task must stop
-at its gate.
+**Approved:** 2026-10-24. Every status below is Approved.
 
-| ID | Decision | Status | Recommendation | Gate |
+| ID | Decision | Status | Approved decision | Follow-up |
 | --- | --- | --- | --- | --- |
-| **D-1** | Is the served model digest part of `embedding_config_id`? | Open | Exclude it in V1. Keep `config_id` deterministic from configured inputs only. Record the observed digest as conformance evidence, outside the identity. Including an ambient, re-pullable digest would make the identity deployment-dependent and would require an approved pinning and migration policy. | Before approval of this specification / T267 |
-| **D-2** | Is the served model digest verified at runtime? | Open | Do not verify it in V1. `POST /api/embed` does not return a digest, and no metadata client exists in the current architecture. If runtime enforcement is required, approve a separate task for a metadata lookup and its failure policy. | Before any task that adds a metadata call; not part of T267–T271 |
-| **D-3** | Reuse `app.llm.retry.RetryPolicy` or add an embeddings-local equivalent? | Open | Add `EmbeddingRetryPolicy` under the embeddings package with identical validation, defaults, and delay semantics. It avoids a new cross-subsystem dependency and needs its own settings mapping anyway. Duplication is deliberate and small. | Before T269 |
-| **D-4** | Is the observed dimension `768`? | Open; evidence required | T270 measures it. Any other value stops the task and requires a specification amendment before closure. | T270 |
-| **D-5** | How is the live conformance test gated? | Open | An opt-in environment gate, not part of the default offline suite. Exact mechanism is confirmed in T270. | T270 |
-| **D-6** | Which setting supplies the Ollama base URL? | Open | The composition root passes `settings.ollama_url`. The adapter accepts `base_url` explicitly. Do not change the existing LLM adapter or its `OLLAMA_BASE_URL` behavior in this work. | T271 |
+| **D-1** | Served model digest and `embedding_config_id` | Approved | Exclude the served model digest from `embedding_config_id` in V1. `config_id` remains deterministic from configured inputs only. | T270 records the observed digest as conformance evidence, outside the identity. |
+| **D-2** | Runtime digest verification | Approved | Do not implement runtime digest verification in V1. | Any future runtime verification requires a separate specification and approval. |
+| **D-3** | Retry policy implementation | Approved | Use an embeddings-local `EmbeddingRetryPolicy` in the embeddings package with identical validation, defaults, and delay semantics. Do not reuse or refactor the existing LLM retry implementation as part of this work. | T269 implements the local policy. |
+| **D-4** | Embedding dimension | Approved | Keep `768` as the provisional expected dimension until T270 verifies the actual model output. If the observed dimension differs, stop and amend this specification before proceeding with incompatible implementation assumptions. | T270 measures and records the observed dimension. |
+| **D-5** | Live Ollama tests | Approved | Gate live Ollama conformance tests behind `RUN_LIVE_OLLAMA=1`. Default test execution must not require a live Ollama service. | T270 uses the approved gate. |
+| **D-6** | Ollama base URL source | Approved | Use the existing `settings.ollama_url` setting and pass its value explicitly to the Ollama embedding adapter. Do not introduce a competing setting or silently rename existing configuration. | T271 wires the composition root. |
+
+### 2.5 Approval record
+
+- **Revision 2 approved:** 2026-10-24.
+- **Decisions approved:** D-1 through D-6, as recorded in §2.3 and §2.4.
+- **Task sequence approved:** T267–T271 in §13.
+- **Source of truth:** this specification governs subsequent implementation.
+- **Execution rule:** approval authorizes implementation tasks individually.
+  Only one task may be executed per session; multiple tasks must not be
+  combined.
+- **Next authorized task:** T267. It has not started and requires a separate
+  authorized session.
+- **Implementation performed by this approval:** none.
 
 ## 3. Scope
 
@@ -208,19 +223,19 @@ Three distinct concepts must not be conflated:
 | --- | --- | --- | --- |
 | Configured model tag | `EmbeddingConfig.model` | The local Ollama model name the subsystem requests, `nomic-embed-text:v1.5`. | Pinned in code and included in `embedding_config_id`. |
 | Reported model name | `model` in the `POST /api/embed` response | The model name the running Ollama instance says it served. | Validated to equal the configured tag. A mismatch is permanent. |
-| Served model digest | Manifest metadata reported by Ollama, for example `digest` on an entry returned by `GET /api/tags` | An identifier for the resolved local model manifest. Intended to distinguish different content served under the same tag. | Not used by configuration identity or runtime validation in V1. Recorded as conformance evidence in T270. Decisions D-1 and D-2. |
+| Served model digest | Manifest metadata reported by Ollama, for example `digest` on an entry returned by `GET /api/tags` | An identifier for the resolved local model manifest. Intended to distinguish different content served under the same tag. | Not used by configuration identity or runtime validation in V1 (approved D-1 and D-2). Recorded as conformance evidence in T270. |
 
 - The configured tag does not guarantee immutable vector output. Re-pulling,
   re-quantizing, or re-tagging can change the served manifest under the same
   tag.
 - The response `model` check detects a wrongly reported or wrong model name. It
   does not prove which manifest or weights produced the vectors.
-- `POST /api/embed` is not documented to return a digest. This draft does not
-  assume that any response field can substitute for one.
+- `POST /api/embed` is not documented to return a digest. This specification
+  does not assume that any response field can substitute for one.
 - Reliable digest verification needs a separate Ollama metadata request. No
   such client exists in the repository today, and adding one to the runtime path
-  would extend the approved architecture. That is why D-2 requires a human
-  decision rather than being implemented silently.
+  would extend the approved architecture. D-2 was approved to exclude runtime
+  digest verification from V1.
 
 ### 4.5 Model identity validation
 
@@ -236,13 +251,13 @@ Three distinct concepts must not be conflated:
   `EmbeddingConfigurationError`. It is never retried.
 - The running model must not be silently accepted when its reported name
   differs from the approved tag.
-- A successful run does not imply that the served digest was verified. No
-  success message, log line, or result field may claim digest verification until
-  D-2 is approved and implemented.
+- A successful run does not imply that the served digest was verified. Under
+  approved D-2, no success message, log line, or result field may claim digest
+  verification in V1.
 
 ### 4.6 Served digest handling
 
-V1 proposed behavior, subject to D-1 and D-2:
+Approved V1 behavior under D-1 and D-2:
 
 - `embedding_config_id` is computed from configured, deterministic inputs only.
   It does not include a digest observed from a deployment.
@@ -257,13 +272,13 @@ V1 proposed behavior, subject to D-1 and D-2:
     generation manifest;
   - startup and request-time failure behavior;
   - re-embedding and invalidation consequences.
-- A tag-only identity is an accepted residual risk for V1 only if the reviewer
-  approves D-1 and D-2 as recommended.
+- A tag-only identity is the approved residual risk for V1 under D-1 and D-2.
 
 ### 4.7 Dimension status
 
-The expected dimension is **proposed as `768` and is not verified by this
-draft**. It is provisional until T270 measures the live model.
+The expected dimension is **`768`, approved as provisional and not verified by
+this specification**. T270 measures the live model and records the observed
+value.
 
 Implementation handling before T270:
 
@@ -372,9 +387,8 @@ Rules:
   the runtime manifest or of vector reproducibility.
 - No timestamps, random values, hostnames, paths, process state, or deployment
   identifiers.
-- No served digest is included in V1 under the recommendation for D-1. If D-1
-  is approved differently, the canonical payload and this section must be
-  amended before implementation.
+- No served digest is included in V1 under approved D-1. Any change requires
+  amending this specification before implementation.
 - Includes every configured field that affects vector representation.
 - Excludes batch size, timeout, retry policy, base URL, Qdrant settings,
   database settings, logging settings, and retrieval settings.
@@ -384,7 +398,7 @@ Rules:
 
 ## 6. Service Contracts
 
-The proposed package is `src/app/rag/embeddings/`, with provider contracts
+The package is `src/app/rag/embeddings/`, with provider contracts
 under `src/app/rag/embeddings/providers/`.
 
 ### 6.1 `EmbeddingProvider` protocol
@@ -496,9 +510,7 @@ class EmbeddingService:
     async def embed_chunks(self, chunks: Iterable[Chunk]) -> EmbeddingResult: ...
 ```
 
-The `retry_policy` type annotation shows the recommended D-3 option. If D-3
-selects reuse instead, the parameter type is the approved shared policy; the
-service contract does not change.
+The `retry_policy` type is the approved embeddings-local policy (D-3).
 
 Responsibilities and guarantees:
 
@@ -508,8 +520,8 @@ Responsibilities and guarantees:
   `EmbeddingConfigurationError`.
 - Validate `batch_size > 0`, `timeout > 0`, and a valid retry policy at
   construction.
-- Use the retry policy implementation approved under D-3. The service must not
-  import `app.llm.*` unless that option is explicitly approved.
+- Use the approved embeddings-local `EmbeddingRetryPolicy` (D-3). The service
+  must not import `app.llm.*`.
 - Do not call `get_settings()` eagerly.
 - Accept no per-request configuration overrides in V1.
 - Prepend the document prefix to each chunk's content.
@@ -629,7 +641,7 @@ Mirroring the approved LLM error model:
 | `EmbeddingProviderResponseError` | Response is invalid JSON or malformed; carries a reason code. |
 | `EmbeddingProviderModelMismatchError` | Response `model` is missing, invalid, or differs from the pinned tag. |
 
-Ollama-specific status interpretation belongs to the adapter. The proposed
+Ollama-specific status interpretation belongs to the adapter. The approved
 mapping is: 429 → rate limit; 401/403 → authentication; 400/422 → invalid
 request; 404 for `/api/embed` → model not found; 5xx → unavailable; other HTTP
 errors → generic provider HTTP error. These are provider-specific and are not
@@ -751,8 +763,9 @@ Rules:
 - If retries are exhausted, the final normalized error is raised.
 - The existing LLM behavior and defaults are not changed by this specification.
 
-Concrete settings are proposed in §10.2. The code-level dependency decision is
-D-3 in §2.4 and §8.8; the semantics and defaults are not open.
+Concrete settings are specified in §10.2. The dependency decision is D-3 in
+§2.4 and §8.8, approved as an embeddings-local policy; the semantics and
+defaults remain fixed.
 
 ### 8.7 Retry count semantics
 
@@ -792,7 +805,7 @@ Consistency:
 - No approved specification defines a conflicting application-level retry-count
   contract.
 
-### 8.8 Retry dependency decision
+### 8.8 Retry dependency decision (D-3, approved)
 
 Importing `app.llm.retry.RetryPolicy` from `app.rag.embeddings` would introduce
 the first production dependency from the RAG subsystem to the LLM subsystem.
@@ -819,9 +832,11 @@ Options:
      updating LLM imports and tests, and a separate approved architectural
      change. This task and T267–T271 must not perform that refactor.
 
-Recommendation: option 2, with identical validation and semantics. This is
-D-3 and is not approved by the draft. T269 must not begin until D-3 is
-resolved. No option changes the defaults listed in §8.6 or any LLM behavior.
+**Approved decision D-3: option 2.** T269 implements an embeddings-local
+`EmbeddingRetryPolicy` with identical validation and semantics. Options 1 and 3
+are not authorized by this specification; option 3 would require a separate
+approved architectural change. No option changes the defaults listed in §8.6 or
+any LLM behavior.
 
 ### 8.9 Timeout behavior
 
@@ -862,8 +877,8 @@ environment overrides:
 - Query prefix: `search_query: `
 - Normalization: `none`
 - Algorithm version: `embeddings-v1`
-- Served digest: not pinned, not verified, and not part of the configuration
-  identity under the D-1/D-2 recommendation
+- Served digest: not pinned, not verified at runtime, and not part of the
+  configuration identity (approved D-1 and D-2)
 
 ### 10.2 Operational settings
 
@@ -888,9 +903,10 @@ Requirements:
   `embedding_config_id`.
 - The Ollama base URL is supplied to the adapter from the composition root.
   Repository evidence: `Settings` already defines `ollama_url` (`OLLAMA_URL`),
-  while the existing LLM adapter reads `OLLAMA_BASE_URL` directly. The
-  embeddings adapter must accept an explicit `base_url` argument and must not
-  read environment variables. Confirming the production source is D-6. The
+  while the existing LLM adapter reads `OLLAMA_BASE_URL` directly. Under
+  approved D-6, the embeddings adapter accepts an explicit `base_url` argument
+  and does not read environment variables; the composition root passes
+  `settings.ollama_url`. No competing setting or rename is introduced. The
   existing LLM adapter is out of scope and must not be changed.
 - The adapter must not call `/api/tags` or `/api/show`. Digest evidence
   collection in T270 may use a documented manual command outside the runtime
@@ -989,8 +1005,7 @@ and no PostgreSQL.
 - Per-attempt timeout is passed to every attempt; backoff does not consume it.
 - Error messages contain no chunk text or vector values.
 - Service imports no Qdrant, SQLAlchemy, psycopg, FastAPI, or persistence code.
-- Service imports no `app.llm` module unless D-3 is explicitly approved as the
-  reuse option.
+- Service imports no `app.llm` module (approved D-3).
 - Service performs no file writes and calls no metadata endpoints.
 - `from_settings` does not call `get_settings` eagerly.
 
@@ -1007,7 +1022,8 @@ and no PostgreSQL.
   verbatim and is not assumed.
 - No test or report claims runtime digest verification; the digest is evidence
   only.
-- The live test is opt-in and does not run in the offline focused suite.
+- The live test is opt-in behind `RUN_LIVE_OLLAMA=1` (approved D-5) and does
+  not run in the default or offline focused suite.
 - Actual commands and outcomes are recorded in `specs/project-state.md`; no
   success is claimed in advance.
 
@@ -1017,7 +1033,7 @@ and no PostgreSQL.
 - The full regression suite passes.
 - A static import scan proves the embeddings implementation does not import
   Qdrant, SQLAlchemy, psycopg, FastAPI endpoint modules, or persistence modules.
-- Under the recommended D-3 option, the same scan proves no `app.llm` import.
+- The same scan proves no `app.llm` import (approved D-3).
 - A no-write test proves the service and adapter perform no filesystem writes.
 - No ingestion, chunking, tokenizer, LLM, or domain behavior changes.
 - `git diff --check` is clean.
@@ -1035,7 +1051,7 @@ The specification is satisfied only when all of the following are true:
    implemented.
 5. `EmbeddingConfig.config_id` is deterministic, canonical, includes every
    configured vector-affecting field, and excludes operational settings and the
-   served digest under the decision approved for D-1.
+   served digest under approved D-1.
 6. `EmbeddingProvider`, `EmbeddingConfig`, `ChunkEmbedding`, `EmbeddingResult`,
    and `EmbeddingService` satisfy §6.
 7. Batching preserves order and uses the configured batch size.
@@ -1059,29 +1075,30 @@ The specification is satisfied only when all of the following are true:
     digest is not treated as verified at runtime.
 18. The implementation requires no Qdrant, database, persistence, HTTP endpoint,
     or agent integration.
-19. Decisions D-1, D-2, D-3, D-5, and D-6 are explicitly resolved before the
-    affected task begins; D-4 is resolved by T270 evidence before closure.
-20. The specification is explicitly approved before T267 begins.
+19. Decisions D-1 through D-6 are approved as recorded in §2.4; the D-4
+    dimension evidence is collected in T270.
+20. Revision 2 is approved. T267–T271 are authorized individually, one task per
+    session, with T267 not started by this approval.
 
-## 13. Proposed Task Breakdown
+## 13. Approved Task Breakdown
 
-This breakdown is **proposed and not approved**. Only one task may be executed
-per session after the specification is approved.
+This breakdown is **approved** as of 2026-10-24. Only one task may be executed
+per session after this approval.
 
 | Task | Scope | Depends on | Acceptance |
 | --- | --- | --- | --- |
-| **T267 — Embedding contracts, identity, configuration, and error taxonomy** | `src/app/rag/embeddings/__init__.py`, `contracts.py`, `exceptions.py`, `providers/__init__.py`, `providers/base.py`, `providers/exceptions.py`; `tests/rag/embeddings/__init__.py`, `test_contracts.py`, `test_errors.py` | Specification approval; D-1 decided | Immutable contracts; deterministic `config_id`; canonical serialization; pinned tag, prefixes, and provisionally named dimension constant; served digest excluded from `config_id` under the D-1 decision approved before T267; complete error taxonomy with tested roles and mapping; no HTTP, service, retry implementation, settings, or persistence code |
+| **T267 — Embedding contracts, identity, configuration, and error taxonomy** | `src/app/rag/embeddings/__init__.py`, `contracts.py`, `exceptions.py`, `providers/__init__.py`, `providers/base.py`, `providers/exceptions.py`; `tests/rag/embeddings/__init__.py`, `test_contracts.py`, `test_errors.py` | Specification approval (Revision 2); D-1 approved | Immutable contracts; deterministic `config_id`; canonical serialization; pinned tag, prefixes, and provisionally named dimension constant; served digest excluded from `config_id` under approved D-1; complete error taxonomy with tested roles and mapping; no HTTP, service, retry implementation, settings, or persistence code |
 | **T268 — Ollama embedding adapter and offline HTTP-mock tests** | `src/app/rag/embeddings/providers/ollama.py`; `tests/rag/embeddings/test_ollama_provider.py` | T267 | `/api/embed` request/response contract; response model comparison; provider status/connection/timeout/response normalization with stable reason codes; no `/api/tags` or `/api/show` calls; no digest claim; no raw HTTP exceptions; offline `httpx.MockTransport` tests |
-| **T269 — Embedding service, batching, ordering, validation, retries, and settings integration** | `src/app/rag/embeddings/service.py`; `src/app/rag/embeddings/retry.py` when the approved D-3 option requires it; additive `embedding_*` settings in `src/app/core/config.py`; `.env.example`; `tests/rag/embeddings/test_service.py`, `test_retry.py` | T268; D-3 decided | Batching and order preservation; empty input; duplicate rejection; count/empty/dimension/finite validation at the service layer; bounded retries with approved dependency option; per-attempt timeout; aggregate `retry_count` for successful and failed calls per §8.7; `from_settings` without eager settings access; no Qdrant, persistence, metadata, or unapproved `app.llm` import |
-| **T270 — Live Ollama conformance, dimension verification, regression, and closure** | `tests/rag/embeddings/test_ollama_conformance.py`; task documentation and `specs/project-state.md` | T269; D-4 and D-5 decided or confirmed during execution | Live model name, observed dimension, and reported digest recorded as evidence; `768` confirmed or the specification amended before any conformance claim; offline and full regression pass; `git diff --check` clean; closure record that does not claim runtime digest verification |
-| **T271 — Composition-root wiring and Docker image verification** | `src/app/rag/embeddings/composition.py`; `src/app/main.py` startup wiring; `tests/rag/embeddings/test_composition.py`; relevant documentation | T270; D-6 decided | Service constructed once per process from settings and exposed through `app.state`; base URL supplied explicitly from the approved setting; image builds; no bind mount; focused offline suite and full regression pass; no new endpoint, consumer, or DI framework |
+| **T269 — Embedding service, batching, ordering, validation, retries, and settings integration** | `src/app/rag/embeddings/service.py`; `src/app/rag/embeddings/retry.py`; additive `embedding_*` settings in `src/app/core/config.py`; `.env.example`; `tests/rag/embeddings/test_service.py`, `test_retry.py` | T268; D-3 approved | Batching and order preservation; empty input; duplicate rejection; count/empty/dimension/finite validation at the service layer; bounded retries via the approved embeddings-local policy; per-attempt timeout; aggregate `retry_count` for successful and failed calls per §8.7; `from_settings` without eager settings access; no Qdrant, persistence, metadata, or `app.llm` import |
+| **T270 — Live Ollama conformance, dimension verification, regression, and closure** | `tests/rag/embeddings/test_ollama_conformance.py`; task documentation and `specs/project-state.md` | T269; D-4/D-5 approved, D-4 evidence collected in T270 | Live model name, observed dimension, and reported digest recorded as evidence; `768` confirmed or the specification amended before any conformance claim; offline and full regression pass; `git diff --check` clean; closure record that does not claim runtime digest verification |
+| **T271 — Composition-root wiring and Docker image verification** | `src/app/rag/embeddings/composition.py`; `src/app/main.py` startup wiring; `tests/rag/embeddings/test_composition.py`; relevant documentation | T270; D-6 approved | Service constructed once per process from settings and exposed through `app.state`; base URL supplied explicitly from the approved setting; image builds; no bind mount; focused offline suite and full regression pass; no new endpoint, consumer, or DI framework |
 
 Task boundaries:
 
 - T267 adds no HTTP, service, retry implementation, or settings code.
 - T268 adds no batching, application settings, or metadata endpoint client.
 - T269 adds no composition root or startup wiring, and no `app.llm` import
-  unless D-3 is explicitly approved as reuse.
+  (approved D-3).
 - T270 is conformance and closure; a defect within approved scope reopens the
   owning task instead of being patched in T270. A dimension or digest finding
   that contradicts this specification stops the task and requires an amendment.
@@ -1095,7 +1112,7 @@ src/app/rag/embeddings/
     __init__.py
     contracts.py          # EmbeddingConfig, ChunkEmbedding, EmbeddingResult, IDs
     exceptions.py         # application-level error taxonomy
-    retry.py              # embeddings-local policy if not reused
+    retry.py              # embeddings-local EmbeddingRetryPolicy (D-3)
     service.py            # EmbeddingService, from_settings
     composition.py        # production composition root (T271)
     providers/
@@ -1117,26 +1134,28 @@ tests/rag/embeddings/
 The implementation must not add persistence, Qdrant, database, HTTP endpoint,
 CLI, or agent modules under this boundary.
 
-## 15. Definition of Done and Approval Gate
+## 15. Approval Record and Implementation Gate
 
-This draft is complete for review when:
+### 15.1 Approval record
 
-- The specification content above is reviewed.
-- The approved, proposed, and unresolved decisions in §2 and the decision
-  register in §2.4 are accepted, rejected, or revised. In particular:
-  - D-1 and D-2 fix the served-digest policy;
-  - D-3 fixes the retry dependency;
-  - D-4 is acknowledged as the T270 evidence gate: `768` remains unverified
-    now and a mismatch requires an amendment after measurement;
-  - D-5 fixes live-test gating before T270;
-  - D-6 fixes the base-URL source before T271.
-- The provisional `768` dimension is acknowledged as unverified, and the
-  constant name reflects that.
-- Retry-count semantics in §8.7 are accepted for both success and failure.
-- The T267–T271 task breakdown is approved or revised.
-- The specification status is changed to `Approved` in a separate approval
-  commit.
+Revision 2 was approved on 2026-10-24.
 
-Implementation must not begin until that approval. T267 remains unstarted and
-is not authorized by this draft. No decision in the register may be treated as
-approved by implication.
+- **Status:** Approved.
+- **Decisions:** D-1 through D-6 are approved as recorded in §2.3 and §2.4.
+- **Task sequence:** T267–T271 are approved as recorded in §13.
+- **Source of truth:** this specification governs subsequent implementation.
+- **Implementation performed by approval:** none.
+
+### 15.2 Implementation gate
+
+- Only one task from §13 may be executed per session.
+- The next authorized task is **T267 — Embedding contracts, identity,
+  configuration, and error taxonomy**.
+- T267 has not started and requires a separate authorized session.
+- Each later task requires its own authorized session and must satisfy its
+  listed dependencies and acceptance criteria.
+- T270 must measure the live model dimension. If the observed dimension differs
+  from the approved provisional value, implementation stops and this
+  specification is amended before any incompatible assumption proceeds.
+- Approval does not authorize combining tasks, skipping acceptance criteria, or
+  implementing later tasks early.
