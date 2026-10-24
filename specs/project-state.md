@@ -1,45 +1,86 @@
 # AI Customer Support Backend — Project State
 
 ## Current Position
-- Current Phase: Phase 4 — RAG; chunking implemented through T263, verified
-  through T264, and packaged through T265
-- T260 — Contracts, configuration identity, and tokenizer protocol — complete
-  and committed
-- T261 — Token-aware boundary selection and chunk assembly — complete and
-  committed (f9030d3)
-- T262 — Configuration and chunking service — complete and committed (68dbf55)
+- Current Phase: Phase 4 — RAG; ingestion and chunking (T255–T266) are complete,
+  verified, and production-wired
+- T260–T262 — chunking contracts, boundary assembly, configuration, and service —
+  complete and committed (8721376, f9030d3, 68dbf55)
 - Embedding and tokenizer decision approved (2026-10-23) at
-  `specs/rag/embedding-tokenizer-decision.md`; the T263 approval prerequisite
-  is satisfied
+  `specs/rag/embedding-tokenizer-decision.md`
 - T263 — Production tokenizer adapter and conformance — complete and committed
-  at `0e5af08dc6c8ec3375a0361836e9d7e0c7196c31` (`feat(rag): add pinned
-  tokenizer adapter`). Pinned identity:
+  at `0e5af08dc6c8ec3375a0361836e9d7e0c7196c31`
+- T264 — Final integration verification and closure — complete and committed in
+  a documentation-only closure commit
+- T265 — Docker tokenizer asset packaging — complete and committed at d126cb7
+  (`feat(docker): package pinned tokenizer asset`)
+- T266 — Chunking composition-root wiring — complete and committed at 35e869b
+  (`feat(rag): wire chunking composition root`). The app startup now constructs
+  the approved tokenizer, injects it into `ChunkingService.from_settings`, and
+  exposes the service through `app.state`. The canonical import root is `app`
+  and the runtime entry point is `uvicorn app.main:app`. Pinned identity:
   `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`
-- T264 — Final integration verification and closure — complete and committed
-  in the documentation-only closure commit (`docs: record T264 closure in
-  project state`; SHA is recorded in Git history). Verification-only with no
-  feature code: focused chunking suite passed offline (265 passed), adapter
-  conformance passed offline (30 passed), full regression passed (507 passed,
-  4 skipped), `git diff --check` clean, and no behavior outside T263 scope
-  changed
-- T265 — Docker tokenizer asset packaging — complete and committed in the
-  implementation commit (`feat(docker): package pinned tokenizer asset`; SHA is
-  recorded in Git history). The image `ai-customer-support-t265:local`
-  (`sha256:5ec4597909346ad1382cdcb5afcba496b1cd69368f8a9ff7d28282ad822ee0ee`)
-  contains the pinned asset at the adapter path; asset hash, identity, fixed
-  sample, focused offline suite (265 passed), and full regression (507 passed,
-  4 skipped) were verified without a repository bind mount
-- Current task: T266 — Chunking composition-root wiring. It is Open, has not
-  started, and depends on T265 closure
+- Current task: none. No implementation task is approved. The next SDD step is
+  the Phase 4 embeddings specification gate; it is not yet defined or approved
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
-  `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1)
+  `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1);
+  T260–T266 are now complete
 
 ## Last Completed Task
+- Task: T266 — Chunking composition-root wiring
+- Commit: 35e869b (`feat(rag): wire chunking composition root`); this project
+  state record follows in a separate documentation commit
+- Scope delivered: new `src/app/rag/chunking/composition.py` with
+  `build_chunking_service(settings)`; `src/app/main.py` startup lifespan
+  constructs the service and exposes it through `app.state.chunking_service`;
+  canonical `app` import root across `src/`, `tests/`, and `migrations/`; the
+  `Dockerfile` runtime entry point is now `uvicorn app.main:app`; new
+  `tests/rag/chunking/test_composition.py`. No ingestion endpoint, new consumer,
+  dependency-injection framework, runtime download, or environment-based
+  tokenizer identity override was added
+- Contract implemented: the factory constructs one
+  `NomicEmbedTextTokenizer` from the pinned local asset and injects it into
+  `ChunkingService.from_settings(settings, tokenizer)`. Chunk sizes come from
+  `Settings`; the adapter supplies the pinned tokenizer identity. The service is
+  constructed once per application process in the startup lifespan
+- Image: `ai-customer-support-t266:local`, ID
+  `sha256:45b21c159abee3122fb91a393dc58ae2f0ca7275b3ca313ab3d4393d0b494a26`
+- Verification (2026-10-24; no repository bind mount in any image run):
+  - Build: `docker build -t ai-customer-support-t266:local .` → exit 0
+  - Packaged asset: `docker run --rm --network none
+    ai-customer-support-t266:local sha256sum
+    /app/assets/tokenizers/nomic-embed-text-v1.5/tokenizer.json` →
+    `d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`, exit
+    0
+  - Composition factory in the image with `--network none`: the reported
+    identity equals the approved identity, and a real `KnowledgeDocument`
+    chunked into 1 chunk / 20 tokens, exit 0
+  - Focused offline suite: `docker run --rm --network none
+    ai-customer-support-t266:local python -m pytest tests/rag/chunking -q` →
+    270 passed, exit 0
+  - Full regression: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    ai-customer-support-t266:local python -m pytest tests -q` → 512 passed,
+    4 skipped, exit 0. Networking was required for PostgreSQL and the live
+    Ollama integration test; no repository bind mount was used
+  - Runtime entry point: `uvicorn app.main:app` started from the image with
+    `--network none --env-file .env`; application startup completed, `GET
+    /health` returned `{"status":"ok"}` with HTTP 200, and shutdown was clean
+  - Alembic after import-root standardization: `docker run --rm --network
+    ai-customer-support_default --env-file .env ai-customer-support-t266:local
+    alembic upgrade head` → exit 0
+  - `git diff --check`: clean, exit 0; the implementation diff is limited to
+    T266 scope
+- Outcome: T266 acceptance criteria in §15 and §20.2 are met. The production
+  chunking path constructs and uses the approved adapter, and `app.state`
+  exposes the composed service. Chunking is production-ready. No next
+  implementation task is approved; the next SDD step is the Phase 4 embeddings
+  specification gate, which has not started
+
+## Previously Completed Task — T265 (Docker tokenizer asset packaging)
 - Task: T265 — Docker tokenizer asset packaging
-- Commit: this implementation commit (`feat(docker): package pinned tokenizer
-  asset`); the SHA is recorded in Git history
+- Commit: d126cb7 (`feat(docker): package pinned tokenizer asset`)
 - Scope delivered: `Dockerfile` explicitly copies the pinned
   `assets/tokenizers/nomic-embed-text-v1.5/tokenizer.json` to
   `/app/assets/tokenizers/nomic-embed-text-v1.5/tokenizer.json`. It also copies
@@ -50,31 +91,16 @@
 - Image: `ai-customer-support-t265:local`, ID
   `sha256:5ec4597909346ad1382cdcb5afcba496b1cd69368f8a9ff7d28282ad822ee0ee`
 - Verification (2026-10-24; no repository bind mount in any image run):
-  - Build: `docker build -t ai-customer-support-t265:local .` → exit 0
-  - Packaged asset: `docker run --rm --network none
-    ai-customer-support-t265:local sha256sum
-    /app/assets/tokenizers/nomic-embed-text-v1.5/tokenizer.json` →
-    `d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`, exit
-    0; the file exists at the adapter's expected path and
-    `default_repo_root()` reports `/app`
-  - Identity and sample: `docker run --rm --network none
-    ai-customer-support-t265:local python -c "...NomicEmbedTextTokenizer()..."`
-    → the approved identity, exit 0; the fixed sample
+  - Build exit 0; packaged asset SHA-256
+    `d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66` at the
+    adapter path; `default_repo_root()` reported `/app`
+  - The adapter reported the approved identity, and the fixed sample
     `"Refunds are processed within 5-7 business days."` produced 11 token spans
     that partition the source
-  - Focused offline suite: `docker run --rm --network none
-    ai-customer-support-t265:local python -m pytest tests/rag/chunking -q` →
-    265 passed, exit 0
-  - Full regression: `docker run --rm --network ai-customer-support_default
-    --add-host host.docker.internal:host-gateway --env-file .env
-    ai-customer-support-t265:local python -m pytest tests -q` → 507 passed,
-    4 skipped, exit 0. Networking was required for PostgreSQL and the live
-    Ollama integration test; no repository bind mount was used
+  - Focused offline suite: 265 passed, exit 0
+  - Full regression: 507 passed, 4 skipped, exit 0
   - `git diff --check`: clean, exit 0
-- Outcome: T265 acceptance criteria in §15 are met. The image contains the
-  pinned asset at the adapter's expected path, and the adapter, focused offline
-  suite, and full regression work without a repository bind mount. T266 is the
-  sole next task
+- Outcome: T265 acceptance criteria in §15 were met, and T266 is now complete
 
 ## Previously Completed Task — T264 (final integration verification and closure)
 - Task: T264 — Final integration verification and closure
@@ -113,7 +139,8 @@
     edit
 - Outcome: all T264 acceptance criteria in §15 pass. The committed T263
   implementation is verified against §5, §14.2, §15, and §20; no defect was
-  found and no implementation code was changed. T265 is the sole next task
+  found and no implementation code was changed. T265 was the sole next task at
+  that time
 
 ## Previously Completed Task — T263 (production tokenizer adapter)
 - Commit: `0e5af08dc6c8ec3375a0361836e9d7e0c7196c31`
@@ -312,26 +339,20 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- ID: T266 — Chunking composition-root wiring
-- Title: Wire the approved tokenizer into the production chunking composition
-  root and expose the service through `app.state`
-- Status: Sole next task; Open; not started
-- Depends on: T265 closure (this implementation commit) and the approved
-  chunking specification §15 and §20.2
-- Scope: add `src/app/rag/chunking/composition.py`; construct one
-  `NomicEmbedTextTokenizer` from the pinned local asset and inject it into
-  `ChunkingService.from_settings(settings, tokenizer)`; expose the composed
-  service through `app.state`; standardize the canonical `app` import root and
-  `uvicorn app.main:app` so duplicate module identities are not produced; add
-  `tests/rag/chunking/test_composition.py`; no ingestion endpoint, new consumer,
-  dependency-injection framework, runtime download, or environment-based
-  tokenizer identity override
-- Acceptance: see `specs/rag/knowledge-document-chunking.md` §15 T266. T266
-  must not claim results before they are measured
-- Note: T266 remains Open until implementation and verification are complete
+- No implementation task is approved or in progress.
+- Just completed: T266 — Chunking composition-root wiring, committed at 35e869b
+  and verified against `specs/rag/knowledge-document-chunking.md` §15 and §20.2.
+- Next task: Phase 4 embeddings specification and decision gate.
+- Status: Not defined or approved; no implementation is authorized.
+- Required outcome: define and approve the embeddings specification (model and
+  runtime boundary, batching, input shape, failure handling, and the boundary to
+  vector storage) before writing implementation code. Qdrant and retrieval
+  remain separate later specifications.
+- Do not start the next task automatically.
 
 ## Task Ordering
-1. T266 — Production chunking composition-root wiring.
+1. Phase 4 embeddings specification gate — define and approve the specification;
+   implementation requires a separately authorized session.
 
 ## Verified Findings
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
@@ -405,8 +426,24 @@
   suite from the image passes with networking for PostgreSQL and live Ollama
   (507 passed, 4 skipped, exit 0). `git diff --check` was clean (exit 0). No
   adapter, application, test, or migration code changed.
-- Latest full test run: 507 passed, 4 skipped (2026-10-24, `pytest tests` from
-  `ai-customer-support-t265:local` with PostgreSQL running and network access
+- T266 verification (2026-10-24): `src/app/rag/chunking/composition.py` builds
+  one `NomicEmbedTextTokenizer` from the pinned asset and injects it into
+  `ChunkingService.from_settings`; the `src/app/main.py` lifespan exposes the
+  service through `app.state.chunking_service`. Imports across `src/`, `tests/`,
+  and `migrations/` now use the canonical `app` root, and the `Dockerfile` CMD is
+  `uvicorn app.main:app`. The new integration suite covers the approved identity,
+  settings-derived maximum and overlap, end-to-end `KnowledgeDocument` chunking
+  with exact source slices and recomputed chunk IDs, network-free factory use,
+  startup exposure with one instance per process, and a source scan rejecting
+  `src.app.*` imports. The image `ai-customer-support-t266:local`
+  (`sha256:45b21c159abee3122fb91a393dc58ae2f0ca7275b3ca313ab3d4393d0b494a26`)
+  contains the approved asset hash and identity. Without a repository bind
+  mount: focused offline suite 270 passed (exit 0); full regression 512 passed,
+  4 skipped (exit 0); `uvicorn app.main:app` served `/health` with HTTP 200 and
+  shut down cleanly under `--network none`; `alembic upgrade head` exited 0; and
+  `git diff --check` was clean (exit 0).
+- Latest full test run: 512 passed, 4 skipped (2026-10-24, `pytest tests` from
+  `ai-customer-support-t266:local` with PostgreSQL running and network access
   for the live Ollama integration test; the skips are the unchanged
   environment-conditional ingestion permission fixtures).
 - T262 verification: additive settings default to 500/75, are environment
@@ -483,26 +520,27 @@
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: ingestion (T255–T259), the chunking specification, T260–T265,
-  and the embedding/tokenizer decision are complete. T263 is committed at
-  `0e5af08dc6c8ec3375a0361836e9d7e0c7196c31`; the asset is vendored, the
-  dependency pin is present, and input-length compatibility is recorded as
-  `506 <= 2048`. T264 closed verification-only, and T265 packaged and verified
-  the asset in the image without a repository bind mount. T266 is the sole next
-  task. Remaining Phase 4 specifications (embeddings, Qdrant, retrieval, etc.)
-  are undefined and will follow their own SDD cycles.
+- Phase 4 RAG: ingestion (T255–T259) and chunking (T260–T266) are complete. The
+  asset is vendored, the dependency pin is present, and input-length
+  compatibility is recorded as `506 <= 2048`. T264 closed verification-only,
+  T265 packaged and verified the asset in the image, and T266 production-wired
+  the composition root with no repository bind mount. No implementation task is
+  currently approved.
 - Chunking defaults of 500 tokens and 75 tokens of overlap are confirmed for
   the approved model: `500 + 4 prefix + 2 special = 506 <= 2048`.
-- T265 — Docker tokenizer asset packaging — is complete and committed. The
-  image contains the pinned asset at the adapter path, and asset hash, identity,
-  fixed sample, focused offline suite, and full regression were verified without
-  a repository bind mount.
-- T266 — Chunking composition-root wiring — is Open and is the sole next task
-  after T265 closure; it has not started. It must use the canonical `app` import
-  root and `uvicorn app.main:app`, add the composition factory at
-  `src/app/rag/chunking/composition.py`, expose the service through `app.state`,
-  and verify the production wiring with an integration test. See
-  `specs/rag/knowledge-document-chunking.md` §20.
+- T265 — Docker tokenizer asset packaging — is complete and committed at
+  d126cb7. The image contains the pinned asset at the adapter path, and asset
+  hash, identity, fixed sample, focused offline suite, and full regression were
+  verified without a repository bind mount.
+- T266 — Chunking composition-root wiring — is complete and committed at
+  35e869b. The canonical `app` import root is used throughout, `uvicorn
+  app.main:app` is the runtime entry point, and the composed service is exposed
+  through `app.state`.
+- Remaining Phase 4 specifications (embeddings, Qdrant, semantic retrieval,
+  metadata filtering, context construction, source attribution, evaluation, and
+  failure handling) are undefined and follow their own SDD cycles. The next
+  step is the embeddings specification and decision gate; it is not approved and
+  no implementation is authorized.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
