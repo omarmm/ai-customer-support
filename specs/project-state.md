@@ -1,8 +1,8 @@
 # AI Customer Support Backend — Project State
 
 ## Current Position
-- Current Phase: Phase 4 — RAG; ingestion and chunking (T255–T266) are complete,
-  verified, and production-wired
+- Current Phase: Phase 4 — RAG; ingestion, chunking, and embedding contracts
+  (T255–T267) are complete and verified; chunking is production-wired
 - T260–T262 — chunking contracts, boundary assembly, configuration, and service —
   complete and committed (8721376, f9030d3, 68dbf55)
 - Embedding and tokenizer decision approved (2026-10-23) at
@@ -19,25 +19,74 @@
   exposes the service through `app.state`. The canonical import root is `app`
   and the runtime entry point is `uvicorn app.main:app`. Pinned identity:
   `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`
-- Current task: none. No implementation task is in progress. T267 is authorized
+- T267 — Embedding contracts, identity, configuration, and error taxonomy —
+  complete and committed at `a22411eb4b41fc84884a890dcb528f1722893e09`
+  (`feat(rag): add embedding contracts and error taxonomy`). Immutable
+  `EmbeddingConfig`, `ChunkEmbedding`, and `EmbeddingResult`; deterministic
+  canonical `config_id`; pinned provider/model/prefixes/normalization/algorithm
+  version; provisionally named dimension constant; complete provider and
+  application error taxonomies with an explicit mapping. No HTTP, service,
+  retry, settings, or persistence code was added.
+- Current task: none. No implementation task is in progress. T268 is authorized
   but has not started and requires a separate session.
-- Current activity: the Phase 4 embeddings specification was approved at
-  Revision 2 on 2026-10-24 at
-  `specs/rag/knowledge-document-embeddings.md`. Approval commit:
-  `docs(rag): approve embeddings specification`. No implementation was
-  performed during the approval task.
-- Status: `Approved`. Decisions D-1 through D-6 are approved and the task
-  sequence T267–T271 is approved; only one task may be executed per session.
+- Current activity: T267 was implemented, verified, and committed on 2026-10-25.
+- Status: `Approved`. The Phase 4 embeddings specification remains the source
+  of truth; T267 is complete and T268 is the single next authorized task.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
   `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1);
-  T260–T266 are now complete
+  T260–T266 are complete
 - RAG: Knowledge Document Embeddings Specification approved at Revision 2;
-  T267–T271 are the approved implementation sequence, and T267 is the single
-  next authorized task
+  T267–T271 are the approved implementation sequence; T267 is complete and
+  T268 is the single next authorized task
 
 ## Last Completed Task
+- Task: T267 — Embedding contracts, identity, configuration, and error taxonomy
+- Commit: `a22411eb4b41fc84884a890dcb528f1722893e09`
+  (`feat(rag): add embedding contracts and error taxonomy`); this project state
+  record follows in a separate documentation commit
+- Scope delivered: new `src/app/rag/embeddings/` package with `contracts.py`,
+  `exceptions.py`, `providers/base.py`, and `providers/exceptions.py`, plus
+  `tests/rag/embeddings/test_contracts.py` and `test_errors.py`. No HTTP,
+  service, retry, settings, persistence, Qdrant, database, endpoint, or
+  composition-root code was added
+- Contract implemented: frozen `EmbeddingConfig`, `ChunkEmbedding`, and
+  `EmbeddingResult` with construction-path validation; `EmbeddingConfig`
+  defaults and pinned constants for provider `ollama`, model
+  `nomic-embed-text:v1.5`, provisional dimension `768`, prefixes
+  `search_document: ` and `search_query: `, normalization `none`, and
+  algorithm version `embeddings-v1`; deterministic lowercase SHA-256
+  `config_id` over the canonical JSON payload with `sort_keys=True`,
+  separators `(",", ":")`, `ensure_ascii=False`, and UTF-8; no served digest or
+  operational setting is part of the identity; provider and application error
+  taxonomies with `category`/`retryable`/`retry_count`; explicit
+  provider-to-application mapping preserving response reason codes and
+  `__cause__`
+- Verification (2026-10-25; image `ai-customer-support-t267:local`, ID
+  `sha256:922e1447fc11dc28d9206e18e426fb4fbfaf6056e4ed397d2eef5fa86edb38df`;
+  no repository bind mount in image verification runs):
+  - Focused offline suite: `docker run --rm --network none
+    ai-customer-support-t267:local python -m pytest tests/rag/embeddings -q` →
+    175 passed, exit 0
+  - Adjacent RAG regression: `pytest tests/rag/chunking tests/rag/ingestion` →
+    370 passed, 4 skipped, exit 0 (repository mounted for this iteration run)
+  - Full regression: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    ai-customer-support-t267:local python -m pytest tests -q` → 687 passed,
+    4 skipped, exit 0. Networking was required for PostgreSQL and the live
+    Ollama integration test; no repository bind mount was used
+  - Alembic: `alembic upgrade head` in the image exited 0
+  - Static import scan: no `httpx`, `app.llm`, SQLAlchemy, psycopg, FastAPI,
+    Qdrant, or persistence import under the new embeddings package
+  - `git diff --check`: clean, exit 0; the implementation diff is limited to
+    the T267 file scope
+- Outcome: T267 acceptance criteria in §11.1 and §13 are met. The embedding
+  boundary now has immutable contracts, deterministic identity, pinned
+  constants, and a complete tested error taxonomy. No next implementation task
+  was started; T268 is the single next authorized task.
+
+## Previously Completed Task — T266 (chunking composition-root wiring)
 - Task: T266 — Chunking composition-root wiring
 - Commit: 35e869b (`feat(rag): wire chunking composition root`); this project
   state record follows in a separate documentation commit
@@ -349,45 +398,57 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- No implementation task is in progress. T267 is authorized but has not been
+- No implementation task is in progress. T268 is authorized but has not
   started.
-- T266 — Chunking composition-root wiring — remains complete and committed at
-  35e869b.
-- Current activity: Revision 2 of the Phase 4 embeddings specification at
-  `specs/rag/knowledge-document-embeddings.md` was formally approved on
-  2026-10-24. This approval task was documentation-only.
-- Status: `Approved`. The specification is the source of truth for subsequent
-  implementation.
-- Decisions resolved and approved: D-1 (served digest excluded from
-  `embedding_config_id`), D-2 (no runtime digest verification in V1), D-3
-  (embeddings-local `EmbeddingRetryPolicy`), D-4 (`768` provisional until T270
-  verification), D-5 (live tests gated by `RUN_LIVE_OLLAMA=1`), D-6
-  (`settings.ollama_url` passed explicitly to the adapter).
+- T267 — Embedding contracts, identity, configuration, and error taxonomy — is
+  complete and committed at `a22411eb4b41fc84884a890dcb528f1722893e09`.
+- Current activity: T267 implementation and closure on 2026-10-25. This
+  documentation record is the only remaining change for the task.
+- Status: T267 complete; the Phase 4 embeddings specification at
+  `specs/rag/knowledge-document-embeddings.md` remains the source of truth.
+- Decisions D-1 through D-6 remain approved as recorded in the specification's
+  §2.3 and §2.4.
 - Approved implementation sequence: T267–T271 in the specification's §13. Each
   task requires its own authorized session; multiple tasks must not be combined.
-- Exactly one next authorized task: T267 — Embedding contracts, identity,
-  configuration, and error taxonomy. It has not started and must be executed in
-  a separate session.
-- Verification for this approval task: `git diff --check` clean; the diff is
-  limited to `specs/rag/knowledge-document-embeddings.md` and this project-state
-  file; no application source, tests, Dockerfile, dependency, migration, or
-  runtime configuration changed; no application tests were run and no live
-  Ollama request was made.
-- Do not begin T267 in this session.
+- Exactly one next authorized task: T268 — Ollama embedding adapter and offline
+  HTTP-mock tests. It has not started and must be executed in a separate
+  session.
+- Verification for T267: focused offline embeddings suite 175 passed; adjacent
+  RAG suite 370 passed / 4 skipped; full regression 687 passed / 4 skipped;
+  Alembic upgrade head exit 0; `git diff --check` clean. No application source
+  outside the approved T267 scope changed.
+- Do not begin T268 in this session.
 
 ## Task Ordering
-1. T267 — Embedding contracts, identity, configuration, and error taxonomy
+1. T268 — Ollama embedding adapter and offline HTTP-mock tests
    (authorized; not started; separate session).
-2. T268 — Ollama embedding adapter and offline HTTP-mock tests.
-3. T269 — Embedding service, batching, ordering, validation, retries, and
+2. T269 — Embedding service, batching, ordering, validation, retries, and
    settings integration.
-4. T270 — Live Ollama conformance, dimension verification, regression, and
+3. T270 — Live Ollama conformance, dimension verification, regression, and
    closure.
-5. T271 — Composition-root wiring and Docker image verification.
+4. T271 — Composition-root wiring and Docker image verification.
 
 Each task requires its own authorized session.
 
 ## Verified Findings
+- T267 implementation (2026-10-25): `src/app/rag/embeddings/contracts.py`
+  provides frozen `EmbeddingConfig`, `ChunkEmbedding`, and `EmbeddingResult`
+  with validation on direct construction; pinned constants are provider
+  `ollama`, model `nomic-embed-text:v1.5`, provisional dimension `768`,
+  document prefix `search_document: `, query prefix `search_query: `,
+  normalization `none`, and algorithm version `embeddings-v1`.
+  `EmbeddingConfig.config_id` is the lowercase SHA-256 of the exact canonical
+  JSON payload in §5.4 and excludes the served digest and all operational
+  settings. `ChunkEmbedding` stores provenance and an immutable float vector
+  without chunk text; `EmbeddingResult` preserves input order, validates unique
+  chunk IDs, matching configuration IDs, vector length, and finite values, and
+  exposes a read-only `by_chunk_id` mapping. The provider and application error
+  taxonomies expose every approved type; `normalize_provider_error` maps by
+  explicit provider type, preserves response reason codes and `__cause__`, and
+  keeps messages free of chunk text and vectors. Focused offline embeddings
+  suite: 175 passed; adjacent RAG suite: 370 passed / 4 skipped; full
+  regression: 687 passed / 4 skipped; Alembic upgrade head exit 0;
+  `git diff --check` clean.
 - RetryPolicy defaults: max_retries=2, base_delay=0.5, max_delay=8.0,
   jitter=0.0. Construction validates invariants and raises ValueError on
   invalid values (negative limits, max_delay < base_delay, jitter < 0).
@@ -475,8 +536,8 @@ Each task requires its own authorized session.
   4 skipped (exit 0); `uvicorn app.main:app` served `/health` with HTTP 200 and
   shut down cleanly under `--network none`; `alembic upgrade head` exited 0; and
   `git diff --check` was clean (exit 0).
-- Latest full test run: 512 passed, 4 skipped (2026-10-24, `pytest tests` from
-  `ai-customer-support-t266:local` with PostgreSQL running and network access
+- Latest full test run: 687 passed, 4 skipped (2026-10-25, `pytest tests` from
+  `ai-customer-support-t267:local` with PostgreSQL running and network access
   for the live Ollama integration test; the skips are the unchanged
   environment-conditional ingestion permission fixtures).
 - T262 verification: additive settings default to 500/75, are environment
@@ -553,12 +614,13 @@ Each task requires its own authorized session.
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: ingestion (T255–T259) and chunking (T260–T266) are complete. The
-  asset is vendored, the dependency pin is present, and input-length
-  compatibility is recorded as `506 <= 2048`. T264 closed verification-only,
-  T265 packaged and verified the asset in the image, and T266 production-wired
-  the composition root with no repository bind mount. The embeddings sequence
-  T267–T271 is approved, and T267 is the single next authorized task.
+- Phase 4 RAG: ingestion (T255–T259), chunking (T260–T266), and embedding
+  contracts (T267) are complete. The asset is vendored, the dependency pin is
+  present, and input-length compatibility is recorded as `506 <= 2048`. T264
+  closed verification-only, T265 packaged and verified the asset in the image,
+  and T266 production-wired the composition root with no repository bind
+  mount. The embeddings sequence T267–T271 is approved; T267 is complete and
+  T268 is the single next authorized task.
 - Embeddings specification: `specs/rag/knowledge-document-embeddings.md` is
   approved at Revision 2 (2026-10-24). Decisions D-1 through D-6 are resolved
   as recorded in the specification's §2.3 and §2.4. `768` remains the
@@ -585,7 +647,7 @@ Each task requires its own authorized session.
   filtering, context construction, source attribution, evaluation, and failure
   handling) are undefined and follow their own SDD cycles. Embedding
   implementation is authorized only as the approved sequence T267–T271, one
-  task per session, starting with T267.
+  task per session; T267 is complete and T268 is next.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
