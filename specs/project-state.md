@@ -20,17 +20,21 @@
   and the runtime entry point is `uvicorn app.main:app`. Pinned identity:
   `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`
 - Current task: none. No implementation task is approved or in progress.
-- Current activity: the Phase 4 embeddings specification has been drafted at
-  `specs/rag/knowledge-document-embeddings.md` with status
-  `Draft — Pending Review and Explicit Approval`. It is not approved. T267–T271
-  are proposed only; no embedding implementation is authorized.
+- Current activity: the Phase 4 embeddings specification draft at
+  `specs/rag/knowledge-document-embeddings.md` was revised in response to
+  review findings and awaits final review. Revision 2 is committed at 6db93a5
+  (`docs(rag): revise embeddings specification`). Drafting and review revision
+  are complete.
+- Status: `Draft — Pending Review and Explicit Approval`. The draft does not
+  authorize implementation. Its decision register D-1 to D-6 remains open.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
   `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1);
   T260–T266 are now complete
-- RAG: Knowledge Document Embeddings Specification is an unapproved draft; the
-  only next action is review and approval or revision
+- RAG: Knowledge Document Embeddings Specification is a revised, unapproved
+  draft; the only next action is human review and explicit approval or a
+  requested revision
 
 ## Last Completed Task
 - Task: T266 — Chunking composition-root wiring
@@ -347,14 +351,27 @@
 - No implementation task is approved or in progress.
 - T266 — Chunking composition-root wiring — remains complete and committed at
   35e869b.
-- Current activity: the Phase 4 embeddings specification draft at
-  `specs/rag/knowledge-document-embeddings.md` awaits review; drafting is
-  complete.
+- Current activity: Revision 2 of the Phase 4 embeddings specification at
+  `specs/rag/knowledge-document-embeddings.md` was completed and committed at
+  6db93a5 (`docs(rag): revise embeddings specification`). It awaits human
+  review.
 - Status: `Draft — Pending Review and Explicit Approval`. The draft does not
   authorize implementation.
+- Review findings addressed: model tag vs reported identity vs served digest;
+  provisional dimension handling; retry dependency options and gate; aggregate
+  `retry_count` for success and failure; provider-to-application error mapping;
+  and task acceptance criteria.
+- Open decisions: D-1 (digest in configuration ID), D-2 (runtime digest
+  verification), D-3 (retry dependency before T269), D-4 (observed dimension at
+  T270), D-5 (live-test gating), D-6 (base-URL source before T271).
 - Proposed follow-up tasks: T267–T271 in the draft's §13. They remain proposed
   and are not approved.
-- Exactly one next action: review the draft and approve it or request revisions.
+- Exactly one next action: human review and explicit approval or a requested
+  revision.
+- Verification for this documentation review: `git diff --check` clean; the
+  diff is limited to `specs/rag/knowledge-document-embeddings.md` and this
+  project-state file; no source, tests, Dockerfile, dependency, migration, or
+  runtime configuration changed; no application tests were run.
 - Do not begin T267 or any other embedding implementation task.
 
 ## Task Ordering
@@ -535,11 +552,17 @@
   the composition root with no repository bind mount. No implementation task is
   currently approved.
 - Embeddings specification: `specs/rag/knowledge-document-embeddings.md` is a
-  draft pending review. `768` dimensions are provisional and unverified until
-  T270 measures the live model; the served model digest/runtime version is not
-  yet recorded; and the retry implementation location (reuse
-  `app.llm.retry.RetryPolicy` or an embeddings-local equivalent) requires an
-  implementation-review decision. None of these may be treated as confirmed.
+  revised draft pending review (revision 2, commit 6db93a5). `768` dimensions
+  are provisional and unverified until T270 measures the live model; the served
+  model digest is recorded only as T270 evidence and is not verified at runtime
+  unless D-2 is approved; D-1 (digest in identity) and D-3 (retry dependency)
+  remain open; and D-6 records the existing `OLLAMA_URL`/`OLLAMA_BASE_URL`
+  inconsistency without changing LLM behavior. None of these may be treated as
+  confirmed.
+- Embeddings retry-count contract (draft §8.7): successful calls report total
+  additional attempts; failures report retries performed before the terminal
+  failure, including earlier successful batches. This extension of the LLM
+  convention remains proposed until the specification is approved.
 - Chunking defaults of 500 tokens and 75 tokens of overlap are confirmed for
   the approved model: `500 + 4 prefix + 2 special = 506 <= 2048`.
 - T265 — Docker tokenizer asset packaging — is complete and committed at
