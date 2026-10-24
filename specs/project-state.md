@@ -2,8 +2,12 @@
 
 ## Current Position
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
-  and embeddings contracts through live conformance (T267–T270) are complete.
-  T271 composition-root wiring is the single next authorized task.
+  and the approved embeddings sequence (T267–T271) are complete and verified.
+  No further implementation task is authorized; the next SDD step is the RAG
+  vector storage/retrieval specification gate.
+- T271 — Composition-root wiring and Docker image verification — complete and
+  committed at `77f610da76fd67392dfb504303372123f596a56a`
+  (`feat(rag): wire embedding service composition root`)
 - T270 — Live Ollama conformance, dimension verification, regression, and
   closure — complete and committed at
   `95eb8ed1a1a29c5701dcb849c90c353673f2ba70`
@@ -37,21 +41,73 @@
   `0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f`
   (evidence only, not runtime verification). `768` is confirmed by live
   measurement; no specification amendment is required.
-- Current task: none. No implementation task is in progress. T270 is complete;
-  T271 is authorized by the approved sequence and requires a separate session.
-- Current activity: T270 was implemented, verified, and committed on 2026-10-25.
+- Current task: none. No implementation task is in progress. T271 is complete;
+  the approved T267–T271 sequence is finished and no further implementation
+  task is authorized.
+- Current activity: T271 was implemented, verified, and committed on 2026-10-25.
 - Status: `Approved`. The Phase 4 embeddings specification remains the source
-  of truth; T267–T270 are complete and T271 is the single next authorized task.
+  of truth and its approved implementation sequence is complete. The next SDD
+  step is a specification gate for RAG vector storage/retrieval; implementation
+  must not begin without an approved specification and task breakdown.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
   `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1);
   T260–T266 are complete
 - RAG: Knowledge Document Embeddings Specification approved at Revision 2;
-  T267–T271 are the approved implementation sequence; T267–T270 are complete
-  and T271 is the single next authorized task
+  T267–T271 are the approved implementation sequence and are all complete.
+  Qdrant integration, semantic retrieval, metadata filtering, context
+  construction, source attribution, evaluation, and RAG failure handling remain
+  undefined and require their own SDD cycles.
 
 ## Last Completed Task
+- Task: T271 — Composition-root wiring and Docker image verification
+- Commit: `77f610da76fd67392dfb504303372123f596a56a`
+  (`feat(rag): wire embedding service composition root`); this project state
+  record follows in a separate documentation commit
+- Scope delivered: new `src/app/rag/embeddings/composition.py` with
+  `build_embedding_service(settings)`; `src/app/main.py` startup lifespan
+  constructs the service and exposes it through `app.state.embedding_service`;
+  new `tests/rag/embeddings/test_composition.py`. No endpoint, consumer,
+  retrieval, Qdrant, persistence, metadata, DI framework, adapter, service,
+  retry, settings, chunking, ingestion, LLM, domain, Dockerfile, or dependency
+  code was added or changed
+- Contract implemented: the factory constructs one
+  `OllamaEmbeddingProvider(base_url=settings.ollama_url)` (approved D-6) and
+  injects it into `EmbeddingService.from_settings(settings, provider)`. The
+  service is constructed once per application process in the startup lifespan.
+  The adapter receives the existing `OLLAMA_URL` setting explicitly; no
+  competing setting or rename was introduced. The pinned provider/model
+  identity and provisional dimension come from the contracts and adapter
+- Verification (2026-10-25; image `ai-customer-support-t271:local`, ID
+  `sha256:f21276c083890b483bac9bddbc430a29352f77eee58f04aa1197281f2add8d10`;
+  no repository bind mount in image verification runs):
+  - Build: `docker build -t ai-customer-support-t271:local .` → exit 0
+  - Focused offline suite: `docker run --rm --network none
+    ai-customer-support-t271:local python -m pytest tests/rag/embeddings -q` →
+    303 passed, 3 skipped, exit 0
+  - Full regression: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    ai-customer-support-t271:local python -m pytest tests -q` → 815 passed,
+    7 skipped, exit 0. Networking was required for PostgreSQL and the live
+    Ollama integration test; the 7 skips are the 4 unchanged
+    environment-conditional ingestion permission fixtures plus the 3 opt-in
+    live embedding conformance tests. No repository bind mount was used
+  - In-image startup without a bind mount and with `--network none`:
+    `TestClient(app.main.app)` constructed `EmbeddingService` with
+    `ollama:nomic-embed-text:v1.5`, dimension `768`, and `GET /health` returned
+    `{"status": "ok"}`, exit 0
+  - `git diff --cached --check`: clean, exit 0; the implementation diff is
+    limited to the composition root, startup wiring, and composition tests
+- Outcome: T271 acceptance criteria in §13 are met. The production embedding
+  service is constructed once per process from settings, receives the approved
+  base URL explicitly, and is exposed through `app.state.embedding_service`.
+  No endpoint, consumer, retrieval, persistence, or DI framework was added. The
+  approved T267–T271 sequence is complete. No next implementation task was
+  started; the next SDD step is the RAG vector storage/retrieval specification
+  gate.
+
+## Previously Completed Task — T270 (live conformance)
 - Task: T270 — Live Ollama conformance, dimension verification, regression, and
   closure
 - Commit: `95eb8ed1a1a29c5701dcb849c90c353673f2ba70`
@@ -585,37 +641,55 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- No implementation task is in progress. T270 is complete; T271 is authorized
-  but has not started.
-- T270 — Live Ollama conformance, dimension verification, regression, and
-  closure — is complete and committed at
-  `95eb8ed1a1a29c5701dcb849c90c353673f2ba70`.
-- Current activity: T270 implementation, live verification, and closure on
+- No implementation task is in progress. T271 is complete and the approved
+  T267–T271 embeddings sequence is finished.
+- T271 — Composition-root wiring and Docker image verification — is complete
+  and committed at `77f610da76fd67392dfb504303372123f596a56a`.
+- Current activity: T271 implementation, image verification, and closure on
   2026-10-25. This documentation record is the only remaining change for the
   task.
-- Status: T270 complete; the Phase 4 embeddings specification at
-  `specs/rag/knowledge-document-embeddings.md` remains the source of truth.
+- Status: T271 complete; the Phase 4 embeddings specification at
+  `specs/rag/knowledge-document-embeddings.md` remains the source of truth and
+  its approved implementation sequence is complete.
 - Decisions D-1 through D-6 remain approved as recorded in the specification's
   §2.3 and §2.4.
-- Approved implementation sequence: T267–T271 in the specification's §13. Each
-  task requires its own authorized session; multiple tasks must not be combined.
-- Exactly one next authorized task: T271 — Composition-root wiring and Docker
-  image verification. It has not started and must be executed in a separate
-  session.
-- Verification for T270: live conformance 3 passed; focused offline embeddings
-  suite 300 passed / 3 skipped; full regression 812 passed / 7 skipped; the
-  observed dimension is 768 and matches the provisional value; `git diff
-  --cached --check` clean. No application source outside the approved T270
-  scope changed.
-- Do not begin T271 in this session.
+- Approved implementation sequence: T267–T271 in the specification's §13. All
+  five tasks are complete; no further implementation task from that sequence
+  remains.
+- No next implementation task is authorized. The next SDD step is a
+  specification gate for RAG vector storage/retrieval (Qdrant integration,
+  semantic retrieval, metadata filtering, context construction, source
+  attribution, evaluation, and failure handling). A specification and task
+  breakdown must be approved before implementation.
+- Verification for T271: focused offline embeddings suite 303 passed / 3
+  skipped; full regression 815 passed / 7 skipped; in-image startup exposed the
+  composed service and `/health` returned 200; `git diff --cached --check`
+  clean. No application source outside the approved T271 scope changed.
+- Do not begin the retrieval specification or implementation in this session.
 
 ## Task Ordering
-1. T271 — Composition-root wiring and Docker image verification (authorized;
-   not started; separate session).
+1. RAG vector storage/retrieval specification gate (not started; requires
+   specification approval before any implementation).
+2. No implementation task is authorized beyond the completed T267–T271
+   sequence.
 
-Each task requires its own authorized session.
+Each task and specification gate requires its own authorized session.
 
 ## Verified Findings
+- T271 implementation (2026-10-25):
+  `src/app/rag/embeddings/composition.py` defines
+  `build_embedding_service(settings)`, which constructs one
+  `OllamaEmbeddingProvider(base_url=settings.ollama_url)` (approved D-6) and
+  injects it into `EmbeddingService.from_settings(settings, provider)`.
+  `src/app/main.py` calls the factory in the startup lifespan and exposes the
+  result through `app.state.embedding_service`; the service is constructed once
+  per process. `tests/rag/embeddings/test_composition.py` covers the factory
+  identity and settings mapping, the explicit base URL, startup exposure and
+  instance reuse, `/health`, and the absence of a new endpoint, consumer, or DI
+  framework. Focused offline embeddings suite: 303 passed / 3 skipped; full
+  regression: 815 passed / 7 skipped; in-image startup with `--network none`
+  constructed `EmbeddingService` (`ollama:nomic-embed-text:v1.5`, dimension
+  768) and served `/health` with HTTP 200; `git diff --cached --check` clean.
 - T270 live conformance (2026-10-25):
   `tests/rag/embeddings/test_ollama_conformance.py` adds three opt-in live
   tests gated by `RUN_LIVE_OLLAMA=1`; the default and offline focused suites
@@ -802,8 +876,8 @@ Each task requires its own authorized session.
   4 skipped (exit 0); `uvicorn app.main:app` served `/health` with HTTP 200 and
   shut down cleanly under `--network none`; `alembic upgrade head` exited 0; and
   `git diff --check` was clean (exit 0).
-- Latest full test run: 812 passed, 7 skipped (2026-10-25, `pytest tests` from
-  `ai-customer-support-t270:local` with PostgreSQL running and network access
+- Latest full test run: 815 passed, 7 skipped (2026-10-25, `pytest tests` from
+  `ai-customer-support-t271:local` with PostgreSQL running and network access
   for the live Ollama integration test; the skips are the 4 unchanged
   environment-conditional ingestion permission fixtures plus the 3 opt-in live
   embedding conformance tests).
@@ -881,23 +955,22 @@ Each task requires its own authorized session.
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: ingestion (T255–T259), chunking (T260–T266), embedding contracts
-  (T267), the Ollama embedding adapter (T268), and the embedding service with
-  batching, validation, retries, and settings (T269) are complete. The asset is
-  vendored, the dependency pin is present, and input-length compatibility is
-  recorded as `506 <= 2048`. T264 closed verification-only, T265 packaged and
-  verified the asset in the image, and T266 production-wired the chunking
-  composition root with no repository bind mount. The embeddings sequence
-  T267–T271 is approved; T267–T269 are complete and T270 is the single next
-  authorized task.
+- Phase 4 RAG: ingestion (T255–T259), chunking (T260–T266), and the embeddings
+  sequence (T267–T271) are complete. The asset is vendored, the dependency pin
+  is present, and input-length compatibility is recorded as `506 <= 2048`. T264
+  closed verification-only, T265 packaged and verified the asset in the image,
+  T266 production-wired the chunking composition root, T270 completed live
+  Ollama conformance, and T271 production-wired the embedding composition root.
+  No further implementation task is authorized; the next SDD step is the RAG
+  vector storage/retrieval specification gate.
 - Embeddings specification: `specs/rag/knowledge-document-embeddings.md` is
-  approved at Revision 2 (2026-10-24). Decisions D-1 through D-6 are resolved
-  as recorded in the specification's §2.3 and §2.4. `768` remains the
-  provisional expected dimension until T270 measures the live model; the served
-  model digest is recorded only as T270 evidence and is not verified at runtime
-  in V1; and D-6 preserves the existing `OLLAMA_URL`/`OLLAMA_BASE_URL`
-  inconsistency without changing LLM behavior. The provisional dimension must
-  not be described as confirmed before T270 evidence.
+  approved at Revision 2 (2026-10-24) and its implementation sequence T267–T271
+  is complete. Decisions D-1 through D-6 are resolved as recorded in the
+  specification's §2.3 and §2.4. T270 observed dimension `768`, which equals
+  the provisional expected value and is now confirmed by live measurement; the
+  served model digest is recorded only as T270 evidence and is not verified at
+  runtime in V1; and D-6 preserves the existing `OLLAMA_URL`/`OLLAMA_BASE_URL`
+  inconsistency without changing LLM behavior.
 - Embeddings retry-count contract (specification §8.7, approved): successful
   calls report total additional attempts; failures report retries performed
   before the terminal failure, including earlier successful batches. This
@@ -914,9 +987,11 @@ Each task requires its own authorized session.
   through `app.state`.
 - Remaining Phase 4 specifications (Qdrant, semantic retrieval, metadata
   filtering, context construction, source attribution, evaluation, and failure
-  handling) are undefined and follow their own SDD cycles. Embedding
-  implementation is authorized only as the approved sequence T267–T271, one
-  task per session; T267–T269 are complete and T270 is next.
+  handling) are undefined and follow their own SDD cycles. The approved
+  embedding sequence T267–T271 is complete; no implementation task beyond it
+  is authorized. The next SDD step is the vector storage/retrieval
+  specification gate, which requires its own approved specification and task
+  breakdown before implementation.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
