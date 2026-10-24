@@ -1,47 +1,91 @@
 # AI Customer Support Backend — Project State
 
 ## Current Position
-- Current Phase: Phase 4 — RAG; ingestion, chunking, and embedding contracts
-  (T255–T267) are complete and verified; chunking is production-wired
-- T260–T262 — chunking contracts, boundary assembly, configuration, and service —
-  complete and committed (8721376, f9030d3, 68dbf55)
-- Embedding and tokenizer decision approved (2026-10-23) at
-  `specs/rag/embedding-tokenizer-decision.md`
-- T263 — Production tokenizer adapter and conformance — complete and committed
-  at `0e5af08dc6c8ec3375a0361836e9d7e0c7196c31`
-- T264 — Final integration verification and closure — complete and committed in
-  a documentation-only closure commit
-- T265 — Docker tokenizer asset packaging — complete and committed at d126cb7
-  (`feat(docker): package pinned tokenizer asset`)
-- T266 — Chunking composition-root wiring — complete and committed at 35e869b
-  (`feat(rag): wire chunking composition root`). The app startup now constructs
-  the approved tokenizer, injects it into `ChunkingService.from_settings`, and
-  exposes the service through `app.state`. The canonical import root is `app`
-  and the runtime entry point is `uvicorn app.main:app`. Pinned identity:
-  `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`
+- Current Phase: Phase 4 — RAG. Ingestion (T255–T259) and chunking
+  (T260–T266) are complete; chunking is production-wired. Embedding contracts
+  (T267) and the Ollama embedding adapter (T268) are complete and verified.
+- T268 — Ollama embedding adapter and offline HTTP-mock tests — complete and
+  committed at `b66d3c1d01efe758707e51af59d1a133f4451ac4`
+  (`feat(rag): add ollama embedding adapter`)
 - T267 — Embedding contracts, identity, configuration, and error taxonomy —
   complete and committed at `a22411eb4b41fc84884a890dcb528f1722893e09`
-  (`feat(rag): add embedding contracts and error taxonomy`). Immutable
-  `EmbeddingConfig`, `ChunkEmbedding`, and `EmbeddingResult`; deterministic
-  canonical `config_id`; pinned provider/model/prefixes/normalization/algorithm
-  version; provisionally named dimension constant; complete provider and
-  application error taxonomies with an explicit mapping. No HTTP, service,
-  retry, settings, or persistence code was added.
-- Current task: none. No implementation task is in progress. T268 is authorized
-  but has not started and requires a separate session.
-- Current activity: T267 was implemented, verified, and committed on 2026-10-25.
+  (`feat(rag): add embedding contracts and error taxonomy`)
+- T266 — Chunking composition-root wiring — complete and committed at 35e869b;
+  startup constructs the approved tokenizer, injects it into
+  `ChunkingService.from_settings`, and exposes the service through `app.state`.
+  The canonical import root is `app` and the entry point is
+  `uvicorn app.main:app`
+- T260–T262 — chunking contracts, boundary assembly, configuration, and service —
+  complete and committed (8721376, f9030d3, 68dbf55)
+- T263–T265 — production tokenizer adapter, closure verification, and Docker
+  asset packaging — complete (0e5af08, documentation closure, d126cb7)
+- Embedding and tokenizer decision approved (2026-10-23) at
+  `specs/rag/embedding-tokenizer-decision.md`; pinned tokenizer identity:
+  `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`
+- Current task: none. No implementation task is in progress. T269 is authorized
+  by the approved sequence but has not started and requires a separate session.
+- Current activity: T268 was implemented, verified, and committed on 2026-10-25.
 - Status: `Approved`. The Phase 4 embeddings specification remains the source
-  of truth; T267 is complete and T268 is the single next authorized task.
+  of truth; T267 and T268 are complete and T269 is the single next authorized
+  task.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
   `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1);
   T260–T266 are complete
 - RAG: Knowledge Document Embeddings Specification approved at Revision 2;
-  T267–T271 are the approved implementation sequence; T267 is complete and
-  T268 is the single next authorized task
+  T267–T271 are the approved implementation sequence; T267 and T268 are
+  complete and T269 is the single next authorized task
 
 ## Last Completed Task
+- Task: T268 — Ollama embedding adapter and offline HTTP-mock tests
+- Commit: `b66d3c1d01efe758707e51af59d1a133f4451ac4`
+  (`feat(rag): add ollama embedding adapter`); this project state record follows
+  in a separate documentation commit
+- Scope delivered: new `src/app/rag/embeddings/providers/ollama.py` with
+  `OllamaEmbeddingProvider`, and
+  `tests/rag/embeddings/test_ollama_provider.py`. No service, batching, retry,
+  settings, composition-root, endpoint, persistence, metadata-client, or
+  `app.llm` code was added
+- Adapter contract implemented: explicit `base_url` supplied by the composition
+  root (no environment read, approved D-6); pinned identity
+  `ollama:nomic-embed-text:v1.5`; `POST {base_url}/api/embed` with exactly
+  `model` and `input`; input array order preserved with no prefixing or
+  truncation; per-attempt `timeout`; response `model` must be a string equal to
+  the pinned tag; `embeddings` must be a JSON array whose vectors contain only
+  JSON numbers; empty `embeddings` is structurally valid and returned for
+  service-level handling; stable reasons `invalid_json`, `malformed_response`,
+  and `missing_embeddings`; Ollama status mapping 429 → rate limit, 401/403 →
+  authentication, 400/422 → invalid request, 404 → model not found, 5xx →
+  unavailable, other → generic HTTP; connection, timeout, and other transport
+  failures normalize to provider types. The adapter calls no `/api/tags` or
+  `/api/show`, exposes no digest field, makes no digest-verification claim, and
+  does not validate count, dimension, or finiteness (service invariants)
+- Verification (2026-10-25; image `ai-customer-support-t268:local`, ID
+  `sha256:258ccc131af4c87b4cd2a7714a57299f811a5fa39dfbb1c6dc7b4bf740c96ed0`;
+  no repository bind mount in image verification runs):
+  - Build: `docker build -t ai-customer-support-t268:local .` → exit 0
+  - Focused offline suite: `docker run --rm --network none
+    ai-customer-support-t268:local python -m pytest tests/rag/embeddings -q` →
+    221 passed, exit 0
+  - Adjacent RAG suite: `pytest tests/rag/chunking tests/rag/ingestion
+    tests/rag/embeddings` → 591 passed, 4 skipped, exit 0
+  - Full regression: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    ai-customer-support-t268:local python -m pytest tests -q` → 733 passed,
+    4 skipped, exit 0. Networking was required for PostgreSQL and the live
+    Ollama integration test; no repository bind mount was used
+  - Static import scan: the adapter imports only `json`, `typing`, `httpx`, and
+    `app.rag.embeddings` modules; no `app.llm`, Qdrant, SQLAlchemy, psycopg,
+    FastAPI, persistence, or metadata endpoint reference
+  - `git diff --check`: clean, exit 0; the implementation diff is limited to
+    the two T268 files
+- Outcome: T268 acceptance criteria in §11.2 and §13 are met. The provider
+  boundary now implements the approved `/api/embed` contract with offline
+  `httpx.MockTransport` coverage and no metadata or digest behavior. No next
+  implementation task was started; T269 is the single next authorized task.
+
+## Previously Completed Task — T267 (embedding contracts)
 - Task: T267 — Embedding contracts, identity, configuration, and error taxonomy
 - Commit: `a22411eb4b41fc84884a890dcb528f1722893e09`
   (`feat(rag): add embedding contracts and error taxonomy`); this project state
@@ -398,39 +442,61 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- No implementation task is in progress. T268 is authorized but has not
+- No implementation task is in progress. T269 is authorized but has not
   started.
-- T267 — Embedding contracts, identity, configuration, and error taxonomy — is
-  complete and committed at `a22411eb4b41fc84884a890dcb528f1722893e09`.
-- Current activity: T267 implementation and closure on 2026-10-25. This
+- T268 — Ollama embedding adapter and offline HTTP-mock tests — is complete and
+  committed at `b66d3c1d01efe758707e51af59d1a133f4451ac4`.
+- Current activity: T268 implementation and closure on 2026-10-25. This
   documentation record is the only remaining change for the task.
-- Status: T267 complete; the Phase 4 embeddings specification at
+- Status: T268 complete; the Phase 4 embeddings specification at
   `specs/rag/knowledge-document-embeddings.md` remains the source of truth.
 - Decisions D-1 through D-6 remain approved as recorded in the specification's
   §2.3 and §2.4.
 - Approved implementation sequence: T267–T271 in the specification's §13. Each
   task requires its own authorized session; multiple tasks must not be combined.
-- Exactly one next authorized task: T268 — Ollama embedding adapter and offline
-  HTTP-mock tests. It has not started and must be executed in a separate
-  session.
-- Verification for T267: focused offline embeddings suite 175 passed; adjacent
-  RAG suite 370 passed / 4 skipped; full regression 687 passed / 4 skipped;
-  Alembic upgrade head exit 0; `git diff --check` clean. No application source
-  outside the approved T267 scope changed.
-- Do not begin T268 in this session.
+- Exactly one next authorized task: T269 — Embedding service, batching,
+  ordering, validation, retries, and settings integration. It has not started
+  and must be executed in a separate session.
+- Verification for T268: focused offline embeddings suite 221 passed; adjacent
+  RAG suite 591 passed / 4 skipped; full regression 733 passed / 4 skipped;
+  static import scan clean; `git diff --check` clean. No application source
+  outside the approved T268 scope changed.
+- Do not begin T269 in this session.
 
 ## Task Ordering
-1. T268 — Ollama embedding adapter and offline HTTP-mock tests
-   (authorized; not started; separate session).
-2. T269 — Embedding service, batching, ordering, validation, retries, and
-   settings integration.
-3. T270 — Live Ollama conformance, dimension verification, regression, and
+1. T269 — Embedding service, batching, ordering, validation, retries, and
+   settings integration (authorized; not started; separate session).
+2. T270 — Live Ollama conformance, dimension verification, regression, and
    closure.
-4. T271 — Composition-root wiring and Docker image verification.
+3. T271 — Composition-root wiring and Docker image verification.
 
 Each task requires its own authorized session.
 
 ## Verified Findings
+- T268 implementation (2026-10-25):
+  `src/app/rag/embeddings/providers/ollama.py` defines
+  `OllamaEmbeddingProvider(base_url, transport=None)`. The base URL is explicit
+  and no environment variable is read (approved D-6). The adapter reports the
+  pinned identity `ollama:nomic-embed-text:v1.5`, posts exactly
+  `{"model": "nomic-embed-text:v1.5", "input": [...]}` to
+  `POST {base_url}/api/embed`, preserves input order without adding or removing
+  prefixes, and applies the per-attempt `timeout` to every HTTP timeout
+  component. It requires the response `model` to be a string equal to the
+  pinned tag; treats a missing `embeddings` key as reason `missing_embeddings`,
+  a non-array envelope or invalid vector element as `malformed_response`, and
+  invalid JSON as `invalid_json`; accepts an empty `embeddings` array as
+  structurally valid; and returns tuple-of-tuple vectors of floats. Count,
+  dimension, and finiteness are deliberately not validated by the adapter
+  (service invariants). HTTP status mapping is Ollama-local: 429 rate limit;
+  401/403 authentication; 400/422 invalid request; 404 model not found; 5xx
+  unavailable; other statuses generic. Connection, timeout, and other transport
+  failures normalize to provider types, and no raw `httpx` exception escapes.
+  No model metadata endpoint is called, no digest field exists, and no digest
+  verification is claimed. Focused offline embeddings suite with
+  `--network none`: 221 passed; adjacent RAG suite: 591 passed / 4 skipped;
+  full regression: 733 passed / 4 skipped; static import scan found no
+  `app.llm`, Qdrant, SQLAlchemy, psycopg, FastAPI, persistence, or metadata
+  import; `git diff --check` clean.
 - T267 implementation (2026-10-25): `src/app/rag/embeddings/contracts.py`
   provides frozen `EmbeddingConfig`, `ChunkEmbedding`, and `EmbeddingResult`
   with validation on direct construction; pinned constants are provider
@@ -536,8 +602,8 @@ Each task requires its own authorized session.
   4 skipped (exit 0); `uvicorn app.main:app` served `/health` with HTTP 200 and
   shut down cleanly under `--network none`; `alembic upgrade head` exited 0; and
   `git diff --check` was clean (exit 0).
-- Latest full test run: 687 passed, 4 skipped (2026-10-25, `pytest tests` from
-  `ai-customer-support-t267:local` with PostgreSQL running and network access
+- Latest full test run: 733 passed, 4 skipped (2026-10-25, `pytest tests` from
+  `ai-customer-support-t268:local` with PostgreSQL running and network access
   for the live Ollama integration test; the skips are the unchanged
   environment-conditional ingestion permission fixtures).
 - T262 verification: additive settings default to 500/75, are environment
@@ -614,13 +680,14 @@ Each task requires its own authorized session.
   `test_path_traversal_is_rejected`; no new contract introduced.
 
 ## Open Questions
-- Phase 4 RAG: ingestion (T255–T259), chunking (T260–T266), and embedding
-  contracts (T267) are complete. The asset is vendored, the dependency pin is
-  present, and input-length compatibility is recorded as `506 <= 2048`. T264
-  closed verification-only, T265 packaged and verified the asset in the image,
-  and T266 production-wired the composition root with no repository bind
-  mount. The embeddings sequence T267–T271 is approved; T267 is complete and
-  T268 is the single next authorized task.
+- Phase 4 RAG: ingestion (T255–T259), chunking (T260–T266), embedding contracts
+  (T267), and the Ollama embedding adapter (T268) are complete. The asset is
+  vendored, the dependency pin is present, and input-length compatibility is
+  recorded as `506 <= 2048`. T264 closed verification-only, T265 packaged and
+  verified the asset in the image, and T266 production-wired the chunking
+  composition root with no repository bind mount. The embeddings sequence
+  T267–T271 is approved; T267 and T268 are complete and T269 is the single next
+  authorized task.
 - Embeddings specification: `specs/rag/knowledge-document-embeddings.md` is
   approved at Revision 2 (2026-10-24). Decisions D-1 through D-6 are resolved
   as recorded in the specification's §2.3 and §2.4. `768` remains the
@@ -647,7 +714,7 @@ Each task requires its own authorized session.
   filtering, context construction, source attribution, evaluation, and failure
   handling) are undefined and follow their own SDD cycles. Embedding
   implementation is authorized only as the approved sequence T267–T271, one
-  task per session; T267 is complete and T268 is next.
+  task per session; T267 and T268 are complete and T269 is next.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
