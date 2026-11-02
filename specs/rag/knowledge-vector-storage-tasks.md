@@ -10,6 +10,15 @@
 
 Implement only the Vector Storage subsystem defined by the approved specification. Retrieval semantics, query behavior, metadata filtering policy, context construction, source attribution, and Agent integration are out of scope and require their own specifications.
 
+## Directory and test layout
+
+Follow the existing RAG package convention (`ingestion/`, `chunking/`, `embeddings/`) and use the Python package name with an underscore:
+
+- Production code: `src/app/rag/vector_storage/`
+- Tests: `tests/rag/vector_storage/`
+
+The directory name is `vector_storage`, not `vector-storage`, because it is an importable Python package and matches the existing subsystem naming convention. Keep tests parallel to the production package. Add focused unit/adapter tests with each task; do not defer testing until the final task. Add container-backed integration tests and full regression in T278. Tests must prove the approved specification contracts, not redefine them.
+
 ## Dependency-ordered tasks
 
 ### T272 — Vector storage contracts and application error taxonomy
@@ -24,6 +33,7 @@ Implement only the Vector Storage subsystem defined by the approved specificatio
 
 **Acceptance criteria:**
 - All DTO fields, types, validation rules, and error codes match §§5–6 and §9.
+- Focused tests are added under `tests/rag/vector_storage/` for every DTO, validation boundary, and error contract introduced by this task.
 - UUIDv5 uses the fixed project namespace and original `chunk_id`.
 - No Qdrant SDK, network client, settings, infrastructure, endpoint, or persistence integration is added.
 - Focused tests pass; existing tests remain unaffected.
@@ -44,7 +54,7 @@ Implement only the Vector Storage subsystem defined by the approved specificatio
 - SDK types and raw response bodies never escape the adapter.
 - Timeout, connection, 5xx, permanent 4xx, 429, parsing, and unknown failures follow §9/§9.1.
 - At most 3 total attempts; 429 and permanent failures are never retried.
-- Offline adapter tests cover the exception matrix and retry boundaries.
+- Offline adapter tests under `tests/rag/vector_storage/` cover the exception matrix and retry boundaries.
 - No business lifecycle orchestration or startup network I/O is added.
 
 **Dependencies:** T272.
@@ -62,7 +72,7 @@ Implement only the Vector Storage subsystem defined by the approved specificatio
 **Acceptance criteria:**
 - Image base, Dockerfile path, image tag, healthcheck endpoint/command/timing, and Compose dependency match §7.
 - API startup remains free of Qdrant network I/O.
-- Configuration tests cover defaults, invalid values, and optional API key behavior.
+- Configuration tests under `tests/rag/vector_storage/` cover defaults, invalid values, and optional API key behavior.
 - Existing PostgreSQL/API Compose behavior remains intact.
 
 **Dependencies:** T272. May proceed independently of T273, but only one task is authorized at a time.
@@ -81,7 +91,7 @@ Implement only the Vector Storage subsystem defined by the approved specificatio
 - Payload contains the approved fields and adapter-added generation ID.
 - Vector validation rejects wrong dimensions, booleans, non-finite values, and invalid payloads.
 - Partial or ambiguous writes fail as `VECTOR_GENERATION_BUILD_FAILED`; no false success is returned.
-- Adapter tests cover empty/invalid boundaries and batch ordering.
+- Adapter tests under `tests/rag/vector_storage/` cover empty/invalid boundaries and batch ordering.
 
 **Dependencies:** T273, T274.
 
@@ -99,7 +109,7 @@ Implement only the Vector Storage subsystem defined by the approved specificatio
 - Verification returns a result only when all required checks pass.
 - Alias switching is atomic; previous generation is retained.
 - Failed build/verification/activation leaves the active alias unchanged.
-- Tests cover first activation, replacement activation, and failure paths.
+- Tests under `tests/rag/vector_storage/` cover first activation, replacement activation, and failure paths.
 
 **Dependencies:** T275.
 
@@ -118,6 +128,7 @@ Implement only the Vector Storage subsystem defined by the approved specificatio
 - Active generation deletion raises `VECTOR_GENERATION_ACTIVE_DELETE_REJECTED`.
 - Inactive deletion returns the immutable confirmed result only after successful deletion.
 - Deletion never mutates the active alias; no automatic cleanup is introduced.
+- Tests under `tests/rag/vector_storage/` cover missing, active, inactive, and failed deletion paths.
 
 **Dependencies:** T273, T274, T276.
 
@@ -133,8 +144,9 @@ Implement only the Vector Storage subsystem defined by the approved specificatio
 **Acceptance criteria:**
 - Composition uses explicit settings and the approved adapter.
 - FastAPI startup performs no Qdrant network call; existing health behavior remains independent.
-- Local/containerized integration proves generation create → upsert → verify → activate → inspect → inactive delete.
+- Local/containerized integration tests under `tests/rag/vector_storage/` prove generation create → upsert → verify → activate → inspect → inactive delete.
 - Existing ingestion, chunking, embeddings, and full regression suites pass.
+- Every new production module has corresponding focused tests; test coverage is delivered incrementally with T272–T277, not postponed to T278.
 - Diff is limited to the approved task scope; project state is updated with evidence.
 
 **Dependencies:** T272–T277.
