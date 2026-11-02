@@ -2,9 +2,9 @@
 
 ## Current Position
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
-  and embeddings (T267–T271) are complete and verified. The Knowledge Vector
-  Storage Specification is approved; its implementation task breakdown is now
-  being prepared for review. No implementation task is authorized yet.
+  and embeddings (T267–T271) are complete and verified. The Knowledge Vector Storage Specification and its implementation task
+  breakdown are approved. T272 is the only currently authorized implementation
+  task; later tasks remain unauthorized.
 - T271 — Composition-root wiring and Docker image verification — complete and
   committed at `77f610da76fd67392dfb504303372123f596a56a`
   (`feat(rag): wire embedding service composition root`)
@@ -42,14 +42,14 @@
   (evidence only, not runtime verification). `768` is confirmed by live
   measurement; no specification amendment is required.
 - Current task: none. No implementation task is in progress. T271 is complete.
-  Vector Storage specification is approved; task breakdown review is the next
-  SDD step. Implementation remains unauthorized.
+  Vector Storage specification and task breakdown are approved. T272 is
+  authorized as the sole next implementation task.
 - Current activity: T271 was implemented, verified, and committed on 2026-10-25.
 - Status: `Approved`. The embeddings implementation sequence is complete. The
-  Vector Storage specification at `specs/rag/knowledge-vector-storage.md` was
-  approved by the project owner on 2026-11-03. The task breakdown is being
-  prepared; implementation must not begin until that breakdown is approved and
-  one task is explicitly authorized.
+  Vector Storage specification at `specs/rag/knowledge-vector-storage.md` and
+  task breakdown at `specs/rag/knowledge-vector-storage-tasks.md` were approved
+  by the project owner on 2026-11-03. T272 is explicitly authorized; all later
+  tasks remain unauthorized.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
