@@ -2,8 +2,8 @@
 
 - **Specification:** `specs/rag/knowledge-vector-storage.md`
 - **Specification status:** Approved (2026-11-03)
-- **Task breakdown status:** Proposed — pending project-owner approval
-- **Implementation authorization:** Not granted
+- **Task breakdown status:** Approved by the project owner on 2026-11-03
+- **Implementation authorization:** T272 authorized only; all later tasks remain unauthorized
 - **Rule:** Execute exactly one explicitly authorized task per session. The approved specification is the source of truth.
 
 ## Scope
@@ -159,4 +159,4 @@ T274 is technically independent of T273, but the proposed sequence is intentiona
 
 ## Authorization gate
 
-This document is a proposed task breakdown. It does not authorize implementation. After project-owner approval, only T272 may be separately authorized as the first implementation task. All later tasks remain unauthorized until their own dependency and scope checks are satisfied.
+This task breakdown is approved by the project owner on 2026-11-03. T272 — Vector storage contracts and application error taxonomy — is authorized as the first implementation task only. All later tasks remain unauthorized until their own dependency and scope checks are satisfied. Execute exactly T272, add its focused tests, verify, commit, update project state, and STOP.
