@@ -1,6 +1,6 @@
 # Knowledge Vector Storage Specification
 
-- **Status:** Draft — architecture decisions reviewed; final specification approval pending
+- **Status:** Draft — all architecture and contract decisions resolved; final specification approval pending
 - **Phase:** Phase 4 — RAG
 - **Subsystem:** Vector Storage
 - **Implementation:** Not authorized
@@ -500,7 +500,22 @@ The normalized mapping policy is:
 | Generation build operation failure after lower-level error normalization | `VECTOR_GENERATION_BUILD_FAILED` | Preserve the retry eligibility of the underlying cause; do not retry permanent failures |
 | Alias activation operation failure after lower-level error normalization | `VECTOR_GENERATION_ACTIVATION_FAILED` | Preserve the retry eligibility of the underlying cause; do not retry permanent failures |
 
-HTTP 429 is not retryable under this V1 policy and must not be retried. Retry eligibility is limited to connection failures, timeouts, and HTTP 5xx responses, with at most 3 total attempts including the initial attempt. The adapter must inspect the SDK exception type, HTTP status where available, and underlying cause as needed; it must not classify every response-handling exception as a connection failure without inspecting its cause. Exact concrete SDK exception classes and status extraction for `qdrant-client==1.20.0` must be verified during implementation and covered by adapter tests.
+HTTP 429 is not retryable under this V1 policy and must not be retried. Retry eligibility is limited to connection failures, timeouts, and HTTP 5xx responses, with at most 3 total attempts including the initial attempt.
+
+### 9.1 Concrete qdrant-client 1.20.0 exception classification
+
+The following SDK behavior is verified against the tagged source for `qdrant-client==1.20.0` and is binding for the adapter implementation:
+
+- HTTP responses outside the client's accepted success statuses are represented by `qdrant_client.http.exceptions.UnexpectedResponse`. Read the integer `.status_code` attribute; do not parse the status from the exception message.
+- Transport exceptions raised by the underlying HTTPX client are wrapped by `qdrant_client.http.exceptions.ResponseHandlingException`. The original exception is available as `.source`. Classification must inspect this source exception rather than treating the wrapper itself as retryable.
+- HTTPX timeout failures are represented by `httpx.TimeoutException` subclasses. Map these to `VECTOR_STORE_TIMEOUT` and retry within the bounded policy.
+- HTTPX connection-establishment failures are represented by `httpx.ConnectError`. Map these to `VECTOR_STORE_UNAVAILABLE` and retry within the bounded policy.
+- Do not classify every `ResponseHandlingException` as a transport failure. For example, response parsing/validation failures may also be wrapped in this class; an unrecognized or non-transport source is not retryable and must be mapped according to its stable application-level cause.
+- For `UnexpectedResponse`, use `.status_code`: 5xx maps to `VECTOR_STORE_SERVICE_ERROR` and is retryable; 400/422 maps to `VECTOR_STORE_INVALID_DATA` when caused by invalid vector/payload data; 401/403 maps to `VECTOR_STORE_CONFIGURATION_ERROR`; other 4xx responses are not retryable and use the applicable stable operation error.
+- HTTP 429 is never retryable. In this SDK version, a 429 response with a `Retry-After` header may instead raise `qdrant_client.common.client_exceptions.ResourceExhaustedResponse`; without that header it is represented as `UnexpectedResponse` with `.status_code == 429`. Both paths must map to a non-retryable rate-limit/service failure using the applicable stable application error. The V1 policy explicitly does not honor `Retry-After` for automatic retries.
+- Preserve the original exception as an internal cause for diagnostics, but do not expose raw SDK/HTTPX exceptions or response bodies through application-facing errors or logs.
+
+Adapter tests must cover both direct and wrapped HTTPX timeout/connection failures, `UnexpectedResponse` status extraction for the mapped status classes, both SDK 429 paths, and a non-transport `ResponseHandlingException.source` to prove it is not retried.
 
 ## 10. Observability and Security
 
@@ -545,11 +560,9 @@ Tests must not require paid external AI services. Qdrant integration tests use t
 
 ## 12. Open Specification Decisions
 
-The architecture decisions D1–D16 and the detailed application-owned DTO contracts for the currently specified VectorStore operations are approved. The following implementation-verification detail remains open and must be verified during implementation planning, not invented:
+There are no unresolved architecture or application-contract decisions in this specification. D1–D16, the VectorStore DTOs, and the concrete `qdrant-client==1.20.0` exception/status classification in §9.1 have been resolved and documented.
 
-1. Concrete `qdrant-client==1.20.0` exception classes and HTTP status extraction mechanisms, verified against the normalized mapping policy in §9.
-
-The approved contracts above are binding. The remaining SDK-specific mapping detail must be verified and recorded before implementation tasks are finalized; implementation agents must not invent it.
+The implementation must prove conformance through the adapter tests required by §9.1 and §11. These tests are verification work, not permission to change the approved contracts.
 
 ## 13. Acceptance Criteria
 
@@ -579,7 +592,7 @@ This specification is ready for approval only when:
 
 ## 15. Approval Record
 
-- **Status:** Draft — architecture decisions D1–D16 and detailed VectorStore contracts reviewed and approved in the Day 27 discussion.
-- **Specification approval:** Pending final verification of the qdrant-client SDK exception/status mapping detail.
+- **Status:** Draft — architecture decisions D1–D16 and detailed VectorStore contracts resolved and documented.
+- **Specification approval:** Pending explicit final approval.
 - **Implementation authorization:** Not granted.
 - **Task breakdown authorization:** Not granted.
