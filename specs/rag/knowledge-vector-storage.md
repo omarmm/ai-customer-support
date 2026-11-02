@@ -169,11 +169,11 @@ A failed or incomplete build must not replace the currently active generation. A
 
 ### 7.1 Client boundary
 
-- Use the official `qdrant-client` package at an explicitly pinned version.
+- Use the official `qdrant-client` package pinned to `1.20.0`, paired with Qdrant Server `v1.20.0`.
 - Keep Qdrant SDK calls behind the application-owned `VectorStore` abstraction.
 - Domain/application-facing code must not depend directly on Qdrant SDK client objects or SDK-specific models.
 
-The application-owned `VectorStore` interface exposes these operations:
+The application-owned `VectorStore` interface exposes these operations and high-level contracts:
 
 - `create_generation`: create a generation collection with the approved vector and payload-index configuration.
 - `upsert_points`: write points in batches while preserving input identity and order at the application boundary.
@@ -183,9 +183,21 @@ The application-owned `VectorStore` interface exposes these operations:
 - `get_generation_info`: return storage-level generation metadata.
 - `delete_generation`: explicitly delete an inactive generation and reject deletion of the active generation.
 
-Methods use application-owned request/response contracts and normalized errors. Qdrant SDK types must not escape the adapter boundary.
 
-The exact `qdrant-client` package version will be pinned together with the selected Qdrant server image version. The compatible pair must be verified and recorded before implementation approval.
+
+| Method | Input | Output |
+| --- | --- | --- |
+| `create_generation` | Generation configuration | Collection information |
+| `upsert_points` | Points batch | Upsert result |
+| `verify_generation` | Generation ID and expected point count | Verification result |
+| `activate_generation` | Generation ID | Activation result |
+| `search` | Search request | Search results |
+| `get_generation_info` | Generation ID | Generation information |
+| `delete_generation` | Generation ID | Deletion result |
+
+All inputs and outputs are application-owned contracts with normalized errors. Detailed DTO fields and validation rules remain to be specified before implementation. `search` is reserved at the interface boundary only; its behavior and result semantics belong to the separate Retrieval specification. Qdrant SDK types must not escape the adapter boundary.
+
+The approved version pair is Qdrant Server `v1.20.0` and Python package `qdrant-client==1.20.0`.
 
 ### 7.2 Connection and retry configuration
 
@@ -207,7 +219,8 @@ The exact `qdrant-client` package version will be pinned together with the selec
 - Healthcheck timing: interval 10 seconds, timeout 5 seconds, 5 retries, and start period 10 seconds.
 - Configure the API service dependency using `condition: service_healthy`.
 - Preserve the repository's project-scoped Docker network and named-volume conventions.
-- The exact healthcheck executable/command must be verified against the pinned image before implementation; do not assume `curl` or `wget` exists in the image.
+- Use the official Qdrant image unchanged; do not introduce a custom Dockerfile or install extra tools solely for the healthcheck.
+- The healthcheck command must be verified against the actual pinned image before implementation; do not assume `curl` or `wget` exists. If the image does not provide a suitable probe, select a minimal external probe approach during implementation design without modifying the Qdrant image.
 
 ### 7.4 FastAPI startup
 
@@ -246,7 +259,20 @@ The storage error contract must distinguish:
 
 Only transient failures (timeouts, connection errors, and HTTP 5xx) are eligible for the bounded 3-attempt retry policy with exponential backoff and jitter. Permanent contract and configuration failures fail without retry.
 
-Stable reason codes, exception boundaries, and exact retryable/permanent Qdrant error mappings must be finalized before implementation approval.
+The application-owned stable error codes are:
+
+| Condition | Error code |
+| --- | --- |
+| Connection failure | `VECTOR_STORE_UNAVAILABLE` |
+| Request timeout | `VECTOR_STORE_TIMEOUT` |
+| HTTP 5xx / service error | `VECTOR_STORE_SERVICE_ERROR` |
+| Invalid vector or payload data | `VECTOR_STORE_INVALID_DATA` |
+| Invalid configuration | `VECTOR_STORE_CONFIGURATION_ERROR` |
+| Generation build failure | `VECTOR_GENERATION_BUILD_FAILED` |
+| Alias activation failure | `VECTOR_GENERATION_ACTIVATION_FAILED` |
+| Attempt to delete the active generation | `VECTOR_GENERATION_ACTIVE_DELETE_REJECTED` |
+
+Qdrant SDK exceptions are translated inside the Qdrant adapter. SDK-specific exception/model types must not escape into the application layer. The exact SDK exception/status-to-code mapping must be verified and covered by tests.
 
 ## 10. Observability and Security
 
@@ -293,10 +319,9 @@ Tests must not require paid external AI services. Qdrant integration tests use t
 The architecture decisions D1–D16 are approved. The following lower-level contract details remain open and must be resolved during specification review, not invented during implementation:
 
 1. Exact fixed UUIDv5 namespace UUID value (the approved algorithm and `chunk_id` name input are defined in §5.2).
-2. Exact pinned `qdrant-client` package version, selected and verified with Qdrant server `v1.20.0`.
-3. Exact healthcheck executable/command available in the pinned Qdrant image.
-4. Exact SDK exception/status-to-stable-error-code mapping.
-5. Detailed request/response and normalized error contracts for each `VectorStore` method.
+2. Exact healthcheck executable/command or external probe approach, verified against the unchanged pinned Qdrant image.
+3. Exact SDK exception/status-to-stable-error-code mapping for `qdrant-client==1.20.0`.
+4. Detailed DTO fields, validation rules, and normalized error contracts for each `VectorStore` method.
 
 The resolved decisions above have been approved in the Day 27 architecture discussion. The remaining details must be verified and recorded before final specification approval; implementation agents must not invent them.
 
@@ -310,8 +335,8 @@ This specification is ready for approval only when:
 4. UUIDv5 namespace and canonical name input are explicit.
 5. The exact payload schema and field types are defined.
 6. Collection/generation naming and collection-per-generation behavior are explicit.
-7. The pinned `qdrant-client` version is specified.
-8. The Qdrant image version and healthcheck parameters are specified.
+7. The compatible pinned `qdrant-client==1.20.0` version is specified.
+8. The Qdrant image version, readiness endpoint, healthcheck timing, and verified probe command/approach are specified.
 9. Retryable and permanent Qdrant failures have explicit stable mappings.
 10. Build, activation, interruption, retention, and deletion behavior is deterministic.
 11. D12/D14 are reconciled exactly as described in §4.1.
@@ -328,7 +353,7 @@ This specification is ready for approval only when:
 
 ## 15. Approval Record
 
-- **Status:** Draft — architecture decisions D1–D16 and detailed decisions D1–D11 reviewed and approved in the Day 27 discussion.
+- **Status:** Draft — architecture decisions D1–D16 and detailed architecture/contract decisions reviewed and approved in the Day 27 discussion.
 - **Specification approval:** Pending final verification of the remaining open details.
 - **Implementation authorization:** Not granted.
 - **Task breakdown authorization:** Not granted.
