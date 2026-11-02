@@ -30,7 +30,6 @@ PAYLOAD_FIELDS = frozenset(
     }
 )
 _PAYLOAD_STRING_FIELDS = (
-    "chunk_id",
     "document_id",
     "source_path",
     "title",
@@ -77,7 +76,9 @@ def _validate_payload(payload: Mapping[str, object], chunk_id: str) -> Mapping[s
         raise ValueError(f"payload fields mismatch (missing={missing}, unknown={unknown})")
 
     for field in _PAYLOAD_STRING_FIELDS:
-        _require_non_empty_string(payload[field], f"payload.{field}")
+        if not isinstance(payload[field], str):
+            raise ValueError(f"payload.{field} must be a string")
+    _require_non_empty_string(payload["chunk_id"], "payload.chunk_id")
     for field in _PAYLOAD_INTEGER_FIELDS:
         _require_non_negative_int(payload[field], f"payload.{field}")
 
