@@ -215,13 +215,15 @@ The approved version pair is Qdrant Server `v1.20.0` and Python package `qdrant-
 
 ### 7.3 Docker Compose
 
-- Pin the Qdrant image to `qdrant/qdrant:v1.20.0`; do not use a floating `latest` tag.
-- Configure the healthcheck against Qdrant's `/readyz` endpoint.
+- Use the official Qdrant image as the base, pinned to `qdrant/qdrant:v1.20.0`; do not use a floating `latest` tag.
+- Build a project-specific Qdrant image from a dedicated `docker/qdrant/Dockerfile`. The Dockerfile must extend the pinned official image and install `curl` solely to provide a reliable readiness probe. Do not modify Qdrant application binaries or configuration as part of this customization.
+- Keep the existing root-level application `Dockerfile` dedicated to the FastAPI application and keep the root `docker-compose.yml` as the single Compose entry point.
+- In `docker-compose.yml`, build the Qdrant service using context `./docker/qdrant` and tag the resulting image `ai-customer-support-qdrant:v1.20.0`.
+- Configure the healthcheck using `curl -fsS http://localhost:6333/readyz`.
 - Healthcheck timing: interval 10 seconds, timeout 5 seconds, 5 retries, and start period 10 seconds.
 - Configure the API service dependency using `condition: service_healthy`.
 - Preserve the repository's project-scoped Docker network and named-volume conventions.
-- Use the official Qdrant image unchanged; do not introduce a custom Dockerfile or install extra tools solely for the healthcheck.
-- The healthcheck command must be verified against the actual pinned image before implementation; do not assume `curl` or `wget` exists. If the image does not provide a suitable probe, select a minimal external probe approach during implementation design without modifying the Qdrant image.
+- The custom image is an explicit, approved exception to the earlier preference for an unchanged official image; it exists only to add the healthcheck executable.
 
 ### 7.4 FastAPI startup
 
@@ -319,7 +321,7 @@ Tests must not require paid external AI services. Qdrant integration tests use t
 
 The architecture decisions D1–D16 are approved. The following lower-level contract details remain open and must be resolved during specification review, not invented during implementation:
 
-2. Exact healthcheck executable/command or external probe approach, verified against the unchanged pinned Qdrant image.
+2. Exact healthcheck probe command and project-specific image build configuration, as defined in §7.3.
 3. Exact SDK exception/status-to-stable-error-code mapping for `qdrant-client==1.20.0`.
 4. Detailed DTO fields, validation rules, and normalized error contracts for each `VectorStore` method.
 
@@ -336,7 +338,7 @@ This specification is ready for approval only when:
 5. The exact payload schema and field types are defined.
 6. Collection/generation naming and collection-per-generation behavior are explicit.
 7. The compatible pinned `qdrant-client==1.20.0` version is specified.
-8. The Qdrant image version, readiness endpoint, healthcheck timing, and verified probe command/approach are specified.
+8. The pinned Qdrant base image, dedicated Dockerfile path, custom image tag, readiness endpoint, healthcheck command and timing, and Compose dependency are specified.
 9. Retryable and permanent Qdrant failures have explicit stable mappings.
 10. Build, activation, interruption, retention, and deletion behavior is deterministic.
 11. D12/D14 are reconciled exactly as described in §4.1.
