@@ -41,15 +41,20 @@
   `0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f`
   (evidence only, not runtime verification). `768` is confirmed by live
   measurement; no specification amendment is required.
-- Current task: none. No implementation task is in progress. T271 is complete.
-  Vector Storage specification and task breakdown are approved. T272 is
-  authorized as the sole next implementation task.
-- Current activity: T271 was implemented, verified, and committed on 2026-10-25.
+- Current task: T272 — Vector storage contracts and application error taxonomy.
+  Initial implementation and focused tests have been pushed to branch
+  `feature/t272-vector-storage-contracts`. Runtime test execution and verification
+  are pending on the project development environment; T272 is not closed.
+- Current activity: T272 implementation draft is in progress on
+  `feature/t272-vector-storage-contracts` (latest branch commit
+  `58e7f8a63174e430fb1ffd1789eb15aeaee772a1`). Four production modules and
+  three focused test modules were added. No test suite has been executed in the
+  project runtime yet; do not treat T272 as verified or complete.
 - Status: `Approved`. The embeddings implementation sequence is complete. The
   Vector Storage specification at `specs/rag/knowledge-vector-storage.md` and
   task breakdown at `specs/rag/knowledge-vector-storage-tasks.md` were approved
-  by the project owner on 2026-11-03. T272 is explicitly authorized; all later
-  tasks remain unauthorized.
+  by the project owner on 2026-11-03. T272 is explicitly authorized and in
+  progress on its feature branch; all later tasks remain unauthorized.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
