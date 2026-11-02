@@ -176,7 +176,28 @@ A failed or incomplete build must not replace the currently active generation. A
 
 The application-owned `VectorStore` interface exposes these operations and high-level contracts:
 
-- `create_generation`: create a generation collection with the approved vector and payload-index configuration.
+- `create_generation`: accept an application-owned request containing `generation_id`, `embedding_config_id`, and `vector_size`; derive the collection name internally as `knowledge_vectors_g_<generation_id>`; apply the fixed Cosine distance and the payload-index schema defined by this specification. The caller must not supply a collection name, distance metric, or payload-index definitions.
+
+The approved `CreateGenerationRequest` contract is:
+
+| Field | Type | Validation |
+| --- | --- | --- |
+| `generation_id` | String | Exactly 64 lowercase hexadecimal characters (SHA-256 digest representation). |
+| `embedding_config_id` | String | Exactly 64 lowercase hexadecimal characters (SHA-256 digest representation). |
+| `vector_size` | Integer | Positive integer and exactly `768` in V1; booleans are not accepted as integers. |
+
+The adapter derives `collection_name` as `knowledge_vectors_g_<generation_id>`. The vector distance is fixed to `Cosine`, and payload indexes are derived from §8 rather than caller-provided configuration.
+
+The approved `CollectionInfo` result contract contains:
+
+| Field | Type |
+| --- | --- |
+| `generation_id` | String |
+| `collection_name` | String |
+| `vector_size` | Integer |
+| `distance` | String (fixed value: `Cosine`) |
+
+These are application-owned DTOs; Qdrant SDK response models must be translated inside the adapter.
 - `upsert_points`: write points in batches while preserving input identity and order at the application boundary.
 - `verify_generation`: verify collection existence, vector dimension, Cosine distance, expected point count, and successful completion of all upserts.
 - `activate_generation`: atomically switch `knowledge_vectors_active` to a verified generation.
