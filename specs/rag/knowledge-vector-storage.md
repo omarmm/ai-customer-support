@@ -1,6 +1,6 @@
 # Knowledge Vector Storage Specification
 
-- **Status:** Draft — pending specification review and approval
+- **Status:** Draft — architecture decisions reviewed; final specification approval pending
 - **Phase:** Phase 4 — RAG
 - **Subsystem:** Vector Storage
 - **Implementation:** Not authorized
@@ -86,7 +86,12 @@ The Compose dependency is infrastructure orchestration; it does not authorize ap
 ### 5.1 Generations
 
 - A generation is an immutable collection of knowledge chunk vectors.
-- Generation identity is deterministic and follows D3.
+- Each generation has one collection named `knowledge_vectors_g_<generation_id>`, using the full generation ID.
+- The fixed active alias is `knowledge_vectors_active`.
+- Generation identity is deterministic and derived using SHA-256 over canonical JSON.
+- `corpus_digest` is SHA-256 over canonical JSON containing `corpus_version: "v1"` and the lexicographically sorted list of all `chunk_id` values. Chunks are the corpus unit; documents producing zero chunks contribute no IDs.
+- `storage_config_id` is SHA-256 over canonical JSON containing `identity_version: "v1"`, `storage_schema_version: "v1"`, `payload_schema_version: "v1"`, `point_id_algorithm: "uuid5-v1"`, `distance_metric: "Cosine"`, `payload_index_schema_version: "v1"`, and `collection_layout: "one-collection-per-generation"`. Operational settings (Qdrant URL, API key, timeout, retries, batch size, and collection name) are excluded. Vector dimension is represented by `embedding_config_id` and is not duplicated here.
+- The final `generation_id` is SHA-256 over canonical JSON containing `identity_version: "v1"`, `embedding_config_id`, `storage_config_id`, and `corpus_digest`.
 - A new generation is built separately from the active generation.
 - The active generation is selected through a Qdrant alias.
 - Existing generation contents are not mutated in place.
@@ -99,13 +104,28 @@ The Compose dependency is infrastructure orchestration; it does not authorize ap
 - The original application `chunk_id` is retained in the payload.
 - The same logical chunk identity must not receive a random point ID on repeated builds.
 
-The exact namespace UUID and canonical UUIDv5 name input are still specification details to finalize. They must be explicit constants/rules before implementation approval; an implementation agent must not invent them.
+The point ID is derived as `UUIDv5(PROJECT_VECTOR_NAMESPACE, chunk_id)`. `PROJECT_VECTOR_NAMESPACE` is a fixed, project-owned namespace UUID constant. The canonical name input is the original `chunk_id`. `generation_id` is not part of the UUIDv5 name because each generation has its own collection. The concrete namespace UUID value must be recorded before implementation approval; an implementation agent must not invent it.
 
 ### 5.3 Payload
 
-The payload stores chunk text and its provenance/configuration metadata. It must preserve the original `chunk_id` and the fields required by D15.
+The payload schema is fixed as follows; fields are required unless the upstream contract explicitly defines otherwise (the current approved source contracts define these fields as available):
 
-The exact payload field names, types, nullability, and source mapping must be finalized in this specification before implementation approval. No extra business fields may be invented during implementation.
+| Field | Type | Source |
+| --- | --- | --- |
+| `chunk_id` | Keyword | Chunk |
+| `generation_id` | Keyword | Vector Storage |
+| `document_id` | Keyword | Chunk |
+| `source_path` | Keyword | Chunk |
+| `title` | Text | Chunk |
+| `format` | Keyword | Chunk |
+| `content` | Text | Chunk |
+| `start_offset` | Integer | Chunk |
+| `end_offset` | Integer | Chunk |
+| `chunk_index` | Integer | Chunk |
+| `chunking_config_id` | Keyword | Chunk |
+| `embedding_config_id` | Keyword | Embedding |
+
+No additional business fields may be invented during implementation. Documents that produce zero chunks produce no vector points.
 
 ### 5.4 Vector configuration
 
@@ -126,20 +146,23 @@ The V1 lifecycle is:
 6. Retain the previously active generation.
 7. Delete an inactive generation only through an explicit operation.
 
-A failed or incomplete build must not replace the currently active generation.
+A failed or incomplete build must not replace the currently active generation. An interrupted/incomplete generation remains inactive and is not automatically deleted in V1; the failure is recorded with its `generation_id`.
 
 ### 6.1 Rebuild policy
 
 - V1 performs full generation rebuilds.
 - Incremental updates to an existing generation are not supported.
 - A generation must not become active before its build has completed successfully.
-- A failed build leaves the active alias unchanged.
+- Before activation, verify that the collection exists, its vector dimension matches the approved embedding configuration, its distance metric is Cosine, the stored point count equals the expected chunk count, and all upsert operations completed successfully.
+- Only after all checks pass, atomically switch `knowledge_vectors_active` to the new generation.
+- A failed or interrupted build leaves the active alias unchanged.
 
 ### 6.2 Retention and deletion
 
 - Automatic generation cleanup is prohibited.
 - Explicit deletion may target an inactive generation.
 - Deletion of the active generation must be rejected.
+- An incomplete generation is not automatically cleaned up; cleanup requires an explicit operation.
 - Deletion must not implicitly move or remove the active alias.
 
 ## 7. Qdrant Client and Infrastructure
@@ -150,7 +173,19 @@ A failed or incomplete build must not replace the currently active generation.
 - Keep Qdrant SDK calls behind the application-owned `VectorStore` abstraction.
 - Domain/application-facing code must not depend directly on Qdrant SDK client objects or SDK-specific models.
 
-The exact package version must be selected and recorded before implementation approval.
+The application-owned `VectorStore` interface exposes these operations:
+
+- `create_generation`: create a generation collection with the approved vector and payload-index configuration.
+- `upsert_points`: write points in batches while preserving input identity and order at the application boundary.
+- `verify_generation`: verify collection existence, vector dimension, Cosine distance, expected point count, and successful completion of all upserts.
+- `activate_generation`: atomically switch `knowledge_vectors_active` to a verified generation.
+- `search`: reserved interface operation for vector similarity search; retrieval semantics remain governed by a separate Retrieval specification and are not defined here.
+- `get_generation_info`: return storage-level generation metadata.
+- `delete_generation`: explicitly delete an inactive generation and reject deletion of the active generation.
+
+Methods use application-owned request/response contracts and normalized errors. Qdrant SDK types must not escape the adapter boundary.
+
+The exact `qdrant-client` package version will be pinned together with the selected Qdrant server image version. The compatible pair must be verified and recorded before implementation approval.
 
 ### 7.2 Connection and retry configuration
 
@@ -158,19 +193,21 @@ The exact package version must be selected and recorded before implementation ap
 - API key is optional.
 - Client timeout is 10 seconds.
 - Write batch size is 64.
-- Retries are bounded and apply only to transient failures.
-- Permanent validation, contract, and configuration failures are not retried.
-
-The exact retry count/backoff values and Qdrant status-to-error mapping must be finalized before implementation approval.
+- Retry transient failures only, including request timeouts, connection errors, and HTTP 5xx responses.
+- Do not retry permanent validation, contract, or configuration failures.
+- Allow 3 attempts total, including the initial attempt.
+- Use exponential backoff with jitter.
+- After exhaustion, return a normalized storage error to the application layer.
+- Retry classification must not cause permanent errors to be retried.
 
 ### 7.3 Docker Compose
 
-- Pin the Qdrant image to an explicit version; do not use a floating `latest` tag.
-- Configure a Qdrant healthcheck.
+- Pin the Qdrant image to `qdrant/qdrant:v1.20.0`; do not use a floating `latest` tag.
+- Configure the healthcheck against Qdrant's `/readyz` endpoint.
+- Healthcheck timing: interval 10 seconds, timeout 5 seconds, 5 retries, and start period 10 seconds.
 - Configure the API service dependency using `condition: service_healthy`.
 - Preserve the repository's project-scoped Docker network and named-volume conventions.
-
-The exact Qdrant image version and healthcheck command, interval, timeout, retries, and start period must be recorded before implementation approval.
+- The exact healthcheck executable/command must be verified against the pinned image before implementation; do not assume `curl` or `wget` exists in the image.
 
 ### 7.4 FastAPI startup
 
@@ -196,7 +233,7 @@ These are storage-schema requirements. They do not define retrieval query behavi
 
 ## 9. Error Handling
 
-The finalized storage error contract must distinguish:
+The storage error contract must distinguish:
 
 - Connection failures.
 - Request timeouts.
@@ -207,7 +244,7 @@ The finalized storage error contract must distinguish:
 - Alias activation failures.
 - Rejected deletion of an active generation.
 
-Only transient failures are eligible for the bounded retry policy. Permanent contract and configuration failures fail without retry.
+Only transient failures (timeouts, connection errors, and HTTP 5xx) are eligible for the bounded 3-attempt retry policy with exponential backoff and jitter. Permanent contract and configuration failures fail without retry.
 
 Stable reason codes, exception boundaries, and exact retryable/permanent Qdrant error mappings must be finalized before implementation approval.
 
@@ -228,7 +265,7 @@ Never log raw document content, chunk text, embedding vectors, Qdrant API keys, 
 
 The implementation specification must require tests for:
 
-- Deterministic UUIDv5 point identity and fixed namespace/name derivation.
+- Deterministic UUIDv5 point identity using the fixed project namespace and `chunk_id` as the name input.
 - Preservation of the original `chunk_id`.
 - Payload field names, types, nullability, and required metadata.
 - Cosine vector configuration and dimension compatibility.
@@ -242,10 +279,10 @@ The implementation specification must require tests for:
 - Explicit deletion of an inactive generation.
 - Batch size 64 and 10-second timeout configuration.
 - Optional API key handling without secret leakage.
-- Bounded retries for transient failures only.
+- Exactly 3 total attempts for eligible transient failures, with exponential backoff and jitter.
 - No retries for permanent failures.
 - No Qdrant network I/O during FastAPI startup.
-- Docker Compose healthcheck and `service_healthy` dependency.
+- Docker Compose healthcheck against `/readyz`, using the verified executable/command and approved timing, plus `service_healthy` dependency.
 - Structured metadata-only observability.
 - Regression of existing ingestion, chunking, and embeddings behavior.
 
@@ -255,19 +292,13 @@ Tests must not require paid external AI services. Qdrant integration tests use t
 
 The architecture decisions D1–D16 are approved. The following lower-level contract details remain open and must be resolved during specification review, not invented during implementation:
 
-1. Exact generation ID canonicalization and digest algorithm/input serialization.
-2. Fixed UUIDv5 namespace value and canonical name input.
-3. Complete payload schema: field names, types, nullability, and source mapping.
-4. Collection naming convention and whether one collection is created per generation.
-5. Exact pinned `qdrant-client` package version.
-6. Exact pinned Qdrant image version and healthcheck parameters.
-7. Exact retry count/backoff policy and Qdrant error/status mapping.
-8. Exact generation build verification criteria before alias activation.
-9. Explicit behavior for an interrupted build and cleanup of an incomplete, never-active generation.
-10. Whether collection/vector configuration is validated on startup, first storage operation, or an explicit provisioning operation, while preserving D14's no-network-I/O startup rule.
-11. Exact interface methods and result/error contracts for the application-owned `VectorStore` abstraction.
+1. Exact fixed UUIDv5 namespace UUID value (the approved algorithm and `chunk_id` name input are defined in §5.2).
+2. Exact pinned `qdrant-client` package version, selected and verified with Qdrant server `v1.20.0`.
+3. Exact healthcheck executable/command available in the pinned Qdrant image.
+4. Exact SDK exception/status-to-stable-error-code mapping.
+5. Detailed request/response and normalized error contracts for each `VectorStore` method.
 
-Any proposed choice must be discussed and approved before this draft is revised to an approved specification.
+The resolved decisions above have been approved in the Day 27 architecture discussion. The remaining details must be verified and recorded before final specification approval; implementation agents must not invent them.
 
 ## 13. Acceptance Criteria
 
@@ -297,8 +328,7 @@ This specification is ready for approval only when:
 
 ## 15. Approval Record
 
-- **Status:** Draft — pending review.
-- **Architecture decisions:** D1–D16 approved in the Day 27 architecture discussion.
-- **Specification approval:** Pending.
+- **Status:** Draft — architecture decisions D1–D16 and detailed decisions D1–D11 reviewed and approved in the Day 27 discussion.
+- **Specification approval:** Pending final verification of the remaining open details.
 - **Implementation authorization:** Not granted.
 - **Task breakdown authorization:** Not granted.
