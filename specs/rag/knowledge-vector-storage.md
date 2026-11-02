@@ -357,7 +357,43 @@ The result is a frozen, immutable application-owned contract and is returned onl
 If the requested generation collection does not exist, raise `VECTOR_GENERATION_NOT_FOUND`; do not return `None` or a partially populated result. Other failures use the existing normalized storage error mapping. Qdrant SDK response/model types must not escape the adapter boundary.
 - `delete_generation`: explicitly delete an inactive generation and reject deletion of the active generation.
 
+The approved input DTO is:
 
+```python
+@dataclass(frozen=True)
+class DeleteGenerationRequest:
+    generation_id: str
+```
+
+Validation and behavior:
+
+- `generation_id` must be exactly 64 lowercase hexadecimal characters.
+- The adapter derives the collection name as `knowledge_vectors_g_<generation_id>`; callers do not supply a collection name.
+- If the generation collection does not exist, raise `VECTOR_GENERATION_NOT_FOUND`; do not return a successful or empty result.
+- If the generation is currently assigned to `knowledge_vectors_active`, reject the operation with `VECTOR_GENERATION_ACTIVE_DELETE_REJECTED`.
+- An inactive generation is deleted as a whole collection.
+- Deletion must never move, remove, or otherwise mutate the active alias.
+- Deletion is explicit only; no automatic cleanup is permitted.
+- Eligible transient transport/timeout/HTTP 5xx failures follow the existing bounded retry policy. Permanent failures are not retried.
+- Operational failures use the existing normalized storage error mapping.
+
+The successful output DTO is:
+
+```python
+@dataclass(frozen=True)
+class GenerationDeletionResult:
+    generation_id: str
+    collection_name: str
+    deleted: bool
+```
+
+The result is frozen and immutable and is returned only after deletion is confirmed. Its values must satisfy:
+
+- `generation_id` equals the requested generation ID.
+- `collection_name` equals `knowledge_vectors_g_<generation_id>`.
+- `deleted` is `True`.
+
+No partial or unsuccessful deletion result is returned.
 
 | Method | Input | Output |
 | --- | --- | --- |
@@ -369,7 +405,7 @@ If the requested generation collection does not exist, raise `VECTOR_GENERATION_
 | `get_generation_info` | Generation ID | Generation information |
 | `delete_generation` | Generation ID | Deletion result |
 
-All inputs and outputs are application-owned contracts with normalized errors. Detailed DTO fields and validation rules remain to be specified before implementation. `search` is reserved at the interface boundary only; its behavior and result semantics belong to the separate Retrieval specification. Qdrant SDK types must not escape the adapter boundary.
+All inputs and outputs are application-owned contracts with normalized errors. The DTOs and validation rules for the operations specified above are binding requirements. `search` is reserved at the interface boundary only; its behavior and result semantics belong to the separate Retrieval specification. Qdrant SDK types must not escape the adapter boundary.
 
 The approved version pair is Qdrant Server `v1.20.0` and Python package `qdrant-client==1.20.0`.
 
@@ -493,8 +529,9 @@ The implementation specification must require tests for:
 - Alias activation only after successful completion.
 - Failed build leaves the active alias unchanged.
 - Retention of the previous active generation.
-- Rejection of active-generation deletion.
-- Explicit deletion of an inactive generation.
+- Rejection of active-generation deletion with `VECTOR_GENERATION_ACTIVE_DELETE_REJECTED`.
+- Missing-generation deletion returns `VECTOR_GENERATION_NOT_FOUND`.
+- Explicit deletion of an inactive generation returns a confirmed immutable deletion result and does not mutate the active alias.
 - Batch size 64 and 10-second timeout configuration.
 - Optional API key handling without secret leakage.
 - Exactly 3 total attempts for eligible transient failures, with exponential backoff and jitter.
@@ -508,13 +545,11 @@ Tests must not require paid external AI services. Qdrant integration tests use t
 
 ## 12. Open Specification Decisions
 
-The architecture decisions D1–D16 are approved. The following lower-level contract details remain open and must be resolved during specification review, not invented during implementation:
+The architecture decisions D1–D16 and the detailed application-owned DTO contracts for the currently specified VectorStore operations are approved. The following implementation-verification detail remains open and must be verified during implementation planning, not invented:
 
-2. Exact healthcheck probe command and project-specific image build configuration, as defined in §7.3.
-3. Concrete `qdrant-client==1.20.0` exception classes and HTTP status extraction mechanisms, verified against the normalized mapping policy in §9.
-4. Detailed DTO fields, validation rules, and normalized error contracts for each `VectorStore` method.
+1. Concrete `qdrant-client==1.20.0` exception classes and HTTP status extraction mechanisms, verified against the normalized mapping policy in §9.
 
-The resolved decisions above have been approved in the Day 27 architecture discussion. The remaining details must be verified and recorded before final specification approval; implementation agents must not invent them.
+The approved contracts above are binding. The remaining SDK-specific mapping detail must be verified and recorded before implementation tasks are finalized; implementation agents must not invent it.
 
 ## 13. Acceptance Criteria
 
@@ -544,7 +579,7 @@ This specification is ready for approval only when:
 
 ## 15. Approval Record
 
-- **Status:** Draft — architecture decisions D1–D16 and detailed architecture/contract decisions reviewed and approved in the Day 27 discussion.
-- **Specification approval:** Pending final verification of the remaining open details.
+- **Status:** Draft — architecture decisions D1–D16 and detailed VectorStore contracts reviewed and approved in the Day 27 discussion.
+- **Specification approval:** Pending final verification of the qdrant-client SDK exception/status mapping detail.
 - **Implementation authorization:** Not granted.
 - **Task breakdown authorization:** Not granted.
