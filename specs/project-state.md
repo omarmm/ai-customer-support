@@ -647,39 +647,32 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- No implementation task is in progress. T271 is complete and the approved
-  T267–T271 embeddings sequence is finished.
-- T271 — Composition-root wiring and Docker image verification — is complete
-  and committed at `77f610da76fd67392dfb504303372123f596a56a`.
-- Current activity: T271 implementation, image verification, and closure on
-  2026-10-25. This documentation record is the only remaining change for the
-  task.
-- Status: T271 complete; the Phase 4 embeddings specification at
-  `specs/rag/knowledge-document-embeddings.md` remains the source of truth and
-  its approved implementation sequence is complete.
-- Decisions D-1 through D-6 remain approved as recorded in the specification's
-  §2.3 and §2.4.
-- Approved implementation sequence: T267–T271 in the specification's §13. All
-  five tasks are complete; no further implementation task from that sequence
-  remains.
-- No next implementation task is authorized. The next SDD step is a
-  specification gate for RAG vector storage/retrieval (Qdrant integration,
-  semantic retrieval, metadata filtering, context construction, source
-  attribution, evaluation, and failure handling). A specification and task
-  breakdown must be approved before implementation.
-- Verification for T271: focused offline embeddings suite 303 passed / 3
-  skipped; full regression 815 passed / 7 skipped; in-image startup exposed the
-  composed service and `/health` returned 200; `git diff --cached --check`
-  clean. No application source outside the approved T271 scope changed.
-- Do not begin the retrieval specification or implementation in this session.
+- T272 — Vector storage contracts and application error taxonomy — is the
+  currently authorized implementation task and is in progress.
+- T272 implementation draft and focused tests are on branch
+  `feature/t272-vector-storage-contracts`.
+- Latest branch commit at the time of this update:
+  `b00d475aadb42caecc3a13dcddd52f9821f6e5fd` (renamed the vector storage
+  error module to the project-standard `exceptions.py`).
+- Runtime test execution and verification are pending on the project
+  development environment. T272 is not complete and must not be marked closed
+  until the focused tests and required regression checks pass.
+- T272 scope is limited to application-owned vector storage contracts,
+  deterministic UUIDv5 point identity, normalized application exceptions, and
+  focused unit tests. Qdrant SDK integration, configuration, infrastructure,
+  persistence, composition, and retrieval are out of scope for T272.
+- T273 and all later tasks remain unauthorized until T272 is verified and
+  closed under its approved task breakdown.
 
 ## Task Ordering
-1. RAG vector storage/retrieval specification gate (not started; requires
-   specification approval before any implementation).
-2. No implementation task is authorized beyond the completed T267–T271
-   sequence.
+1. T272 — Vector storage contracts and application error taxonomy
+   (authorized; in progress; verification pending).
+2. T273 — Qdrant client adapter and exception normalization
+   (blocked until T272 is verified and closed).
+3. T274–T278 remain unauthorized and must not be started early.
 
-Each task and specification gate requires its own authorized session.
+Each task requires its own authorized session and must follow its approved
+specification and acceptance criteria.
 
 ## Verified Findings
 - T271 implementation (2026-10-25):
