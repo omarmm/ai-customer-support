@@ -317,7 +317,44 @@ The result is a frozen, immutable application-owned contract and is returned onl
 
 Any activation failure is normalized to `VECTOR_GENERATION_ACTIVATION_FAILED`, retaining the underlying normalized storage cause internally. No partial or unsuccessful result object is returned.
 - `search`: reserved interface operation for vector similarity search; retrieval semantics remain governed by a separate Retrieval specification and are not defined here.
-- `get_generation_info`: return storage-level generation metadata.
+- `get_generation_info`: return storage-level generation metadata for an existing generation. A missing generation is an explicit not-found error; it is not represented as `None`.
+
+The approved input DTO is:
+
+```python
+@dataclass(frozen=True)
+class GetGenerationInfoRequest:
+    generation_id: str
+```
+
+Validation requirements:
+
+- `generation_id` must be exactly 64 lowercase hexadecimal characters.
+- The adapter derives the collection name from `generation_id`; callers do not supply a collection name.
+
+The successful output DTO is:
+
+```python
+@dataclass(frozen=True)
+class GenerationInfo:
+    generation_id: str
+    collection_name: str
+    point_count: int
+    vector_size: int
+    distance: str
+    is_active: bool
+```
+
+The result is a frozen, immutable application-owned contract and is returned only for an existing generation. Its values must satisfy:
+
+- `generation_id` equals the requested generation ID.
+- `collection_name` equals `knowledge_vectors_g_<generation_id>`.
+- `point_count` is a non-negative integer; booleans are not accepted as integers.
+- `vector_size` is a positive integer; booleans are not accepted as integers.
+- `distance` is the actual distance metric reported by Qdrant, represented as an application-owned string.
+- `is_active` is true only when the generation's collection is currently assigned to `knowledge_vectors_active`.
+
+If the requested generation collection does not exist, raise `VECTOR_GENERATION_NOT_FOUND`; do not return `None` or a partially populated result. Other failures use the existing normalized storage error mapping. Qdrant SDK response/model types must not escape the adapter boundary.
 - `delete_generation`: explicitly delete an inactive generation and reject deletion of the active generation.
 
 
@@ -410,6 +447,7 @@ The application-owned stable error codes are:
 | Generation build failure | `VECTOR_GENERATION_BUILD_FAILED` |
 | Alias activation failure | `VECTOR_GENERATION_ACTIVATION_FAILED` |
 | Attempt to delete the active generation | `VECTOR_GENERATION_ACTIVE_DELETE_REJECTED` |
+| Requested generation does not exist | `VECTOR_GENERATION_NOT_FOUND` |
 
 Qdrant SDK exceptions are translated inside the Qdrant adapter. SDK-specific exception/model types must not escape into the application layer. The original SDK exception may be retained as an internal exception cause for diagnostics, but SDK details must not be exposed through application-facing error contracts.
 
