@@ -275,7 +275,22 @@ The application-owned stable error codes are:
 | Alias activation failure | `VECTOR_GENERATION_ACTIVATION_FAILED` |
 | Attempt to delete the active generation | `VECTOR_GENERATION_ACTIVE_DELETE_REJECTED` |
 
-Qdrant SDK exceptions are translated inside the Qdrant adapter. SDK-specific exception/model types must not escape into the application layer. The exact SDK exception/status-to-code mapping must be verified and covered by tests.
+Qdrant SDK exceptions are translated inside the Qdrant adapter. SDK-specific exception/model types must not escape into the application layer. The original SDK exception may be retained as an internal exception cause for diagnostics, but SDK details must not be exposed through application-facing error contracts.
+
+The normalized mapping policy is:
+
+| SDK / transport / HTTP condition | Application error code | Retry |
+| --- | --- | --- |
+| Connection establishment or transport connection failure | `VECTOR_STORE_UNAVAILABLE` | Yes, if classified as transient |
+| Request timeout | `VECTOR_STORE_TIMEOUT` | Yes |
+| HTTP 5xx response | `VECTOR_STORE_SERVICE_ERROR` | Yes |
+| HTTP 400 or 422 caused by invalid vector or payload data | `VECTOR_STORE_INVALID_DATA` | No |
+| HTTP 401 or 403 caused by endpoint authentication, authorization, or configuration | `VECTOR_STORE_CONFIGURATION_ERROR` | No |
+| Other HTTP 4xx responses | No retry; map to the applicable stable application error according to the operation and failure cause | No |
+| Generation build operation failure after lower-level error normalization | `VECTOR_GENERATION_BUILD_FAILED` | Preserve the retry eligibility of the underlying cause; do not retry permanent failures |
+| Alias activation operation failure after lower-level error normalization | `VECTOR_GENERATION_ACTIVATION_FAILED` | Preserve the retry eligibility of the underlying cause; do not retry permanent failures |
+
+HTTP 429 is not retryable under this V1 policy and must not be retried. Retry eligibility is limited to connection failures, timeouts, and HTTP 5xx responses, with at most 3 total attempts including the initial attempt. The adapter must inspect the SDK exception type, HTTP status where available, and underlying cause as needed; it must not classify every response-handling exception as a connection failure without inspecting its cause. Exact concrete SDK exception classes and status extraction for `qdrant-client==1.20.0` must be verified during implementation and covered by adapter tests.
 
 ## 10. Observability and Security
 
@@ -322,7 +337,7 @@ Tests must not require paid external AI services. Qdrant integration tests use t
 The architecture decisions D1–D16 are approved. The following lower-level contract details remain open and must be resolved during specification review, not invented during implementation:
 
 2. Exact healthcheck probe command and project-specific image build configuration, as defined in §7.3.
-3. Exact SDK exception/status-to-stable-error-code mapping for `qdrant-client==1.20.0`.
+3. Concrete `qdrant-client==1.20.0` exception classes and HTTP status extraction mechanisms, verified against the normalized mapping policy in §9.
 4. Detailed DTO fields, validation rules, and normalized error contracts for each `VectorStore` method.
 
 The resolved decisions above have been approved in the Day 27 architecture discussion. The remaining details must be verified and recorded before final specification approval; implementation agents must not invent them.
@@ -339,7 +354,7 @@ This specification is ready for approval only when:
 6. Collection/generation naming and collection-per-generation behavior are explicit.
 7. The compatible pinned `qdrant-client==1.20.0` version is specified.
 8. The pinned Qdrant base image, dedicated Dockerfile path, custom image tag, readiness endpoint, healthcheck command and timing, and Compose dependency are specified.
-9. Retryable and permanent Qdrant failures have explicit stable mappings.
+9. Retryable and permanent Qdrant failures have explicit stable mappings, including the handling of HTTP 429 and operation-level build/activation errors.
 10. Build, activation, interruption, retention, and deletion behavior is deterministic.
 11. D12/D14 are reconciled exactly as described in §4.1.
 12. Test and verification requirements are objectively verifiable.
