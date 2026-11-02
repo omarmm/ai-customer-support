@@ -198,7 +198,48 @@ The approved `CollectionInfo` result contract contains:
 | `distance` | String (fixed value: `Cosine`) |
 
 These are application-owned DTOs; Qdrant SDK response models must be translated inside the adapter.
-- `upsert_points`: write points in batches while preserving input identity and order at the application boundary.
+- `upsert_points`: accept an application-owned request containing a generation ID and an ordered batch of chunk/vector/payload inputs. The adapter derives each Qdrant point ID using the fixed UUIDv5 namespace and the original `chunk_id`, adds the request's `generation_id` to the payload, and writes the resulting points to the generation collection. The caller must not provide a Qdrant point ID or independently override the payload generation ID.
+
+The approved input DTOs are:
+
+```python
+@dataclass(frozen=True)
+class UpsertPointInput:
+    chunk_id: str
+    vector: tuple[float, ...]
+    payload: Mapping[str, object]
+
+
+@dataclass(frozen=True)
+class UpsertPointsRequest:
+    generation_id: str
+    points: tuple[UpsertPointInput, ...]
+```
+
+The `payload` supplied for each point contains the chunk and embedding metadata fields defined in §5.3, excluding `generation_id`; the adapter adds `generation_id` from the request. The adapter derives `point_id` as `UUIDv5(PROJECT_VECTOR_NAMESPACE, chunk_id)`.
+
+Validation requirements:
+
+- `generation_id` must be exactly 64 lowercase hexadecimal characters.
+- The points batch must contain between 1 and 64 points inclusive.
+- Each `chunk_id` must be a non-empty string and unique within the batch.
+- Each derived UUIDv5 point ID must be unique within the batch.
+- Each vector must contain exactly 768 finite numeric values; booleans, strings, nulls, NaN, and infinity are invalid.
+- Each input payload must contain exactly the eleven non-generation fields defined in §5.3, with their specified types and required values. Unknown or missing fields are rejected.
+- The payload's `chunk_id` must equal the DTO's `chunk_id`.
+- The adapter adds `generation_id` from the request and must not accept a caller-supplied conflicting generation ID.
+- Input order is preserved at the application boundary. Every accepted input produces exactly one Qdrant point containing its derived ID, vector, and completed payload.
+
+The approved result DTO is:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `generation_id` | String | Target generation ID |
+| `submitted_count` | Integer | Number of points in the request batch |
+| `completed_count` | Integer | Number of points confirmed successfully written |
+| `succeeded` | Boolean | True only when the complete batch is successfully written |
+
+A batch is successful only when all submitted points are confirmed written. Partial or ambiguous outcomes must be surfaced as an operation failure; they must not be reported as full success. The operation-level error is normalized to `VECTOR_GENERATION_BUILD_FAILED`, retaining the underlying normalized storage cause internally.
 - `verify_generation`: verify collection existence, vector dimension, Cosine distance, expected point count, and successful completion of all upserts.
 - `activate_generation`: atomically switch `knowledge_vectors_active` to a verified generation.
 - `search`: reserved interface operation for vector similarity search; retrieval semantics remain governed by a separate Retrieval specification and are not defined here.
