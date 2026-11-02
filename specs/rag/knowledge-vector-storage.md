@@ -1,6 +1,6 @@
 # Knowledge Vector Storage Specification
 
-- **Status:** Draft — all architecture and contract decisions resolved; final specification approval pending
+- **Status:** Approved — final approval granted by the project owner on 2026-11-03.
 - **Phase:** Phase 4 — RAG
 - **Subsystem:** Vector Storage
 - **Implementation:** Not authorized
@@ -584,15 +584,16 @@ This specification is ready for approval only when:
 
 ## 14. Implementation Gate
 
-- This document is a draft and does not authorize implementation.
-- No task breakdown is approved by this document.
-- No Qdrant integration code, settings, dependencies, startup wiring, endpoint, or persistence changes may be made before explicit specification approval.
-- After approval, implementation tasks must be individually scoped with dependencies and acceptance criteria.
+- This specification is approved and is the source of truth for the Vector Storage subsystem.
+- Approval authorizes preparation and review of an implementation task breakdown only; it does not by itself authorize implementation.
+- No Qdrant integration code, settings, dependencies, startup wiring, endpoint, or persistence changes may be made until the task breakdown is explicitly approved and a single task is authorized.
+- Implementation tasks must be individually scoped with dependencies and acceptance criteria.
 - Only one authorized task may be implemented at a time, followed by tests and verification before proceeding.
 
 ## 15. Approval Record
 
-- **Status:** Draft — architecture decisions D1–D16 and detailed VectorStore contracts resolved and documented.
-- **Specification approval:** Pending explicit final approval.
+- **Status:** Approved — final approval granted by the project owner on 2026-11-03.
+- **Specification approval:** Approved.
 - **Implementation authorization:** Not granted.
-- **Task breakdown authorization:** Not granted.
+- **Task breakdown:** Preparation authorized; approval pending.
+- **Implementation task authorization:** Not granted.
