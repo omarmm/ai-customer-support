@@ -279,7 +279,43 @@ The result is a frozen, immutable application-owned contract and is constructed 
 A successful result therefore represents `verified=True` by construction; no redundant `verified` flag or `failed_checks` collection is included. If the collection is missing, any configuration value differs, the point count does not match, or verification cannot be completed, the operation raises `VECTOR_GENERATION_BUILD_FAILED` with a stable internal reason and preserves the underlying normalized storage cause. No partial or unsuccessful result object is returned. This follows the existing Embeddings contract: immutable result dataclasses represent successful runs, while failures use normalized application errors and never return partial success.
 
 The generation builder must call verification only after all upsert batches have completed successfully. A generation that does not pass verification must not be activated; the active alias remains unchanged.
-- `activate_generation`: atomically switch `knowledge_vectors_active` to a verified generation.
+- `activate_generation`: atomically switch `knowledge_vectors_active` to a verified generation. The operation accepts only the target generation ID; the adapter resolves and validates the target generation and performs the alias change atomically.
+
+The approved input DTO is:
+
+```python
+@dataclass(frozen=True)
+class ActivateGenerationRequest:
+    generation_id: str
+```
+
+Validation and behavior:
+
+- `generation_id` must be exactly 64 lowercase hexadecimal characters.
+- The target generation collection must exist and must have passed `verify_generation` successfully before activation.
+- The adapter derives the target collection name from `generation_id`; callers do not supply a collection name.
+- The adapter reads the currently active generation, if one exists, and performs one atomic Qdrant alias operation that removes the alias from the previous collection and assigns it to the target collection.
+- If no generation is currently active, the operation atomically assigns the alias to the target collection.
+- The previous generation is retained; activation never deletes it.
+- If activation fails, the previous alias target remains unchanged. No partially applied alias state may be reported as success.
+
+The successful output DTO is:
+
+```python
+@dataclass(frozen=True)
+class GenerationActivationResult:
+    generation_id: str
+    alias_name: str
+    previous_generation_id: str | None
+```
+
+The result is a frozen, immutable application-owned contract and is returned only after the atomic alias operation is confirmed successful. Its values must satisfy:
+
+- `generation_id` is the activated generation ID.
+- `alias_name == "knowledge_vectors_active"`.
+- `previous_generation_id` is the generation that was active immediately before the operation, or `None` when no generation was active.
+
+Any activation failure is normalized to `VECTOR_GENERATION_ACTIVATION_FAILED`, retaining the underlying normalized storage cause internally. No partial or unsuccessful result object is returned.
 - `search`: reserved interface operation for vector similarity search; retrieval semantics remain governed by a separate Retrieval specification and are not defined here.
 - `get_generation_info`: return storage-level generation metadata.
 - `delete_generation`: explicitly delete an inactive generation and reject deletion of the active generation.
