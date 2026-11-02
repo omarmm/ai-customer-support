@@ -2,9 +2,9 @@
 
 ## Current Position
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
-  and the approved embeddings sequence (T267–T271) are complete and verified.
-  No further implementation task is authorized; the next SDD step is the RAG
-  vector storage/retrieval specification gate.
+  and embeddings (T267–T271) are complete and verified. The Knowledge Vector
+  Storage Specification is approved; its implementation task breakdown is now
+  being prepared for review. No implementation task is authorized yet.
 - T271 — Composition-root wiring and Docker image verification — complete and
   committed at `77f610da76fd67392dfb504303372123f596a56a`
   (`feat(rag): wire embedding service composition root`)
@@ -41,14 +41,15 @@
   `0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f`
   (evidence only, not runtime verification). `768` is confirmed by live
   measurement; no specification amendment is required.
-- Current task: none. No implementation task is in progress. T271 is complete;
-  the approved T267–T271 sequence is finished and no further implementation
-  task is authorized.
+- Current task: none. No implementation task is in progress. T271 is complete.
+  Vector Storage specification is approved; task breakdown review is the next
+  SDD step. Implementation remains unauthorized.
 - Current activity: T271 was implemented, verified, and committed on 2026-10-25.
-- Status: `Approved`. The Phase 4 embeddings specification remains the source
-  of truth and its approved implementation sequence is complete. The next SDD
-  step is a specification gate for RAG vector storage/retrieval; implementation
-  must not begin without an approved specification and task breakdown.
+- Status: `Approved`. The embeddings implementation sequence is complete. The
+  Vector Storage specification at `specs/rag/knowledge-vector-storage.md` was
+  approved by the project owner on 2026-11-03. The task breakdown is being
+  prepared; implementation must not begin until that breakdown is approved and
+  one task is explicitly authorized.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
@@ -985,13 +986,10 @@ Each task and specification gate requires its own authorized session.
   35e869b. The canonical `app` import root is used throughout, `uvicorn
   app.main:app` is the runtime entry point, and the composed service is exposed
   through `app.state`.
-- Remaining Phase 4 specifications (Qdrant, semantic retrieval, metadata
-  filtering, context construction, source attribution, evaluation, and failure
-  handling) are undefined and follow their own SDD cycles. The approved
-  embedding sequence T267–T271 is complete; no implementation task beyond it
-  is authorized. The next SDD step is the vector storage/retrieval
-  specification gate, which requires its own approved specification and task
-  breakdown before implementation.
+- Vector Storage specification is approved. Its task breakdown is the current
+  review item; implementation remains unauthorized. Retrieval, metadata
+  filtering behavior, context construction, source attribution, evaluation,
+  and RAG failure handling outside storage remain separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
