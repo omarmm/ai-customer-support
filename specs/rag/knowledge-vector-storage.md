@@ -105,7 +105,7 @@ The Compose dependency is infrastructure orchestration; it does not authorize ap
 - The original application `chunk_id` is retained in the payload.
 - The same logical chunk identity must not receive a random point ID on repeated builds.
 
-The point ID is derived as `UUIDv5(PROJECT_VECTOR_NAMESPACE, chunk_id)`. `PROJECT_VECTOR_NAMESPACE` is a fixed, project-owned namespace UUID constant. The canonical name input is the original `chunk_id`. `generation_id` is not part of the UUIDv5 name because each generation has its own collection. The concrete namespace UUID value must be recorded before implementation approval; an implementation agent must not invent it.
+The point ID is derived as `UUIDv5(PROJECT_VECTOR_NAMESPACE, chunk_id)`. `PROJECT_VECTOR_NAMESPACE` is the fixed, project-owned UUID constant `452d7fec-5a06-47c6-801d-eb0363eec5c4`, represented in Python as `UUID("452d7fec-5a06-47c6-801d-eb0363eec5c4")`. The canonical name input is the original `chunk_id`. `generation_id` is not part of the UUIDv5 name because each generation has its own collection. This namespace value must remain identical across development, testing, and production; it must not be generated at runtime, placed in environment configuration, or changed by an implementation agent.
 
 ### 5.3 Payload
 
@@ -319,7 +319,6 @@ Tests must not require paid external AI services. Qdrant integration tests use t
 
 The architecture decisions D1–D16 are approved. The following lower-level contract details remain open and must be resolved during specification review, not invented during implementation:
 
-1. Exact fixed UUIDv5 namespace UUID value (the approved algorithm and `chunk_id` name input are defined in §5.2).
 2. Exact healthcheck executable/command or external probe approach, verified against the unchanged pinned Qdrant image.
 3. Exact SDK exception/status-to-stable-error-code mapping for `qdrant-client==1.20.0`.
 4. Detailed DTO fields, validation rules, and normalized error contracts for each `VectorStore` method.
@@ -333,7 +332,7 @@ This specification is ready for approval only when:
 1. D1–D16 are represented without changing their approved meaning.
 2. Storage and Retrieval remain separate boundaries.
 3. Generation identity inputs and canonical digest construction are unambiguous.
-4. UUIDv5 namespace and canonical name input are explicit.
+4. The fixed UUIDv5 namespace value and canonical name input are explicit.
 5. The exact payload schema and field types are defined.
 6. Collection/generation naming and collection-per-generation behavior are explicit.
 7. The compatible pinned `qdrant-client==1.20.0` version is specified.
