@@ -240,7 +240,45 @@ The approved result DTO is:
 | `succeeded` | Boolean | True only when the complete batch is successfully written |
 
 A batch is successful only when all submitted points are confirmed written. Partial or ambiguous outcomes must be surfaced as an operation failure; they must not be reported as full success. The operation-level error is normalized to `VECTOR_GENERATION_BUILD_FAILED`, retaining the underlying normalized storage cause internally.
-- `verify_generation`: verify collection existence, vector dimension, Cosine distance, expected point count, and successful completion of all upserts.
+- `verify_generation`: verify collection existence, vector dimension, Cosine distance, expected point count, and successful completion of all upserts. It returns a result only for a fully verified generation; any failed check raises the normalized generation-build error and no partial verification result is returned.
+
+The approved input DTO is:
+
+```python
+@dataclass(frozen=True)
+class VerifyGenerationRequest:
+    generation_id: str
+    expected_point_count: int
+```
+
+Validation requirements:
+
+- `generation_id` must be exactly 64 lowercase hexadecimal characters.
+- `expected_point_count` must be a non-negative integer; booleans are not accepted as integers. Zero is valid because an ingested corpus may produce no chunks.
+- The adapter derives the collection name from `generation_id`; callers do not supply a collection name.
+
+The successful output DTO is:
+
+```python
+@dataclass(frozen=True)
+class GenerationVerificationResult:
+    generation_id: str
+    expected_point_count: int
+    actual_point_count: int
+    vector_size: int
+    distance: str
+```
+
+The result is a frozen, immutable application-owned contract and is constructed only after all checks pass. Its values must satisfy:
+
+- `generation_id` equals the requested generation ID.
+- `expected_point_count == actual_point_count`.
+- `vector_size == 768`.
+- `distance == "Cosine"`.
+
+A successful result therefore represents `verified=True` by construction; no redundant `verified` flag or `failed_checks` collection is included. If the collection is missing, any configuration value differs, the point count does not match, or verification cannot be completed, the operation raises `VECTOR_GENERATION_BUILD_FAILED` with a stable internal reason and preserves the underlying normalized storage cause. No partial or unsuccessful result object is returned. This follows the existing Embeddings contract: immutable result dataclasses represent successful runs, while failures use normalized application errors and never return partial success.
+
+The generation builder must call verification only after all upsert batches have completed successfully. A generation that does not pass verification must not be activated; the active alias remains unchanged.
 - `activate_generation`: atomically switch `knowledge_vectors_active` to a verified generation.
 - `search`: reserved interface operation for vector similarity search; retrieval semantics remain governed by a separate Retrieval specification and are not defined here.
 - `get_generation_info`: return storage-level generation metadata.
