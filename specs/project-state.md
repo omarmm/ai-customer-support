@@ -2,9 +2,14 @@
 
 ## Current Position
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
-  and embeddings (T267–T271) are complete and verified. The Knowledge Vector Storage Specification and its implementation task
-  breakdown are approved. T272 is the only currently authorized implementation
-  task; later tasks remain unauthorized.
+  embeddings (T267–T271), and vector storage contracts (T272) are complete and
+  verified. The Knowledge Vector Storage Specification and its implementation
+  task breakdown are approved. T272 is closed; T273 is the next dependency-ready
+  task but requires its own authorized session. T274–T278 remain unauthorized.
+- T272 — Vector storage contracts and application error taxonomy — complete and
+  committed at `2aed1a8eaa6a98f207feacce7599f7a7e781f461`
+  (`fix(rag): align vector storage contracts and tests`), on branch
+  `feature/t272-vector-storage-contracts` after merging `master`
 - T271 — Composition-root wiring and Docker image verification — complete and
   committed at `77f610da76fd67392dfb504303372123f596a56a`
   (`feat(rag): wire embedding service composition root`)
@@ -41,20 +46,17 @@
   `0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f`
   (evidence only, not runtime verification). `768` is confirmed by live
   measurement; no specification amendment is required.
-- Current task: T272 — Vector storage contracts and application error taxonomy.
-  Initial implementation and focused tests have been pushed to branch
-  `feature/t272-vector-storage-contracts`. Runtime test execution and verification
-  are pending on the project development environment; T272 is not closed.
-- Current activity: T272 implementation draft is in progress on
-  `feature/t272-vector-storage-contracts` (latest branch commit
-  `58e7f8a63174e430fb1ffd1789eb15aeaee772a1`). Four production modules and
-  three focused test modules were added. No test suite has been executed in the
-  project runtime yet; do not treat T272 as verified or complete.
+- Current task: none. T272 — Vector storage contracts and application error
+  taxonomy — is complete, verified, and committed on branch
+  `feature/t272-vector-storage-contracts`.
+- Current activity: T272 implementation, focused tests, full regression, and
+  closure on 2026-11-03. This documentation record follows in a separate commit.
 - Status: `Approved`. The embeddings implementation sequence is complete. The
   Vector Storage specification at `specs/rag/knowledge-vector-storage.md` and
   task breakdown at `specs/rag/knowledge-vector-storage-tasks.md` were approved
-  by the project owner on 2026-11-03. T272 is explicitly authorized and in
-  progress on its feature branch; all later tasks remain unauthorized.
+  by the project owner on 2026-11-03. T272 is complete; T273 is the next
+  dependency-ready task and requires its own authorized session. T274–T278
+  remain unauthorized.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
@@ -67,6 +69,62 @@
   undefined and require their own SDD cycles.
 
 ## Last Completed Task
+- Task: T272 — Vector storage contracts and application error taxonomy
+- Commit: `2aed1a8eaa6a98f207feacce7599f7a7e781f461`
+  (`fix(rag): align vector storage contracts and tests`); T272 also includes the
+  preceding contracts/tests commits on `feature/t272-vector-storage-contracts`
+  (`4ceb964`, `60c3a36`, `446d0c9`, `56c5fbd`, `9573f89`, `4196762`, `2f3798c`,
+  `e9c8c06`, `58e7f8a`, `bfcdfc9`, `9c85e15`, `b00d475`). This project state
+  record follows in a separate documentation commit
+- Scope delivered: new `src/app/rag/vector_storage/` package with `contracts.py`,
+  `exceptions.py`, `identity.py`, and `__init__.py`; new
+  `tests/rag/vector_storage/` package with `test_contracts.py`, `test_errors.py`,
+  and `test_identity.py`. No Qdrant SDK, network client, settings,
+  infrastructure, persistence, endpoint, composition, or retrieval code was
+  added or changed
+- Contract implemented: frozen application DTOs for create generation, upsert
+  points, verify generation, activate generation, generation info, and delete
+  generation exactly as specified in §7.1, including fixed single-batch limits
+  (1–64), 768-dimensional finite non-boolean vectors, exact eleven-field payload
+  validation, required `chunk_id` equality, derived collection names, fixed
+  `Cosine` distance results, and success-only result construction. The
+  `VectorStore` protocol exposes the seven approved operations; `search` remains
+  a reserved interface operation with no retrieval behavior. Application error
+  taxonomy exposes all nine stable §9 codes with retryability metadata; build
+  and activation failures preserve underlying retryability and cause. UUIDv5
+  point identity uses the fixed project namespace
+  `452d7fec-5a06-47c6-801d-eb0363eec5c4` and the original `chunk_id`; the
+  canonical SHA-256 helper uses the approved sorted-compact UTF-8 JSON encoding
+- Verification (2026-11-03; image `ai-customer-support-t272:local`, ID
+  `sha256:2aec8aeb3cc1bb7c88144ae9abc8041d6d7e57647c6a0924c45624734abb7e2e`;
+  no repository bind mount in image verification runs):
+  - Build: `docker build -t ai-customer-support-t272:local .` → exit 0
+  - Focused offline suite: `docker run --rm --network none
+    ai-customer-support-t272:local python -m pytest tests/rag/vector_storage -q`
+    → 63 passed, exit 0
+  - Full regression: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    ai-customer-support-t272:local python -m pytest tests -q` → 878 passed,
+    7 skipped, exit 0. The 7 skips are the 4 unchanged
+    environment-conditional ingestion permission fixtures plus the 3 opt-in
+    live embedding conformance tests. No repository bind mount was used
+  - Static import scan: the new package imports only Python standard-library
+    modules and its own `app.rag.vector_storage` modules; no Qdrant, HTTPX,
+    SQLAlchemy, psycopg, FastAPI, settings, persistence, or retrieval import
+  - Correction during verification: the renamed error module test import was
+    updated from the deleted `errors` module to `exceptions`; the batch-limit
+    fixture now constructs 64 unique points; `CollectionInfo` now enforces the
+    derived collection name and fixed `Cosine` distance, with boundary tests
+  - `git diff --check`: clean, exit 0; the implementation diff is limited to the
+    approved T272 package and focused tests
+- Outcome: T272 acceptance criteria in the approved task breakdown are met. The
+  application-owned vector storage contracts, point identity, protocol, and
+  normalized error taxonomy exist with focused tests, and no Qdrant I/O,
+  configuration, persistence, or retrieval behavior was introduced. T272 is
+  closed. T273 is the next dependency-ready task but was not started and
+  requires its own authorized session.
+
+## Previously Completed Task — T271 (composition-root wiring)
 - Task: T271 — Composition-root wiring and Docker image verification
 - Commit: `77f610da76fd67392dfb504303372123f596a56a`
   (`feat(rag): wire embedding service composition root`); this project state
@@ -647,34 +705,54 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- T272 — Vector storage contracts and application error taxonomy — is the
-  currently authorized implementation task and is in progress.
-- T272 implementation draft and focused tests are on branch
-  `feature/t272-vector-storage-contracts`.
-- Latest branch commit at the time of this update:
-  `b00d475aadb42caecc3a13dcddd52f9821f6e5fd` (renamed the vector storage
-  error module to the project-standard `exceptions.py`).
-- Runtime test execution and verification are pending on the project
-  development environment. T272 is not complete and must not be marked closed
-  until the focused tests and required regression checks pass.
-- T272 scope is limited to application-owned vector storage contracts,
-  deterministic UUIDv5 point identity, normalized application exceptions, and
-  focused unit tests. Qdrant SDK integration, configuration, infrastructure,
-  persistence, composition, and retrieval are out of scope for T272.
-- T273 and all later tasks remain unauthorized until T272 is verified and
-  closed under its approved task breakdown.
+- No implementation task is in progress. T272 — Vector storage contracts and
+  application error taxonomy — is complete and committed at
+  `2aed1a8eaa6a98f207feacce7599f7a7e781f461`.
+- T272 delivered the application-owned DTOs, `VectorStore` protocol, UUIDv5
+  point identity, normalized error taxonomy, and focused unit tests under
+  `tests/rag/vector_storage/`. It introduced no Qdrant SDK, network client,
+  settings, infrastructure, persistence, composition, endpoint, or retrieval
+  behavior.
+- T272 is closed. T273 — Qdrant client adapter and exception normalization — is
+  the next dependency-ready task. It was not started in this session and
+  requires its own authorized session.
+- T274–T278 remain unauthorized and must not be started early.
 
 ## Task Ordering
-1. T272 — Vector storage contracts and application error taxonomy
-   (authorized; in progress; verification pending).
-2. T273 — Qdrant client adapter and exception normalization
-   (blocked until T272 is verified and closed).
-3. T274–T278 remain unauthorized and must not be started early.
+1. T273 — Qdrant client adapter and exception normalization
+   (next dependency-ready task; requires its own authorized session).
+2. T274 — Qdrant container infrastructure and application configuration
+   (unauthorized; may proceed independently of T273 only in a later authorized
+   session).
+3. T275–T278 remain unauthorized and must not be started early.
 
 Each task requires its own authorized session and must follow its approved
 specification and acceptance criteria.
 
 ## Verified Findings
+- T272 implementation (2026-11-03):
+  `src/app/rag/vector_storage/contracts.py` defines the frozen application DTOs
+  `CreateGenerationRequest`, `CollectionInfo`, `UpsertPointInput`,
+  `UpsertPointsRequest`, `UpsertPointsResult`, `VerifyGenerationRequest`,
+  `GenerationVerificationResult`, `ActivateGenerationRequest`,
+  `GenerationActivationResult`, `GetGenerationInfoRequest`, `GenerationInfo`,
+  `DeleteGenerationRequest`, and `GenerationDeletionResult`, plus the
+  `VectorStore` protocol. Validation enforces 64-character lowercase hex
+  generation/embedding-config IDs, 768-dimensional finite non-boolean vectors,
+  batches of 1–64 unique chunk IDs and derived point IDs, the exact eleven
+  non-generation payload fields with matching `chunk_id`, derived
+  `knowledge_vectors_g_<generation_id>` collection names, fixed `Cosine`
+  distance for collection and verification results, and success-only result
+  objects. `search` is present only as a reserved protocol operation.
+  `src/app/rag/vector_storage/identity.py` defines the fixed project namespace
+  `452d7fec-5a06-47c6-801d-eb0363eec5c4`, canonical sorted-compact UTF-8 JSON
+  SHA-256, and `UUIDv5(PROJECT_VECTOR_NAMESPACE, chunk_id)` point identity.
+  `src/app/rag/vector_storage/exceptions.py` defines all nine stable §9 error
+  codes with retryability metadata; build and activation failures preserve the
+  underlying cause and retry eligibility. Focused offline suite: 63 passed;
+  full regression: 878 passed / 7 skipped; static import scan found no Qdrant,
+  HTTPX, SQLAlchemy, psycopg, FastAPI, settings, persistence, or retrieval
+  imports; `git diff --check` clean.
 - T271 implementation (2026-10-25):
   `src/app/rag/embeddings/composition.py` defines
   `build_embedding_service(settings)`, which constructs one
