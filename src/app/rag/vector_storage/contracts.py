@@ -112,11 +112,13 @@ class CollectionInfo:
 
     def __post_init__(self) -> None:
         _require_generation_id(self.generation_id)
-        _require_non_empty_string(self.collection_name, "collection_name")
+        if self.collection_name != f"knowledge_vectors_g_{self.generation_id}":
+            raise ValueError("collection_name does not match generation_id")
         _require_int(self.vector_size, "vector_size")
         if self.vector_size <= 0:
             raise ValueError("vector_size must be positive")
-        _require_non_empty_string(self.distance, "distance")
+        if self.distance != "Cosine":
+            raise ValueError("distance must be 'Cosine'")
 
 
 @dataclass(frozen=True)

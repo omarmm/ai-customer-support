@@ -1,6 +1,6 @@
 import pytest
 
-from app.rag.vector_storage.errors import (
+from app.rag.vector_storage.exceptions import (
     VectorGenerationActiveDeleteRejected,
     VectorGenerationActivationFailed,
     VectorGenerationBuildFailed,

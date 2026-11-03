@@ -87,6 +87,10 @@ def test_collection_info_is_application_owned_and_immutable():
     assert result.distance == "Cosine"
     with pytest.raises(FrozenInstanceError):
         result.distance = "Dot"
+    with pytest.raises(ValueError, match="collection_name"):
+        CollectionInfo(GENERATION_ID, "caller-selected", 768, "Cosine")
+    with pytest.raises(ValueError, match="Cosine"):
+        CollectionInfo(GENERATION_ID, f"knowledge_vectors_g_{GENERATION_ID}", 768, "Dot")
 
 
 def test_upsert_point_normalizes_vector_and_freezes_payload():
@@ -136,6 +140,30 @@ def test_upsert_point_rejects_invalid_payload_integers(field, value):
         make_point(payload=make_payload(**{field: value}))
 
 
+@pytest.mark.parametrize(
+    "field",
+    [
+        "document_id",
+        "source_path",
+        "title",
+        "format",
+        "content",
+        "chunking_config_id",
+        "embedding_config_id",
+    ],
+)
+def test_upsert_point_rejects_non_string_payload_fields(field):
+    with pytest.raises(ValueError, match=field):
+        make_point(payload=make_payload(**{field: None}))
+
+
+def test_upsert_point_rejects_empty_chunk_id_and_invalid_offsets():
+    with pytest.raises(ValueError, match="chunk_id"):
+        make_point(chunk_id="", payload=make_payload(chunk_id=""))
+    with pytest.raises(ValueError, match="end_offset"):
+        make_point(payload=make_payload(start_offset=15, end_offset=15))
+
+
 def test_upsert_request_accepts_one_point_and_preserves_order():
     first = make_point()
     second_id = "chunk-002"
@@ -148,14 +176,21 @@ def test_upsert_request_accepts_one_point_and_preserves_order():
 
 
 def test_upsert_request_enforces_batch_limit():
-    point = make_point()
-    request = UpsertPointsRequest(GENERATION_ID, [point] * MAX_UPSERT_BATCH_SIZE)
+    points = [
+        UpsertPointInput(
+            f"chunk-{index:03d}",
+            [0.0] * VECTOR_DIMENSION,
+            make_payload(chunk_id=f"chunk-{index:03d}", chunk_index=index),
+        )
+        for index in range(MAX_UPSERT_BATCH_SIZE)
+    ]
+    request = UpsertPointsRequest(GENERATION_ID, points)
     assert len(request.points) == 64
 
     with pytest.raises(ValueError):
         UpsertPointsRequest(GENERATION_ID, [])
     with pytest.raises(ValueError):
-        UpsertPointsRequest(GENERATION_ID, [point] * (MAX_UPSERT_BATCH_SIZE + 1))
+        UpsertPointsRequest(GENERATION_ID, points + [points[0]])
 
 
 def test_upsert_request_rejects_duplicate_chunk_ids():
