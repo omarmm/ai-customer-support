@@ -62,6 +62,20 @@
   construction, source attribution, evaluation, and RAG failure handling remain
   undefined and require their own SDD cycles.
 
+## Active Implementation Handoff
+
+- Task ID: T274 — Qdrant container infrastructure and application configuration.
+- Approved specification: specs/rag/knowledge-vector-storage.md, approved by the project owner on 2026-11-03; T274 scope is defined in §§7.3, 7.4, and 11 and in specs/rag/knowledge-vector-storage-tasks.md.
+- Task breakdown approval: project owner approval on 2026-11-03.
+- Explicit authorization: project owner explicitly authorized T274 on 2026-11-06. T275–T278 remain unauthorized.
+- Base ref: master at ded515068f03edfd3c3ccd8d7ca1a349130bf7db.
+- Implementation branch: feature/t274-qdrant-infrastructure-handoff.
+- Prepared immutable verification ref: 963c6c89fb11bf58adfa6a8256388a0376bb30ec.
+- Implementation commit: 51d9d50d724566a6da52d36e8b17c067d0ade310.
+- Verification scope: fetch exact branch/ref; inspect diff against exact base; run pytest tests/rag/vector_storage/test_configuration.py -q; run pytest tests -q; run docker compose config; build pinned custom Qdrant image; verify /readyz healthcheck and timing; prove FastAPI startup performs no Qdrant network I/O and /health remains independent; confirm existing Postgres/API Compose behavior, volumes, network; run git diff --check.
+- Verification status: not yet run. No tests or Docker/runtime success are claimed.
+- Completion: fix only T274 defects, rerun affected checks, commit on the same branch, update project state with evidence, stop. Do not merge or start T275.
+
 ## Last Completed Task
 - Task: T273 — Qdrant client adapter and exception normalization
 - Commit: `fdff9c5afa71dfd96befad72359bc0e35930a036`
