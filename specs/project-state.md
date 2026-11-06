@@ -54,9 +54,9 @@
 - Status: `Approved`. The embeddings implementation sequence is complete. The
   Vector Storage specification at `specs/rag/knowledge-vector-storage.md` and
   task breakdown at `specs/rag/knowledge-vector-storage-tasks.md` were approved
-  by the project owner on 2026-11-03. T272 is complete; T273 is the next
-  dependency-ready task and requires its own authorized session. T274–T278
-  remain unauthorized.
+  by the project owner on 2026-11-03. T272 and T273 are complete. T274 is next
+  in the approved execution order but remains unauthorized pending its own
+  implementation approval; T275–T278 remain unauthorized.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
@@ -1097,10 +1097,11 @@ specification and acceptance criteria.
   35e869b. The canonical `app` import root is used throughout, `uvicorn
   app.main:app` is the runtime entry point, and the composed service is exposed
   through `app.state`.
-- Vector Storage specification is approved. Its task breakdown is the current
-  review item; implementation remains unauthorized. Retrieval, metadata
-  filtering behavior, context construction, source attribution, evaluation,
-  and RAG failure handling outside storage remain separate SDD cycles.
+- Vector Storage specification and task breakdown are approved. T272 and T273
+  are complete; T274 is next in the approved sequence but still requires its
+  own implementation authorization. Retrieval, metadata filtering behavior,
+  context construction, source attribution, evaluation, and RAG failure
+  handling outside storage remain separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
