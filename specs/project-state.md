@@ -36,7 +36,7 @@
 - **Base ref:** master at
   ded515068f03edfd3c3ccd8d7ca1a349130bf7db.
 - **Implementation branch:** feature/t274-qdrant-infrastructure-handoff.
-- **Prepared implementation commit:** 7bc6386323bfda66617263ae316237cf86953e37.
+- **Prepared implementation commit:** 74f2d6a94cc22fd0abcd7a107e84ad57fd784420.
 - **Handoff state commit:** this documentation update is a descendant of the
   prepared implementation commit.
 - **Prepared files:** docker/qdrant/Dockerfile, docker-compose.yml,
