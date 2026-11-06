@@ -7,9 +7,8 @@
 - Authorization: explicitly approved by the project owner on 2026-11-06.
 - Mode: **verify and finalize an assistant-prepared implementation; do not reimplement**.
 - Base: `master` at `4ab0520330bbd321dc4d5b122302cf30c6fa7ce3` (before this handoff metadata commit).
-- Branch: `feature/t274-qdrant-infrastructure-config-handoff`.
-- Pull request: [#3](https://github.com/omarmm/ai-customer-support/pull/3) (Draft; do not merge).
-- Prepared implementation commit: `bb82a53be9d6fb7ee068fca3715a1c519f630aad`.
+- Branch: `feature/t274-qdrant-infrastructure-finalize`.
+- Pull request: Opened from the active handoff branch after this state update; keep it Draft until verification passes.
 - Prepared files: `docker/qdrant/Dockerfile`, `docker-compose.yml`,
   `src/app/core/config.py`, `.env.example`,
   `tests/rag/vector_storage/test_config.py`.
