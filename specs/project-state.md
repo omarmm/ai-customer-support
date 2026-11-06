@@ -2,10 +2,10 @@
 
 ## Current Position
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
-  embeddings (T267–T271), and vector storage contracts (T272) are complete and
-  verified. The Knowledge Vector Storage Specification and its implementation
-  task breakdown are approved. T272 is closed; T273 is the next dependency-ready
-  task but requires its own authorized session. T274–T278 remain unauthorized.
+  embeddings (T267–T271), vector storage contracts (T272), and the Qdrant
+  client adapter (T273) are complete. The Knowledge Vector Storage Specification
+  and task breakdown are approved. T274 is next in the approved execution order
+  and remains unauthorized pending its own approval.
 - T272 — Vector storage contracts and application error taxonomy — complete and
   committed at `2aed1a8eaa6a98f207feacce7599f7a7e781f461`
   (`fix(rag): align vector storage contracts and tests`), on branch
@@ -69,6 +69,29 @@
   undefined and require their own SDD cycles.
 
 ## Last Completed Task
+- Task: T273 — Qdrant client adapter and exception normalization
+- Commit: `fdff9c5afa71dfd96befad72359bc0e35930a036`
+  (`feat(rag): add qdrant client adapter and exception normalization`),
+  committed and pushed directly to `master`
+- Scope delivered: pinned `qdrant-client==1.20.0`; Qdrant client adapter
+  behind the application-owned `VectorStore` protocol; explicit client
+  configuration and 10-second per-attempt timeout; SDK/application exception
+  normalization, including wrapped HTTPX causes and both 429 paths; dedicated
+  bounded vector-storage retry policy with at most 3 total attempts, 0.5-second
+  base delay, 8-second maximum delay, and Full Jitter. Sleep and randomness are
+  injectable for deterministic offline tests. No business lifecycle
+  orchestration, startup network I/O, Docker infrastructure, or T274 settings
+  work was introduced.
+- Verification recorded for T273: focused vector-storage suite — 149 passed;
+  full regression — 964 passed, 7 skipped. The implementation commit is
+  `fdff9c5afa71dfd96befad72359bc0e35930a036`. No Qdrant startup connectivity
+  check or generation lifecycle operations were added.
+- Outcome: T273 acceptance criteria are met and the task is closed. T274 —
+  Qdrant container infrastructure and application configuration — is the next
+  task in the approved execution order, but remains unauthorized pending its
+  own approval.
+
+## Previously Completed Task — T272
 - Task: T272 — Vector storage contracts and application error taxonomy
 - Commit: `2aed1a8eaa6a98f207feacce7599f7a7e781f461`
   (`fix(rag): align vector storage contracts and tests`); T272 also includes the
@@ -121,8 +144,7 @@
   application-owned vector storage contracts, point identity, protocol, and
   normalized error taxonomy exist with focused tests, and no Qdrant I/O,
   configuration, persistence, or retrieval behavior was introduced. T272 is
-  closed. T273 is the next dependency-ready task but was not started and
-  requires its own authorized session.
+  closed; T273 has since been completed as recorded above.
 
 ## Previously Completed Task — T271 (composition-root wiring)
 - Task: T271 — Composition-root wiring and Docker image verification
@@ -705,31 +727,43 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- No implementation task is in progress. T272 — Vector storage contracts and
-  application error taxonomy — is complete and committed at
-  `2aed1a8eaa6a98f207feacce7599f7a7e781f461`.
-- T272 delivered the application-owned DTOs, `VectorStore` protocol, UUIDv5
-  point identity, normalized error taxonomy, and focused unit tests under
-  `tests/rag/vector_storage/`. It introduced no Qdrant SDK, network client,
-  settings, infrastructure, persistence, composition, endpoint, or retrieval
-  behavior.
-- T272 is closed. T273 — Qdrant client adapter and exception normalization — is
-  the next dependency-ready task. It was not started in this session and
-  requires its own authorized session.
-- T274–T278 remain unauthorized and must not be started early.
+- No implementation task is in progress. T273 — Qdrant client adapter and
+  exception normalization — is complete and committed directly to `master` at
+  `fdff9c5afa71dfd96befad72359bc0e35930a036`.
+- T273 delivered the pinned Qdrant SDK adapter, normalized SDK/application
+  exceptions, and an isolated bounded retry policy. Focused vector-storage
+  tests: 149 passed; full regression: 964 passed, 7 skipped. No lifecycle
+  orchestration, startup network I/O, or container infrastructure was added.
+- T273 is closed. T274 — Qdrant container infrastructure and application
+  configuration — is next in the approved execution order, but is not yet
+  authorized. T275–T278 remain unauthorized and must not be started early.
 
 ## Task Ordering
-1. T273 — Qdrant client adapter and exception normalization
-   (next dependency-ready task; requires its own authorized session).
-2. T274 — Qdrant container infrastructure and application configuration
-   (unauthorized; may proceed independently of T273 only in a later authorized
-   session).
-3. T275–T278 remain unauthorized and must not be started early.
+1. T274 — Qdrant container infrastructure and application configuration
+   (next task in the approved sequence; requires its own implementation approval).
+2. T275–T278 remain unauthorized and must not be started early.
 
 Each task requires its own authorized session and must follow its approved
 specification and acceptance criteria.
 
 ## Verified Findings
+- T273 implementation (2026-11-06; commit
+  `fdff9c5afa71dfd96befad72359bc0e35930a036`):
+  `src/app/rag/vector_storage/qdrant_adapter.py` implements the Qdrant SDK
+  boundary behind the application-owned `VectorStore` protocol. The adapter
+  builds the client from explicit configuration, applies the 10-second
+  per-attempt timeout, and normalizes SDK exceptions, wrapped HTTPX causes,
+  rate-limit responses, parsing failures, and unknown failures into the
+  application-owned taxonomy without exposing SDK types or raw response bodies.
+  `src/app/rag/vector_storage/retry.py` implements a vector-storage-local
+  retry policy, independent of LLM retry: maximum 3 total attempts, 0.5-second
+  base delay, 8-second maximum delay, Full Jitter
+  (`random.uniform(0, min(0.5 * 2**n, 8))`), and a separate 10-second
+  per-attempt timeout. Sleep and random sources are injectable for deterministic
+  tests. Focused vector-storage suite: 149 passed; full regression: 964 passed,
+  7 skipped. Commit is pushed to `master`. No lifecycle orchestration,
+  startup network I/O, container configuration, or generation persistence was
+  introduced.
 - T272 implementation (2026-11-03):
   `src/app/rag/vector_storage/contracts.py` defines the frozen application DTOs
   `CreateGenerationRequest`, `CollectionInfo`, `UpsertPointInput`,
@@ -1038,8 +1072,9 @@ specification and acceptance criteria.
   closed verification-only, T265 packaged and verified the asset in the image,
   T266 production-wired the chunking composition root, T270 completed live
   Ollama conformance, and T271 production-wired the embedding composition root.
-  No further implementation task is authorized; the next SDD step is the RAG
-  vector storage/retrieval specification gate.
+  The Vector Storage specification and task breakdown are approved. T272 and
+  T273 are complete; T274 is next in the approved sequence but still requires
+  its own implementation authorization.
 - Embeddings specification: `specs/rag/knowledge-document-embeddings.md` is
   approved at Revision 2 (2026-10-24) and its implementation sequence T267–T271
   is complete. Decisions D-1 through D-6 are resolved as recorded in the
