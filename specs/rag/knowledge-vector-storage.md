@@ -3,8 +3,8 @@
 - **Status:** Approved — final approval granted by the project owner on 2026-11-03.
 - **Phase:** Phase 4 — RAG
 - **Subsystem:** Vector Storage
-- **Implementation:** Not authorized
-- **Task breakdown:** Not authorized
+- **Implementation:** T274 individually authorized on 2026-11-06; T275–T278 remain unauthorized.
+- **Task breakdown:** Approved on 2026-11-03.
 
 ## 1. Purpose
 
@@ -594,6 +594,6 @@ This specification is ready for approval only when:
 
 - **Status:** Approved — final approval granted by the project owner on 2026-11-03.
 - **Specification approval:** Approved.
-- **Implementation authorization:** Not granted.
-- **Task breakdown:** Preparation authorized; approval pending.
-- **Implementation task authorization:** Not granted.
+- **Implementation authorization:** T274 — Qdrant container infrastructure and application configuration — explicitly authorized by the project owner on 2026-11-06. This does not authorize T275–T278.
+- **Task breakdown:** Approved on 2026-11-03.
+- **Implementation task authorization:** T274 only; all subsequent tasks remain unauthorized.
