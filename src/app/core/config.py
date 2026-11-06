@@ -1,7 +1,6 @@
 from functools import lru_cache
-from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,8 +9,7 @@ class Settings(BaseSettings):
     app_name: str
 
     database_url: str
-    qdrant_url: str = Field(min_length=1)
-    qdrant_api_key: str | None = Field(default=None, repr=False)
+    qdrant_url: str
 
     ollama_url: str
     llm_provider: str
@@ -41,27 +39,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         case_sensitive=False,
     )
-
-    @field_validator("qdrant_url")
-    @classmethod
-    def _validate_qdrant_url(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("qdrant_url must be a non-empty URL")
-        parsed = urlsplit(value)
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-            raise ValueError("qdrant_url must be an absolute HTTP(S) URL")
-        if any(character.isspace() for character in value):
-            raise ValueError("qdrant_url must not contain whitespace")
-        return value
-
-    @field_validator("qdrant_api_key", mode="before")
-    @classmethod
-    def _normalize_optional_qdrant_api_key(cls, value: object) -> str | None:
-        if value is None:
-            return None
-        if isinstance(value, str):
-            return value if value.strip() else None
-        raise ValueError("qdrant_api_key must be a string when provided")
 
     @model_validator(mode="after")
     def _validate_chunking_settings(self) -> "Settings":
