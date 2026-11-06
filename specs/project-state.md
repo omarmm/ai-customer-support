@@ -1,31 +1,6 @@
 # AI Customer Support Backend — Project State
 
 
-## Active Implementation Handoff
-
-- Task: **T274 — Qdrant container infrastructure and application configuration**
-- Authorization: explicitly approved by the project owner on 2026-11-06.
-- Mode: **verify and finalize an assistant-prepared implementation; do not reimplement**.
-- Base: `master` at `4ab0520330bbd321dc4d5b122302cf30c6fa7ce3` (before this handoff metadata commit).
-- Branch: `feature/t274-qdrant-infrastructure-finalize`.
-- Pull request: Opened from the active handoff branch after this state update; keep it Draft until verification passes.
-- Prepared files: `docker/qdrant/Dockerfile`, `docker-compose.yml`,
-  `src/app/core/config.py`, `.env.example`,
-  `tests/rag/vector_storage/test_config.py`.
-- Implemented intent: Qdrant base image pinned to v1.20.0; curl-only readiness
-  probe at `/readyz`; Compose health dependency; optional API key; required
-  validated HTTP(S) QDRANT_URL; configuration tests; no Qdrant network I/O
-  during FastAPI startup.
-- Pending evidence: `docker compose config`; Qdrant image build; Qdrant
-  startup and `/readyz` health status; focused vector-storage tests; full
-  regression suite; verify API startup does not perform Qdrant network I/O.
-- Required next action: fetch and check out the branch, inspect the diff, run
-  the pending verification, fix any T274 defects within scope, commit the
-  verified result on this branch, and update this state with actual evidence.
-- Current status: implementation prepared; **T274 is not complete or merge-ready
-  until runtime verification and final review pass**.
-
-
 ## Current Position
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
   embeddings (T267–T271), vector storage contracts (T272), and the Qdrant
@@ -72,18 +47,10 @@
   `0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f`
   (evidence only, not runtime verification). `768` is confirmed by live
   measurement; no specification amendment is required.
-- Current task: T274 — Qdrant container infrastructure and application
-  configuration. Assistant-prepared implementation handoff is active; see
-  the section above. OpenCode must verify/finalize this handoff before selecting
-  another task.
+- Current task: T274 — Qdrant container infrastructure and application configuration. T274 is approved; no active implementation handoff exists.
 - Current activity: T274 implementation prepared on a dedicated branch on
   2026-11-06; local Docker/runtime and test verification are pending.
-- Status: `In progress — T274 verification handoff`. The Vector Storage
-  specification at `specs/rag/knowledge-vector-storage.md` and task breakdown
-  at `specs/rag/knowledge-vector-storage-tasks.md` were approved by the project
-  owner on 2026-11-03. T272 and T273 are complete. T274 was explicitly approved
-  on 2026-11-06; implementation is prepared and awaits local verification.
-  T275–T278 remain unauthorized.
+- Status: `T274 approved; implementation not currently active`. The Vector Storage specification at `specs/rag/knowledge-vector-storage.md` and task breakdown at `specs/rag/knowledge-vector-storage-tasks.md` were approved by the project owner on 2026-11-03. T272 and T273 are complete. T274 was explicitly approved on 2026-11-06. T275–T278 remain unauthorized.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
