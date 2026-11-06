@@ -11,3 +11,4 @@ pytest
 httpx
 pytest-asyncio
 tokenizers==0.23.3
+qdrant-client==1.20.0
