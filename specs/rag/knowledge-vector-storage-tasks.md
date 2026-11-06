@@ -3,7 +3,7 @@
 - **Specification:** `specs/rag/knowledge-vector-storage.md`
 - **Specification status:** Approved (2026-11-03)
 - **Task breakdown status:** Approved by the project owner on 2026-11-03
-- **Implementation authorization:** T272 authorized only; all later tasks remain unauthorized
+- **Implementation authorization:** T272 and T273 are complete and closed. T274 is the next task in the approved sequence but is not yet authorized; T275–T278 remain unauthorized
 - **Rule:** Execute exactly one explicitly authorized task per session. The approved specification is the source of truth.
 
 ## Scope
@@ -159,4 +159,4 @@ T274 is technically independent of T273, but the proposed sequence is intentiona
 
 ## Authorization gate
 
-This task breakdown is approved by the project owner on 2026-11-03. T272 — Vector storage contracts and application error taxonomy — is authorized as the first implementation task only. All later tasks remain unauthorized until their own dependency and scope checks are satisfied. Execute exactly T272, add its focused tests, verify, commit, update project state, and STOP.
+This task breakdown was approved by the project owner on 2026-11-03. T272 and T273 have been implemented, verified, committed, and closed. T274 — Qdrant container infrastructure and application configuration — is next in the approved execution order but is not authorized yet. Its implementation requires explicit approval after its dependency, scope, and acceptance criteria are reviewed. All later tasks remain unauthorized. Execute exactly one task per authorized session, verify it, update project state, and STOP.
