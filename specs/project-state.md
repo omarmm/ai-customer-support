@@ -1092,8 +1092,8 @@ specification and acceptance criteria.
   app.main:app` is the runtime entry point, and the composed service is exposed
   through `app.state`.
 - Vector Storage specification and task breakdown are approved. T272 and T273
-  are complete; T274 is next in the approved sequence but still requires its
-  own implementation authorization. Retrieval, metadata filtering behavior,
+  are complete; T274 is explicitly authorized on 2026-11-06 and has an active
+  implementation handoff. T275–T278 remain unauthorized. Retrieval, metadata filtering behavior,
   context construction, source attribution, evaluation, and RAG failure
   handling outside storage remain separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
