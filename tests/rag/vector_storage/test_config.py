@@ -98,3 +98,18 @@ def test_fastapi_startup_does_not_construct_a_qdrant_client():
     assert "build_qdrant_client" not in imported_names
     assert "QdrantClient" not in called_names
     assert "build_qdrant_client" not in called_names
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["localhost:6333", "ftp://qdrant:6333", "http:///missing-host", "http://bad host:6333"],
+)
+def test_qdrant_url_rejects_non_absolute_or_invalid_http_urls(url):
+    with pytest.raises(ValidationError):
+        Settings(**required_settings(qdrant_url=url))
+
+
+def test_qdrant_url_accepts_https():
+    settings = Settings(**required_settings(qdrant_url="https://qdrant.example.com"))
+
+    assert settings.qdrant_url == "https://qdrant.example.com"
