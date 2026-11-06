@@ -4,63 +4,65 @@
 ## Current Position
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
   embeddings (T267–T271), vector storage contracts (T272), and the Qdrant
-  client adapter (T273) are complete. T274 is approved and its implementation
-  is prepared on the active handoff branch above; local runtime verification
-  and finalization are pending. T275–T278 remain unauthorized.
-- T272 — Vector storage contracts and application error taxonomy — complete and
-  committed at `2aed1a8eaa6a98f207feacce7599f7a7e781f461`
-  (`fix(rag): align vector storage contracts and tests`), on branch
-  `feature/t272-vector-storage-contracts` after merging `master`
-- T271 — Composition-root wiring and Docker image verification — complete and
-  committed at `77f610da76fd67392dfb504303372123f596a56a`
-  (`feat(rag): wire embedding service composition root`)
-- T270 — Live Ollama conformance, dimension verification, regression, and
-  closure — complete and committed at
-  `95eb8ed1a1a29c5701dcb849c90c353673f2ba70`
-  (`test(rag): add live ollama embedding conformance evidence`)
-- T269 — Embedding service, batching, ordering, validation, retries, and
-  settings integration — complete and committed at
-  `3d756db1dc484dcc63a0cb6d0c00652bc6e5cf38`
-  (`feat(rag): add embedding service and retry policy`)
-- T268 — Ollama embedding adapter and offline HTTP-mock tests — complete and
-  committed at `b66d3c1d01efe758707e51af59d1a133f4451ac4`
-  (`feat(rag): add ollama embedding adapter`)
-- T267 — Embedding contracts, identity, configuration, and error taxonomy —
-  complete and committed at `a22411eb4b41fc84884a890dcb528f1722893e09`
-  (`feat(rag): add embedding contracts and error taxonomy`)
-- T266 — Chunking composition-root wiring — complete and committed at 35e869b;
-  startup constructs the approved tokenizer, injects it into
-  `ChunkingService.from_settings`, and exposes the service through `app.state`.
-  The canonical import root is `app` and the entry point is
-  `uvicorn app.main:app`
-- T260–T262 — chunking contracts, boundary assembly, configuration, and service —
-  complete and committed (8721376, f9030d3, 68dbf55)
-- T263–T265 — production tokenizer adapter, closure verification, and Docker
-  asset packaging — complete (0e5af08, documentation closure, d126cb7)
-- Embedding and tokenizer decision approved (2026-10-23) at
-  `specs/rag/embedding-tokenizer-decision.md`; pinned tokenizer identity:
-  `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`
-- Live conformance evidence (2026-10-25): served model `nomic-embed-text:v1.5`;
-  response `model` equals the pinned tag; observed dimension `768`, equal to
-  `PROVISIONAL_EMBEDDING_DIMENSION`; all 2,304 returned values finite; digest
-  reported by `GET /api/tags` recorded verbatim as
-  `0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f`
-  (evidence only, not runtime verification). `768` is confirmed by live
-  measurement; no specification amendment is required.
-- Current task: T274 — Qdrant container infrastructure and application configuration. T274 is approved; no active implementation handoff exists.
-- Current activity: T274 implementation prepared on a dedicated branch on
-  2026-11-06; local Docker/runtime and test verification are pending.
-- Status: `T274 approved; implementation not currently active`. The Vector Storage specification at `specs/rag/knowledge-vector-storage.md` and task breakdown at `specs/rag/knowledge-vector-storage-tasks.md` were approved by the project owner on 2026-11-03. T272 and T273 are complete. T274 was explicitly approved on 2026-11-06. T275–T278 remain unauthorized.
-- RAG: Knowledge Document Ingestion Specification approved and closed;
-  T255–T259 remain closed and unchanged
-- RAG: Knowledge Document Chunking Specification approved at
-  `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1);
-  T260–T266 are complete
-- RAG: Knowledge Document Embeddings Specification approved at Revision 2;
-  T267–T271 are the approved implementation sequence and are all complete.
-  Qdrant integration, semantic retrieval, metadata filtering, context
-  construction, source attribution, evaluation, and RAG failure handling remain
-  undefined and require their own SDD cycles.
+  client adapter (T273) are complete. T274 is the single active implementation
+  task; T275–T278 remain unauthorized.
+- T272 — Vector storage contracts and application error taxonomy — complete
+  (2aed1a8eaa6a98f207feacce7599f7a7e781f461).
+- T273 — Qdrant client adapter and exception normalization — complete
+  (fdff9c5afa71dfd96befad72359bc0e35930a036).
+- T274 — Qdrant container infrastructure and application configuration —
+  explicitly authorized by the project owner on 2026-11-06. Implementation is
+  prepared on the active handoff branch; local verification is pending.
+- The Vector Storage specification (specs/rag/knowledge-vector-storage.md)
+  and task breakdown (specs/rag/knowledge-vector-storage-tasks.md) were
+  approved on 2026-11-03. The owner explicitly authorized T274 on 2026-11-06.
+  This does not authorize T275–T278.
+- Embedding/tokenizer decision approved (2026-10-23) at
+  specs/rag/embedding-tokenizer-decision.md; pinned tokenizer identity:
+  tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
+- Live embedding conformance evidence (2026-10-25): served model
+  nomic-embed-text:v1.5, observed dimension 768, all returned values finite;
+  the served model digest is evidence only, not runtime verification.
+
+## Active Implementation Handoff
+
+- **Task:** T274 — Qdrant container infrastructure and application configuration.
+- **Authorization:** Explicit project-owner approval on 2026-11-06.
+- **Approved specification:** specs/rag/knowledge-vector-storage.md,
+  approved 2026-11-03; T274 scope and acceptance criteria in §7.3, §7.4,
+  §11, and specs/rag/knowledge-vector-storage-tasks.md.
+- **Task breakdown approval:** Project-owner approval on 2026-11-03;
+  T274-specific implementation authorization on 2026-11-06.
+- **Base ref:** master at
+  ded515068f03edfd3c3ccd8d7ca1a349130bf7db.
+- **Implementation branch:** feature/t274-qdrant-infrastructure-handoff.
+- **Prepared implementation commit:** 7bc6386323bfda66617263ae316237cf86953e37.
+- **Handoff state commit:** this documentation update is a descendant of the
+  prepared implementation commit.
+- **Prepared files:** docker/qdrant/Dockerfile, docker-compose.yml,
+  src/app/core/config.py, .env.example,
+  tests/rag/vector_storage/test_configuration.py,
+  specs/rag/knowledge-vector-storage.md, and
+  specs/rag/knowledge-vector-storage-tasks.md.
+- **Required verification:**
+  1. Review the diff against the exact base and confirm T274-only scope.
+  2. Run focused configuration tests:
+     pytest tests/rag/vector_storage/test_configuration.py -q.
+  3. Run the full regression suite: pytest tests -q, using the project's
+     required PostgreSQL/Ollama environment and report all skips.
+  4. Validate Compose: docker compose config.
+  5. Build the custom Qdrant image using Compose and verify the image tag and
+     pinned base.
+  6. Start Qdrant and verify its healthcheck reaches healthy through
+     curl -fsS http://localhost:6333/readyz.
+  7. Verify API startup does not perform Qdrant network I/O and /health remains
+     independent of Qdrant.
+  8. Confirm PostgreSQL/API Compose behavior, named volumes, and project
+     network are preserved; run git diff --check.
+- **Verification status:** Not yet run in the user's local environment. No
+  tests, Compose validation, image build, or runtime checks are claimed here.
+- **Merge policy:** Do not merge. Verify and finalize on this same branch, then
+  stop. T275–T278 remain unauthorized.
 
 ## Last Completed Task
 - Task: T273 — Qdrant client adapter and exception normalization
@@ -80,10 +82,8 @@
   full regression — 964 passed, 7 skipped. The implementation commit is
   `fdff9c5afa71dfd96befad72359bc0e35930a036`. No Qdrant startup connectivity
   check or generation lifecycle operations were added.
-- Outcome: T273 acceptance criteria are met and the task is closed. T274 —
-  Qdrant container infrastructure and application configuration — is the next
-  task in the approved execution order, but remains unauthorized pending its
-  own approval.
+- Outcome: T273 acceptance criteria are met and the task is closed. T274 — Qdrant container infrastructure and application configuration — has
+  since been explicitly authorized on 2026-11-06 and is the active handoff.
 
 ## Previously Completed Task — T272
 - Task: T272 — Vector storage contracts and application error taxonomy
@@ -1067,8 +1067,8 @@ specification and acceptance criteria.
   T266 production-wired the chunking composition root, T270 completed live
   Ollama conformance, and T271 production-wired the embedding composition root.
   The Vector Storage specification and task breakdown are approved. T272 and
-  T273 are complete; T274 is next in the approved sequence but still requires
-  its own implementation authorization.
+  T273 are complete; T274 is explicitly authorized on 2026-11-06 and has an active implementation
+  handoff; T275–T278 remain unauthorized.
 - Embeddings specification: `specs/rag/knowledge-document-embeddings.md` is
   approved at Revision 2 (2026-10-24) and its implementation sequence T267–T271
   is complete. Decisions D-1 through D-6 are resolved as recorded in the
