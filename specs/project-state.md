@@ -1,11 +1,38 @@
 # AI Customer Support Backend — Project State
 
+
+## Active Implementation Handoff
+
+- Task: **T274 — Qdrant container infrastructure and application configuration**
+- Authorization: explicitly approved by the project owner on 2026-11-06.
+- Mode: **verify and finalize an assistant-prepared implementation; do not reimplement**.
+- Base: `master` at `4ab0520330bbd321dc4d5b122302cf30c6fa7ce3`.
+- Branch: `feature/t274-qdrant-infrastructure-config`.
+- Pull request: [#2](https://github.com/omarmm/ai-customer-support/pull/2) (Draft; do not merge).
+- Latest prepared commit: `c6f6f4a10386620c302dc18a568227a1750c06a8`.
+- Prepared files: `docker/qdrant/Dockerfile`, `docker-compose.yml`,
+  `src/app/core/config.py`, `.env.example`,
+  `tests/rag/vector_storage/test_config.py`, and this workflow's
+  `.opencode/skills/next-task/SKILL.md` update.
+- Implemented intent: Qdrant base image pinned to v1.20.0; curl-only readiness
+  probe at `/readyz`; Compose health dependency; optional API key; required
+  validated HTTP(S) QDRANT_URL; configuration tests; no Qdrant network I/O
+  during FastAPI startup.
+- Pending evidence: `docker compose config`; Qdrant image build; Qdrant
+  startup and `/readyz` health status; focused vector-storage tests; full
+  regression suite; verify API startup does not perform Qdrant network I/O.
+- Required next action: fetch and check out the branch, inspect the diff, run
+  the pending verification, fix any T274 defects within scope, commit the
+  verified result on this branch, and update this state with actual evidence.
+- Current status: implementation prepared; **T274 is not complete or merge-ready
+  until runtime verification and final review pass**.
+
 ## Current Position
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
   embeddings (T267–T271), vector storage contracts (T272), and the Qdrant
-  client adapter (T273) are complete. The Knowledge Vector Storage Specification
-  and task breakdown are approved. T274 is next in the approved execution order
-  and remains unauthorized pending its own approval.
+  client adapter (T273) are complete. T274 is approved and its implementation
+  is prepared on the active handoff branch below; local runtime verification
+  and finalization are pending. T275–T278 remain unauthorized.
 - T272 — Vector storage contracts and application error taxonomy — complete and
   committed at `2aed1a8eaa6a98f207feacce7599f7a7e781f461`
   (`fix(rag): align vector storage contracts and tests`), on branch
@@ -46,17 +73,18 @@
   `0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f`
   (evidence only, not runtime verification). `768` is confirmed by live
   measurement; no specification amendment is required.
-- Current task: none. T272 — Vector storage contracts and application error
-  taxonomy — is complete, verified, and committed on branch
-  `feature/t272-vector-storage-contracts`.
-- Current activity: T272 implementation, focused tests, full regression, and
-  closure on 2026-11-03. This documentation record follows in a separate commit.
-- Status: `Approved`. The embeddings implementation sequence is complete. The
-  Vector Storage specification at `specs/rag/knowledge-vector-storage.md` and
-  task breakdown at `specs/rag/knowledge-vector-storage-tasks.md` were approved
-  by the project owner on 2026-11-03. T272 and T273 are complete. T274 is next
-  in the approved execution order but remains unauthorized pending its own
-  implementation approval; T275–T278 remain unauthorized.
+- Current task: T274 — Qdrant container infrastructure and application
+  configuration. Assistant-prepared implementation handoff is active; see
+  the section below. OpenCode must verify/finalize this handoff before selecting
+  another task.
+- Current activity: T274 implementation prepared on a dedicated branch on
+  2026-11-06; local Docker/runtime and test verification are pending.
+- Status: `In progress — T274 verification handoff`. The Vector Storage
+  specification at `specs/rag/knowledge-vector-storage.md` and task breakdown
+  at `specs/rag/knowledge-vector-storage-tasks.md` were approved by the project
+  owner on 2026-11-03. T272 and T273 are complete. T274 was explicitly approved
+  on 2026-11-06; implementation is prepared and awaits local verification.
+  T275–T278 remain unauthorized.
 - RAG: Knowledge Document Ingestion Specification approved and closed;
   T255–T259 remain closed and unchanged
 - RAG: Knowledge Document Chunking Specification approved at
