@@ -5,8 +5,10 @@
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
   embeddings (T267–T271), vector storage contracts (T272), the Qdrant client
   adapter (T273), Qdrant container infrastructure/configuration (T274), and
-  generation collection creation/point upsert (T275) are complete. T276–T278
-  remain unauthorized.
+  generation collection creation/point upsert (T275) are complete. T276 is
+  authorized and implementation is in progress on
+  `feature/t276-generation-verification-activation`; verification is pending.
+  T277–T278 remain unauthorized.
 - T272 — Vector storage contracts and application error taxonomy — complete
   (2aed1a8eaa6a98f207feacce7599f7a7e781f461).
 - T273 — Qdrant client adapter and exception normalization — complete
@@ -24,7 +26,8 @@
 - The Vector Storage specification (specs/rag/knowledge-vector-storage.md)
   and task breakdown (specs/rag/knowledge-vector-storage-tasks.md) were
   approved on 2026-11-03. T274 and T275 were closed after verification.
-  T276–T278 remain unauthorized.
+  T276 — Generation verification and activation lifecycle — was explicitly
+  authorized by the project owner on 2026-11-07; T277–T278 remain unauthorized.
 - Embedding/tokenizer decision approved (2026-10-23) at
   specs/rag/embedding-tokenizer-decision.md; pinned tokenizer identity:
   tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
@@ -34,9 +37,13 @@
 
 ## Active Implementation Handoff
 
-- None. T275 was verified and closed on 2026-11-07. No implementation task is
-  active or authorized. T276–T278 remain unauthorized; do not start T276 and do
-  not merge.
+- Active task: T276 — Generation verification and activation lifecycle.
+  Explicitly authorized by the project owner on 2026-11-07. Implementation is
+  committed on `feature/t276-generation-verification-activation`; verification
+  is pending because this execution environment cannot access the user's local
+  Docker runtime.
+  T275 was verified and closed on 2026-11-07. T277–T278 remain unauthorized.
+  Do not start another task and do not merge.
 
 ## Last Completed Task
 - Task: T275 — Generation collection creation and point upsert
