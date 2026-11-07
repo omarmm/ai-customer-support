@@ -310,7 +310,7 @@ class QdrantClientAdapter:
             cause = normalize_qdrant_error(exc)
             raise VectorGenerationBuildFailed(
                 "unable to create the vector generation", cause=cause
-            ) from exc
+            ) from cause
 
         return CollectionInfo(
             generation_id=request.generation_id,
@@ -356,7 +356,7 @@ class QdrantClientAdapter:
             cause = normalize_qdrant_error(exc)
             raise VectorGenerationBuildFailed(
                 "unable to upsert the complete vector generation batch", cause=cause
-            ) from exc
+            ) from cause
 
         return UpsertPointsResult(
             generation_id=request.generation_id,
