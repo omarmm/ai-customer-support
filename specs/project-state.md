@@ -5,7 +5,8 @@
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
   embeddings (T267–T271), vector storage contracts (T272), the Qdrant client
   adapter (T273), and Qdrant container infrastructure/configuration (T274) are
-  complete. T275–T278 remain unauthorized.
+  complete. T275 implementation is prepared and awaiting verification; T276–T278
+  remain unauthorized.
 - T272 — Vector storage contracts and application error taxonomy — complete
   (2aed1a8eaa6a98f207feacce7599f7a7e781f461).
 - T273 — Qdrant client adapter and exception normalization — complete
@@ -17,14 +18,38 @@
   implementation at `51d9d50d724566a6da52d36e8b17c067d0ade310`.
 - The Vector Storage specification (specs/rag/knowledge-vector-storage.md)
   and task breakdown (specs/rag/knowledge-vector-storage-tasks.md) were
-  approved on 2026-11-03. The owner explicitly authorized T274 on 2026-11-06;
-  T274 is now closed. T275–T278 remain unauthorized.
+  approved on 2026-11-03. T274 was closed after verification. The owner
+  explicitly authorized T275 on 2026-11-07; its implementation handoff is active
+  below. T276–T278 remain unauthorized.
 - Embedding/tokenizer decision approved (2026-10-23) at
   specs/rag/embedding-tokenizer-decision.md; pinned tokenizer identity:
   tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
 - Live embedding conformance evidence (2026-10-25): served model
   nomic-embed-text:v1.5, observed dimension 768, all returned values finite;
   the served model digest is evidence only, not runtime verification.
+
+## Active Implementation Handoff
+
+- Task ID: T275 — Generation collection creation and point upsert
+- Approved specification: `specs/rag/knowledge-vector-storage.md` (approved final; T275 authorization recorded 2026-11-07)
+- Task breakdown: `specs/rag/knowledge-vector-storage-tasks.md`
+- Base ref: `f389895506ada89e32f0c36651ceb1c518f3d845` (T274-complete branch head before T275 changes)
+- Implementation branch: `feature/t274-qdrant-infrastructure-handoff`
+- Prepared commit: `fa6c51420f930af60de311ae0c7161e1326e0218`
+- Status: `T275 implementation prepared; verification pending`
+- Scope prepared:
+  - `src/app/rag/vector_storage/qdrant_adapter.py`: implement generation collection creation with fixed 768-dimensional Cosine vectors and the seven exact payload indexes; implement ordered Qdrant point upserts using deterministic UUIDv5 IDs and adapter-added `generation_id`; require Qdrant's completed operation status; normalize operation failures as `VECTOR_GENERATION_BUILD_FAILED` while preserving the normalized underlying cause.
+  - `tests/rag/vector_storage/test_generation_build.py`: add offline adapter tests for collection schema/indexes, unconfirmed creation/index operations, error normalization, ordered point conversion, payload generation identity, completed/ambiguous upsert outcomes, and invalid adapter input.
+  - `tests/rag/vector_storage/test_qdrant_adapter.py`: update the lifecycle guard so only T275's create/upsert operations are implemented; T276/T277 methods remain absent.
+  - Specification and task breakdown record the explicit T275 authorization. No T276/T277 lifecycle operations, composition wiring, retrieval behavior, endpoint, or application startup changes are included.
+- Verification required:
+  - Inspect the complete T275 diff against the stated base ref and confirm no unrelated files or scope expansion.
+  - Confirm the pinned `qdrant-client==1.20.0` API response semantics for collection creation, payload-index completion, and `wait=True` upsert completion.
+  - Run `python -m pytest tests/rag/vector_storage -q`.
+  - Run the full regression suite with `python -m pytest tests -q`.
+  - Run `git diff --check`; verify no secrets, no Qdrant SDK types escape the adapter, and no startup/network behavior was added.
+  - Record actual command output and evidence. If any required verification cannot run, report the exact blocker and leave T275 open.
+- No verification results are claimed by this handoff. Do not start T276. Do not merge.
 
 ## Last Completed Task
 - Task: T274 — Qdrant container infrastructure and application configuration
