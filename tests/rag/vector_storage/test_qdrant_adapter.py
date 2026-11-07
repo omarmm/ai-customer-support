@@ -199,10 +199,11 @@ def test_adapter_close_normalizes_transport_failures():
     assert isinstance(caught.value.__cause__, httpx.ConnectError)
 
 
-def test_adapter_does_not_implement_later_generation_lifecycle_methods():
+def test_adapter_implements_only_the_authorized_generation_build_operations():
+    assert hasattr(QdrantClientAdapter, "create_generation")
+    assert hasattr(QdrantClientAdapter, "upsert_points")
+
     for name in (
-        "create_generation",
-        "upsert_points",
         "verify_generation",
         "activate_generation",
         "get_generation_info",

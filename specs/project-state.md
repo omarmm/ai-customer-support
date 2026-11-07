@@ -3,79 +3,187 @@
 
 ## Current Position
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
-  embeddings (T267–T271), vector storage contracts (T272), and the Qdrant
-  client adapter (T273) are complete. T274 is approved and its implementation
-  is prepared on the active handoff branch above; local runtime verification
-  and finalization are pending. T275–T278 remain unauthorized.
-- T272 — Vector storage contracts and application error taxonomy — complete and
-  committed at `2aed1a8eaa6a98f207feacce7599f7a7e781f461`
-  (`fix(rag): align vector storage contracts and tests`), on branch
-  `feature/t272-vector-storage-contracts` after merging `master`
-- T271 — Composition-root wiring and Docker image verification — complete and
-  committed at `77f610da76fd67392dfb504303372123f596a56a`
-  (`feat(rag): wire embedding service composition root`)
-- T270 — Live Ollama conformance, dimension verification, regression, and
-  closure — complete and committed at
-  `95eb8ed1a1a29c5701dcb849c90c353673f2ba70`
-  (`test(rag): add live ollama embedding conformance evidence`)
-- T269 — Embedding service, batching, ordering, validation, retries, and
-  settings integration — complete and committed at
-  `3d756db1dc484dcc63a0cb6d0c00652bc6e5cf38`
-  (`feat(rag): add embedding service and retry policy`)
-- T268 — Ollama embedding adapter and offline HTTP-mock tests — complete and
-  committed at `b66d3c1d01efe758707e51af59d1a133f4451ac4`
-  (`feat(rag): add ollama embedding adapter`)
-- T267 — Embedding contracts, identity, configuration, and error taxonomy —
-  complete and committed at `a22411eb4b41fc84884a890dcb528f1722893e09`
-  (`feat(rag): add embedding contracts and error taxonomy`)
-- T266 — Chunking composition-root wiring — complete and committed at 35e869b;
-  startup constructs the approved tokenizer, injects it into
-  `ChunkingService.from_settings`, and exposes the service through `app.state`.
-  The canonical import root is `app` and the entry point is
-  `uvicorn app.main:app`
-- T260–T262 — chunking contracts, boundary assembly, configuration, and service —
-  complete and committed (8721376, f9030d3, 68dbf55)
-- T263–T265 — production tokenizer adapter, closure verification, and Docker
-  asset packaging — complete (0e5af08, documentation closure, d126cb7)
-- Embedding and tokenizer decision approved (2026-10-23) at
-  `specs/rag/embedding-tokenizer-decision.md`; pinned tokenizer identity:
-  `tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66`
-- Live conformance evidence (2026-10-25): served model `nomic-embed-text:v1.5`;
-  response `model` equals the pinned tag; observed dimension `768`, equal to
-  `PROVISIONAL_EMBEDDING_DIMENSION`; all 2,304 returned values finite; digest
-  reported by `GET /api/tags` recorded verbatim as
-  `0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f`
-  (evidence only, not runtime verification). `768` is confirmed by live
-  measurement; no specification amendment is required.
-- Current task: T274 — Qdrant container infrastructure and application configuration. T274 is explicitly authorized and has an active implementation handoff below.
-- Current activity: implementation prepared on `feature/t274-qdrant-infrastructure-handoff`; local Docker/runtime and test verification are pending.
-- Status: `T274 implementation prepared; verification pending`. The Vector Storage specification at `specs/rag/knowledge-vector-storage.md` and task breakdown at `specs/rag/knowledge-vector-storage-tasks.md` were approved by the project owner on 2026-11-03. T272 and T273 are complete. T274 was explicitly authorized on 2026-11-06. T275–T278 remain unauthorized.
-- RAG: Knowledge Document Ingestion Specification approved and closed;
-  T255–T259 remain closed and unchanged
-- RAG: Knowledge Document Chunking Specification approved at
-  `specs/rag/knowledge-document-chunking.md` (approval commit: 2bab0a1);
-  T260–T266 are complete
-- RAG: Knowledge Document Embeddings Specification approved at Revision 2;
-  T267–T271 are the approved implementation sequence and are all complete.
-  Qdrant integration, semantic retrieval, metadata filtering, context
-  construction, source attribution, evaluation, and RAG failure handling remain
-  undefined and require their own SDD cycles.
+  embeddings (T267–T271), vector storage contracts (T272), the Qdrant client
+  adapter (T273), Qdrant container infrastructure/configuration (T274), and
+  generation collection creation/point upsert (T275) are complete. T276–T278
+  remain unauthorized.
+- T272 — Vector storage contracts and application error taxonomy — complete
+  (2aed1a8eaa6a98f207feacce7599f7a7e781f461).
+- T273 — Qdrant client adapter and exception normalization — complete
+  (fdff9c5afa71dfd96befad72359bc0e35930a036).
+- T274 — Qdrant container infrastructure and application configuration —
+  complete and verified at `615caa8a2833f8dd34fe86cc51c989117cf0c9db`
+  (`fix(rag): isolate qdrant url configuration test`) on
+  `feature/t274-qdrant-infrastructure-handoff`, after the prepared
+  implementation at `51d9d50d724566a6da52d36e8b17c067d0ade310`.
+- T275 — Generation collection creation and point upsert — complete and
+  verified at `216545889b0804306e27f6b0883c34bb5e58bcc3`
+  (`test(rag): cover ambiguous upsert completion states`) on
+  `feature/t274-qdrant-infrastructure-handoff`, against base
+  `f389895506ada89e32f0c36651ceb1c518f3d845`.
+- The Vector Storage specification (specs/rag/knowledge-vector-storage.md)
+  and task breakdown (specs/rag/knowledge-vector-storage-tasks.md) were
+  approved on 2026-11-03. T274 and T275 were closed after verification.
+  T276–T278 remain unauthorized.
+- Embedding/tokenizer decision approved (2026-10-23) at
+  specs/rag/embedding-tokenizer-decision.md; pinned tokenizer identity:
+  tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
+- Live embedding conformance evidence (2026-10-25): served model
+  nomic-embed-text:v1.5, observed dimension 768, all returned values finite;
+  the served model digest is evidence only, not runtime verification.
 
 ## Active Implementation Handoff
 
-- Task ID: T274 — Qdrant container infrastructure and application configuration.
-- Approved specification: specs/rag/knowledge-vector-storage.md, approved by the project owner on 2026-11-03; T274 scope is defined in §§7.3, 7.4, and 11 and in specs/rag/knowledge-vector-storage-tasks.md.
-- Task breakdown approval: project owner approval on 2026-11-03.
-- Explicit authorization: project owner explicitly authorized T274 on 2026-11-06. T275–T278 remain unauthorized.
-- Base ref: master at ded515068f03edfd3c3ccd8d7ca1a349130bf7db.
-- Implementation branch: feature/t274-qdrant-infrastructure-handoff.
-- Prepared immutable verification ref: 963c6c89fb11bf58adfa6a8256388a0376bb30ec.
-- Implementation commit: 51d9d50d724566a6da52d36e8b17c067d0ade310.
-- Verification scope: fetch exact branch/ref; inspect diff against exact base; run pytest tests/rag/vector_storage/test_configuration.py -q; run pytest tests -q; run docker compose config; build pinned custom Qdrant image; verify /readyz healthcheck and timing; prove FastAPI startup performs no Qdrant network I/O and /health remains independent; confirm existing Postgres/API Compose behavior, volumes, network; run git diff --check.
-- Verification status: not yet run. No tests or Docker/runtime success are claimed.
-- Completion: fix only T274 defects, rerun affected checks, commit on the same branch, update project state with evidence, stop. Do not merge or start T275.
+- None. T275 was verified and closed on 2026-11-07. No implementation task is
+  active or authorized. T276–T278 remain unauthorized; do not start T276 and do
+  not merge.
 
 ## Last Completed Task
+- Task: T275 — Generation collection creation and point upsert
+- Verified implementation commit: `216545889b0804306e27f6b0883c34bb5e58bcc3`
+  (`test(rag): cover ambiguous upsert completion states`) on
+  `feature/t274-qdrant-infrastructure-handoff`, against base
+  `f389895506ada89e32f0c36651ceb1c518f3d845`. Finalization is this
+  documentation-only closure commit (`docs: record T275 verification and
+  closure in project state`); its SHA is recorded in Git history.
+- Scope delivered: `src/app/rag/vector_storage/qdrant_adapter.py` now implements
+  `create_generation` with the fixed 768-dimensional Cosine vector schema and
+  the seven exact payload indexes, and `upsert_points` with ordered point
+  conversion, deterministic UUIDv5 IDs, adapter-added `generation_id`, and
+  required `COMPLETED` operation status. Failures normalize to
+  `VECTOR_GENERATION_BUILD_FAILED` while preserving the normalized underlying
+  cause and cause chain. New `tests/rag/vector_storage/test_generation_build.py`
+  covers the build operations; `tests/rag/vector_storage/test_qdrant_adapter.py`
+  now guards that only T275's create/upsert methods exist. The specification and
+  task breakdown record the T275 authorization. No T276/T277 lifecycle
+  operations, composition wiring, retrieval behavior, endpoint, or application
+  startup changes were added.
+- Verification (2026-11-07; image `ai-customer-support-t275:local`, ID
+  `sha256:a2eb29879c654efc03ee61f5681c5f16ce9a07e692ced0e7e2463372852e5a9d`;
+  no repository bind mount in image verification runs):
+  - Scope review: `git diff f3898955 2165458` was limited to
+    `src/app/rag/vector_storage/qdrant_adapter.py`,
+    `tests/rag/vector_storage/test_generation_build.py`,
+    `tests/rag/vector_storage/test_qdrant_adapter.py`, the two authorized
+    specification files, and `specs/project-state.md`. No unrelated files,
+    secrets, configuration, or startup changes.
+  - Pinned API confirmation inside the image: `qdrant-client` 1.20.0.
+    `QdrantClient.create_collection` returns `bool` from REST
+    `InlineResponse2001.result`; `create_payload_index(..., wait=True)` and
+    `upsert(..., wait=True)` return `UpdateResult`; `UpdateStatus` contains
+    `ACKNOWLEDGED`, `COMPLETED`, and `WAIT_TIMEOUT`. This matches the adapter's
+    `created is True` and `COMPLETED` checks.
+  - Build: `docker build -t ai-customer-support-t275:local .` → exit 0.
+  - Focused offline suite: `docker run --rm --network none
+    ai-customer-support-t275:local python -m pytest tests/rag/vector_storage -q`
+    → 164 passed, exit 0.
+  - Full regression: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    ai-customer-support-t275:local python -m pytest tests -q` → 979 passed,
+    7 skipped, exit 0. The skips are the 4 unchanged environment-conditional
+    ingestion permission fixtures plus the 3 opt-in live embedding conformance
+    tests (all require `RUN_LIVE_OLLAMA=1`). PostgreSQL was started with
+    `docker compose up -d postgres` and reported `healthy`.
+  - Startup/network boundary: an in-image `TestClient` run with `--network
+    none`, `--env-file .env`, and `socket.socket.connect`,
+    `socket.create_connection`, and `QdrantClient.__init__` replaced by failing
+    stubs → application startup completed; `/health` returned HTTP 200
+    `{"status": "ok"}`; `chunking_service` and `embedding_service` were present
+    and no `vector_store` was constructed. No Qdrant network I/O occurred.
+  - Negative requirements: the lifecycle guard asserts `create_generation` and
+    `upsert_points` exist while `verify_generation`, `activate_generation`,
+    `get_generation_info`, and `delete_generation` remain absent; invalid
+    adapter request types are rejected before SDK I/O; a caller-supplied
+    `generation_id` payload key is rejected by the approved contracts;
+    unconfirmed creation/index operations and ambiguous upsert statuses
+    (`None`, `ACKNOWLEDGED`) raise `VECTOR_GENERATION_BUILD_FAILED` without
+    false success.
+  - Boundary scan: only `src/app/rag/vector_storage/qdrant_adapter.py` imports
+    `qdrant_client`/`httpx` under `src/`; public adapter signatures return
+    application-owned DTOs. `git diff --check` → clean, exit 0.
+  - No defect was found during verification; no implementation code changed.
+- Outcome: T275 acceptance criteria in §5.2–§5.4, §7.1 (create/upsert), §8,
+  §9, and the T275 task breakdown are met. T275 is closed. T276–T278 remain
+  unauthorized; no next task was started and no merge was performed.
+
+## Previously Completed Task — T274
+- Commit: `615caa8a2833f8dd34fe86cc51c989117cf0c9db`
+  (`fix(rag): isolate qdrant url configuration test`), on
+  `feature/t274-qdrant-infrastructure-handoff`. The prepared implementation is
+  `51d9d50d724566a6da52d36e8b17c067d0ade310`; verification started from
+  prepared ref `963c6c89fb11bf58adfa6a8256388a0376bb30ec` and base master
+  `ded515068f03edfd3c3ccd8d7ca1a349130bf7db`. This project state record
+  follows in a separate documentation commit.
+- Scope delivered: `docker/qdrant/Dockerfile` extends the pinned
+  `qdrant/qdrant:v1.20.0` base and installs only `curl` for the readiness
+  probe. `docker-compose.yml` builds and tags
+  `ai-customer-support-qdrant:v1.20.0`, runs
+  `curl -fsS http://localhost:6333/readyz` with interval 10s, timeout 5s,
+  5 retries, and a 10s start period, and makes the API depend on
+  `condition: service_healthy`. `.env.example` documents `QDRANT_URL` and the
+  optional `QDRANT_API_KEY`; `src/app/core/config.py` adds
+  `qdrant_api_key: str | None = Field(default=None, min_length=1)`; and
+  `tests/rag/vector_storage/test_configuration.py` covers the required URL,
+  optional API key, rejected empty key, and documented connection settings. No
+  Qdrant client construction, composition wiring, generation lifecycle,
+  endpoint, persistence, or retrieval behavior was added.
+- Verification (2026-11-06; app image `ai-customer-support-t274:local`, ID
+  `sha256:124d43a3e40ba205a0ab375587c29e256d439f44b4c1e157de314a5c0026cd5b`;
+  Qdrant image `ai-customer-support-qdrant:v1.20.0`, ID
+  `sha256:a13177399a78a20dd70fa38c8b2614a4c202dcf95b29ac67065f4fe02479262e`;
+  no repository bind mount in image verification runs):
+  - Scope review: the base-to-head diff was limited to T274 files —
+    `docker/qdrant/Dockerfile`, `docker-compose.yml`, `.env.example`,
+    `src/app/core/config.py`,
+    `tests/rag/vector_storage/test_configuration.py`, and the T274
+    authorization/state documentation. No secret values were added.
+  - `docker compose config` → exit 0. Pinned Qdrant image/tag, healthcheck
+    command and timing, API `service_healthy` dependency, the
+    `ai-customer-support_default` project network, and the
+    `postgres_data`/`qdrant_data` named volumes are all present.
+  - `docker compose build qdrant` → exit 0; the pinned base resolved to
+    `qdrant/qdrant:v1.20.0@sha256:9bfc89f9914fc14876a88c05270685921a55b8877b254a98bcc1cc2f0a424cd2`.
+  - `docker compose up -d qdrant` → exit 0; Qdrant reached `healthy` after
+    5.73 seconds. Healthcheck exit 0 with output `all shards are ready`;
+    `/readyz` returned HTTP 200 (`all shards are ready`) and `/healthz`
+    returned HTTP 200 (`healthz check passed`).
+  - Focused offline configuration tests: `docker run --rm --network none
+    ai-customer-support-t274:local python -m pytest
+    tests/rag/vector_storage/test_configuration.py -q` → 6 passed, exit 0.
+  - Focused configuration tests with `--env-file .env` → 6 passed, exit 0.
+  - Full regression: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    ai-customer-support-t274:local python -m pytest tests -q` → 970 passed,
+    7 skipped, exit 0. The 7 skips are the 4 unchanged environment-conditional
+    ingestion permission fixtures plus the 3 opt-in live embedding conformance
+    tests.
+  - Startup boundary: an in-image `TestClient` run with `--network none`,
+    `--env-file .env`, and `socket.socket.connect`, `socket.create_connection`,
+    and `QdrantClient.__init__` all replaced by failing stubs → application
+    startup completed; `/health` returned HTTP 200 `{"status": "ok"}`;
+    `chunking_service` and `embedding_service` were present and no
+    `vector_store` was constructed. No Qdrant network I/O occurred.
+  - Compose runtime: `docker compose build api` → exit 0; `docker compose up
+    -d api` reported Postgres and Qdrant `Healthy` before starting the API, and
+    `GET /health` returned HTTP 200 `{"status": "ok"}`. The API and Qdrant
+    containers were stopped afterward; the pre-existing PostgreSQL container
+    was left running and healthy.
+  - `git diff --check` → clean, exit 0.
+  - Correction during verification: the first full-regression run failed
+    `test_qdrant_url_remains_required` because `QDRANT_URL` from `--env-file`
+    satisfied the "required" field through the process environment. The test
+    now removes `QDRANT_URL`/`qdrant_url` with `monkeypatch`; focused and full
+    suites were rerun successfully. No production code changed for this
+    correction.
+- Outcome: T274 acceptance criteria in §7.3, §7.4, §11, and the T274 task
+  breakdown are met. The pinned custom Qdrant runtime, readiness healthcheck,
+  Compose `service_healthy` dependency, optional API-key setting, and
+  configuration tests are present; FastAPI startup remains free of Qdrant
+  network I/O and `/health` remains independent. T274 is closed. T275 was
+  subsequently implemented, verified, and closed as recorded above; T276–T278
+  remain unauthorized.
+
+## Previously Completed Task — T273
 - Task: T273 — Qdrant client adapter and exception normalization
 - Commit: `fdff9c5afa71dfd96befad72359bc0e35930a036`
   (`feat(rag): add qdrant client adapter and exception normalization`),
@@ -94,8 +202,8 @@
   `fdff9c5afa71dfd96befad72359bc0e35930a036`. No Qdrant startup connectivity
   check or generation lifecycle operations were added.
 - Outcome: T273 acceptance criteria are met and the task is closed. T274 —
-  Qdrant container infrastructure and application configuration — was explicitly
-  authorized on 2026-11-06; its active verification handoff is recorded above.
+  Qdrant container infrastructure and application configuration — was
+  subsequently implemented and verified; it is closed and recorded above.
 
 ## Previously Completed Task — T272
 - Task: T272 — Vector storage contracts and application error taxonomy
@@ -733,26 +841,47 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- No implementation task is in progress. T273 — Qdrant client adapter and
-  exception normalization — is complete and committed directly to `master` at
-  `fdff9c5afa71dfd96befad72359bc0e35930a036`.
-- T273 delivered the pinned Qdrant SDK adapter, normalized SDK/application
-  exceptions, and an isolated bounded retry policy. Focused vector-storage
-  tests: 149 passed; full regression: 964 passed, 7 skipped. No lifecycle
-  orchestration, startup network I/O, or container infrastructure was added.
-- T273 is closed. T274 — Qdrant container infrastructure and application
-  configuration — is next in the approved execution order, but is not yet
-  authorized. T275–T278 remain unauthorized and must not be started early.
+- No implementation task is in progress. T274 — Qdrant container
+  infrastructure and application configuration — is complete and verified on
+  `feature/t274-qdrant-infrastructure-handoff` at
+  `615caa8a2833f8dd34fe86cc51c989117cf0c9db`, following the prepared
+  implementation commit
+  `51d9d50d724566a6da52d36e8b17c067d0ade310`.
+- T274 delivered the pinned custom Qdrant image, readiness healthcheck,
+  Compose `service_healthy` dependency, optional `QDRANT_API_KEY` setting, and
+  configuration tests. Focused configuration tests: 6 passed; full regression:
+  970 passed, 7 skipped. FastAPI startup performs no Qdrant network I/O.
+- T274 is closed. T275 — Generation collection creation and point upsert — is
+  next in the approved execution order but remains unauthorized. T275–T278
+  must not be started early, and the T274 branch was not merged.
 
 ## Task Ordering
-1. T274 — Qdrant container infrastructure and application configuration
-   (next task in the approved sequence; requires its own implementation approval).
-2. T275–T278 remain unauthorized and must not be started early.
+1. T275 — Generation collection creation and point upsert (next task in the
+   approved sequence; requires its own implementation authorization).
+2. T276–T278 remain unauthorized and must not be started early.
 
 Each task requires its own authorized session and must follow its approved
 specification and acceptance criteria.
 
 ## Verified Findings
+- T274 verification (2026-11-06; commit
+  `615caa8a2833f8dd34fe86cc51c989117cf0c9db`):
+  `docker/qdrant/Dockerfile` extends `qdrant/qdrant:v1.20.0` and installs only
+  `curl`; `docker-compose.yml` builds
+  `ai-customer-support-qdrant:v1.20.0`, uses
+  `curl -fsS http://localhost:6333/readyz` with the approved timing, and
+  requires `condition: service_healthy`; `.env.example` documents
+  `QDRANT_URL` and the optional `QDRANT_API_KEY`;
+  `src/app/core/config.py` defines `qdrant_api_key` as absent-or-non-empty; and
+  focused configuration tests cover the URL, optional key, rejected empty key,
+  and example documentation. `docker compose config` and the Qdrant image build
+  exited 0; the Compose Qdrant healthcheck reached `healthy` in 5.73 seconds
+  with output `all shards are ready`. Focused configuration tests: 6 passed;
+  full regression: 970 passed, 7 skipped. With networking disabled and socket
+  and `QdrantClient` construction stubbed to fail, startup completed, `/health`
+  returned HTTP 200, and no Qdrant network I/O occurred. `docker compose up -d
+  api` started the API only after Postgres and Qdrant were healthy, and
+  `GET /health` returned HTTP 200. `git diff --check` was clean.
 - T273 implementation (2026-11-06; commit
   `fdff9c5afa71dfd96befad72359bc0e35930a036`):
   `src/app/rag/vector_storage/qdrant_adapter.py` implements the Qdrant SDK
@@ -1078,9 +1207,8 @@ specification and acceptance criteria.
   closed verification-only, T265 packaged and verified the asset in the image,
   T266 production-wired the chunking composition root, T270 completed live
   Ollama conformance, and T271 production-wired the embedding composition root.
-  The Vector Storage specification and task breakdown are approved. T272 and
-  T273 are complete; T274 is explicitly authorized on 2026-11-06 and has an active implementation
-  handoff above; T275–T278 remain unauthorized.
+  The Vector Storage specification and task breakdown are approved. T272, T273,
+  and T274 are complete; T275–T278 remain unauthorized.
 - Embeddings specification: `specs/rag/knowledge-document-embeddings.md` is
   approved at Revision 2 (2026-10-24) and its implementation sequence T267–T271
   is complete. Decisions D-1 through D-6 are resolved as recorded in the
@@ -1103,9 +1231,8 @@ specification and acceptance criteria.
   35e869b. The canonical `app` import root is used throughout, `uvicorn
   app.main:app` is the runtime entry point, and the composed service is exposed
   through `app.state`.
-- Vector Storage specification and task breakdown are approved. T272 and T273
-  are complete; T274 is next in the approved sequence but still requires its
-  own implementation authorization. Retrieval, metadata filtering behavior,
+- Vector Storage specification and task breakdown are approved. T272, T273,
+  and T274 are complete; T275–T278 remain unauthorized. Retrieval, metadata filtering behavior,
   context construction, source attribution, evaluation, and RAG failure
   handling outside storage remain separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future

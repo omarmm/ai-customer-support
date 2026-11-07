@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     database_url: str
     qdrant_url: str
+    qdrant_api_key: str | None = Field(default=None, min_length=1)
 
     ollama_url: str
     llm_provider: str

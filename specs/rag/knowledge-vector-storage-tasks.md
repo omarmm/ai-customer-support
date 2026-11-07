@@ -3,7 +3,7 @@
 - **Specification:** `specs/rag/knowledge-vector-storage.md`
 - **Specification status:** Approved (2026-11-03)
 - **Task breakdown status:** Approved by the project owner on 2026-11-03
-- **Implementation authorization:** T272 and T273 are complete and closed. T274 is the next task in the approved sequence but is not yet authorized; T275–T278 remain unauthorized
+- **Implementation authorization:** T272–T274 are complete and closed. T275 — Generation collection creation and point upsert — was explicitly authorized by the project owner on 2026-11-07. T276–T278 remain unauthorized
 - **Rule:** Execute exactly one explicitly authorized task per session. The approved specification is the source of truth.
 
 ## Scope
@@ -159,4 +159,4 @@ T274 is technically independent of T273, but the proposed sequence is intentiona
 
 ## Authorization gate
 
-This task breakdown was approved by the project owner on 2026-11-03. T272 and T273 have been implemented, verified, committed, and closed. T274 — Qdrant container infrastructure and application configuration — is next in the approved execution order but is not authorized yet. Its implementation requires explicit approval after its dependency, scope, and acceptance criteria are reviewed. All later tasks remain unauthorized. Execute exactly one task per authorized session, verify it, update project state, and STOP.
+This task breakdown was approved by the project owner on 2026-11-03. T272 and T273 have been implemented, verified, committed, and closed. T274 — Qdrant container infrastructure and application configuration — was explicitly authorized by the project owner on 2026-11-06 after review of its dependency, scope, and acceptance criteria. This authorization applies to T274 only. T275–T278 remain unauthorized. Execute exactly one task per authorized session, verify it, update project state, and STOP.
