@@ -3,7 +3,7 @@
 - **Specification:** `specs/rag/knowledge-vector-storage.md`
 - **Specification status:** Approved (2026-11-03)
 - **Task breakdown status:** Approved by the project owner on 2026-11-03
-- **Implementation authorization:** T272 and T273 are complete and closed. T274 — Qdrant container infrastructure and application configuration — was explicitly authorized by the project owner on 2026-11-06. T275–T278 remain unauthorized
+- **Implementation authorization:** T272–T274 are complete and closed. T275 — Generation collection creation and point upsert — was explicitly authorized by the project owner on 2026-11-07. T276–T278 remain unauthorized
 - **Rule:** Execute exactly one explicitly authorized task per session. The approved specification is the source of truth.
 
 ## Scope
