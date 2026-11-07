@@ -156,7 +156,8 @@ def test_create_generation_wraps_normalized_qdrant_failures():
 
     assert caught.value.code == "VECTOR_GENERATION_BUILD_FAILED"
     assert isinstance(caught.value.underlying_error, VectorStoreUnavailable)
-    assert isinstance(caught.value.__cause__, httpx.ConnectError)
+    assert caught.value.__cause__ is caught.value.underlying_error
+    assert isinstance(caught.value.__cause__.__cause__, httpx.ConnectError)
 
 
 def test_upsert_points_preserves_batch_order_and_adds_generation_to_payload():
@@ -227,7 +228,8 @@ def test_upsert_points_wraps_transport_failure_without_false_success():
 
     assert caught.value.code == "VECTOR_GENERATION_BUILD_FAILED"
     assert isinstance(caught.value.underlying_error, VectorStoreUnavailable)
-    assert isinstance(caught.value.__cause__, VectorStoreUnavailable)
+    assert caught.value.__cause__ is caught.value.underlying_error
+    assert isinstance(caught.value.__cause__.__cause__, httpx.ConnectError)
 
 
 def test_upsert_points_rejects_non_application_request_before_qdrant_io():
