@@ -3,7 +3,7 @@
 - **Status:** Approved — final approval granted by the project owner on 2026-11-03.
 - **Phase:** Phase 4 — RAG
 - **Subsystem:** Vector Storage
-- **Implementation:** T274 individually authorized on 2026-11-06; T275–T278 remain unauthorized.
+- **Implementation:** T274 completed; T275 — Generation collection creation and point upsert — explicitly authorized on 2026-11-07; T276–T278 remain unauthorized.
 - **Task breakdown:** Approved on 2026-11-03.
 
 ## 1. Purpose
