@@ -4,8 +4,8 @@
 ## Current Position
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
   embeddings (T267–T271), vector storage contracts (T272), the Qdrant client
-  adapter (T273), and Qdrant container infrastructure/configuration (T274) are
-  complete. T275 implementation is prepared and awaiting verification; T276–T278
+  adapter (T273), Qdrant container infrastructure/configuration (T274), and
+  generation collection creation/point upsert (T275) are complete. T276–T278
   remain unauthorized.
 - T272 — Vector storage contracts and application error taxonomy — complete
   (2aed1a8eaa6a98f207feacce7599f7a7e781f461).
@@ -16,11 +16,15 @@
   (`fix(rag): isolate qdrant url configuration test`) on
   `feature/t274-qdrant-infrastructure-handoff`, after the prepared
   implementation at `51d9d50d724566a6da52d36e8b17c067d0ade310`.
+- T275 — Generation collection creation and point upsert — complete and
+  verified at `216545889b0804306e27f6b0883c34bb5e58bcc3`
+  (`test(rag): cover ambiguous upsert completion states`) on
+  `feature/t274-qdrant-infrastructure-handoff`, against base
+  `f389895506ada89e32f0c36651ceb1c518f3d845`.
 - The Vector Storage specification (specs/rag/knowledge-vector-storage.md)
   and task breakdown (specs/rag/knowledge-vector-storage-tasks.md) were
-  approved on 2026-11-03. T274 was closed after verification. The owner
-  explicitly authorized T275 on 2026-11-07; its implementation handoff is active
-  below. T276–T278 remain unauthorized.
+  approved on 2026-11-03. T274 and T275 were closed after verification.
+  T276–T278 remain unauthorized.
 - Embedding/tokenizer decision approved (2026-10-23) at
   specs/rag/embedding-tokenizer-decision.md; pinned tokenizer identity:
   tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
@@ -30,29 +34,79 @@
 
 ## Active Implementation Handoff
 
-- Task ID: T275 — Generation collection creation and point upsert
-- Approved specification: `specs/rag/knowledge-vector-storage.md` (approved final; T275 authorization recorded 2026-11-07)
-- Task breakdown: `specs/rag/knowledge-vector-storage-tasks.md`
-- Base ref: `f389895506ada89e32f0c36651ceb1c518f3d845` (T274-complete branch head before T275 changes)
-- Implementation branch: `feature/t274-qdrant-infrastructure-handoff`
-- Prepared commit: `216545889b0804306e27f6b0883c34bb5e58bcc3`
-- Status: `T275 implementation prepared; verification pending`
-- Scope prepared:
-  - `src/app/rag/vector_storage/qdrant_adapter.py`: implement generation collection creation with fixed 768-dimensional Cosine vectors and the seven exact payload indexes; implement ordered Qdrant point upserts using deterministic UUIDv5 IDs and adapter-added `generation_id`; require Qdrant's completed operation status; normalize operation failures as `VECTOR_GENERATION_BUILD_FAILED` while preserving the normalized underlying cause and cause chain.
-  - `tests/rag/vector_storage/test_generation_build.py`: add offline adapter tests for collection schema/indexes, unconfirmed creation/index operations, error normalization, ordered point conversion, payload generation identity, completed/ambiguous upsert outcomes, and invalid adapter input.
-  - `tests/rag/vector_storage/test_qdrant_adapter.py`: update the lifecycle guard so only T275's create/upsert operations are implemented; T276/T277 methods remain absent.
-  - Specification and task breakdown record the explicit T275 authorization. No T276/T277 lifecycle operations, composition wiring, retrieval behavior, endpoint, or application startup changes are included.
-- Verification required:
-  - Inspect the complete T275 diff against the stated base ref and confirm no unrelated files or scope expansion.
-  - Confirm the pinned `qdrant-client==1.20.0` API response semantics for collection creation, payload-index completion, and `wait=True` upsert completion.
-  - Run `python -m pytest tests/rag/vector_storage -q`.
-  - Run the full regression suite with `python -m pytest tests -q`.
-  - Run `git diff --check`; verify no secrets, no Qdrant SDK types escape the adapter, and no startup/network behavior was added.
-  - Record actual command output and evidence. If any required verification cannot run, report the exact blocker and leave T275 open.
-- No verification results are claimed by this handoff. Do not start T276. Do not merge.
+- None. T275 was verified and closed on 2026-11-07. No implementation task is
+  active or authorized. T276–T278 remain unauthorized; do not start T276 and do
+  not merge.
 
 ## Last Completed Task
-- Task: T274 — Qdrant container infrastructure and application configuration
+- Task: T275 — Generation collection creation and point upsert
+- Verified implementation commit: `216545889b0804306e27f6b0883c34bb5e58bcc3`
+  (`test(rag): cover ambiguous upsert completion states`) on
+  `feature/t274-qdrant-infrastructure-handoff`, against base
+  `f389895506ada89e32f0c36651ceb1c518f3d845`. Finalization is this
+  documentation-only closure commit (`docs: record T275 verification and
+  closure in project state`); its SHA is recorded in Git history.
+- Scope delivered: `src/app/rag/vector_storage/qdrant_adapter.py` now implements
+  `create_generation` with the fixed 768-dimensional Cosine vector schema and
+  the seven exact payload indexes, and `upsert_points` with ordered point
+  conversion, deterministic UUIDv5 IDs, adapter-added `generation_id`, and
+  required `COMPLETED` operation status. Failures normalize to
+  `VECTOR_GENERATION_BUILD_FAILED` while preserving the normalized underlying
+  cause and cause chain. New `tests/rag/vector_storage/test_generation_build.py`
+  covers the build operations; `tests/rag/vector_storage/test_qdrant_adapter.py`
+  now guards that only T275's create/upsert methods exist. The specification and
+  task breakdown record the T275 authorization. No T276/T277 lifecycle
+  operations, composition wiring, retrieval behavior, endpoint, or application
+  startup changes were added.
+- Verification (2026-11-07; image `ai-customer-support-t275:local`, ID
+  `sha256:a2eb29879c654efc03ee61f5681c5f16ce9a07e692ced0e7e2463372852e5a9d`;
+  no repository bind mount in image verification runs):
+  - Scope review: `git diff f3898955 2165458` was limited to
+    `src/app/rag/vector_storage/qdrant_adapter.py`,
+    `tests/rag/vector_storage/test_generation_build.py`,
+    `tests/rag/vector_storage/test_qdrant_adapter.py`, the two authorized
+    specification files, and `specs/project-state.md`. No unrelated files,
+    secrets, configuration, or startup changes.
+  - Pinned API confirmation inside the image: `qdrant-client` 1.20.0.
+    `QdrantClient.create_collection` returns `bool` from REST
+    `InlineResponse2001.result`; `create_payload_index(..., wait=True)` and
+    `upsert(..., wait=True)` return `UpdateResult`; `UpdateStatus` contains
+    `ACKNOWLEDGED`, `COMPLETED`, and `WAIT_TIMEOUT`. This matches the adapter's
+    `created is True` and `COMPLETED` checks.
+  - Build: `docker build -t ai-customer-support-t275:local .` → exit 0.
+  - Focused offline suite: `docker run --rm --network none
+    ai-customer-support-t275:local python -m pytest tests/rag/vector_storage -q`
+    → 164 passed, exit 0.
+  - Full regression: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    ai-customer-support-t275:local python -m pytest tests -q` → 979 passed,
+    7 skipped, exit 0. The skips are the 4 unchanged environment-conditional
+    ingestion permission fixtures plus the 3 opt-in live embedding conformance
+    tests (all require `RUN_LIVE_OLLAMA=1`). PostgreSQL was started with
+    `docker compose up -d postgres` and reported `healthy`.
+  - Startup/network boundary: an in-image `TestClient` run with `--network
+    none`, `--env-file .env`, and `socket.socket.connect`,
+    `socket.create_connection`, and `QdrantClient.__init__` replaced by failing
+    stubs → application startup completed; `/health` returned HTTP 200
+    `{"status": "ok"}`; `chunking_service` and `embedding_service` were present
+    and no `vector_store` was constructed. No Qdrant network I/O occurred.
+  - Negative requirements: the lifecycle guard asserts `create_generation` and
+    `upsert_points` exist while `verify_generation`, `activate_generation`,
+    `get_generation_info`, and `delete_generation` remain absent; invalid
+    adapter request types are rejected before SDK I/O; a caller-supplied
+    `generation_id` payload key is rejected by the approved contracts;
+    unconfirmed creation/index operations and ambiguous upsert statuses
+    (`None`, `ACKNOWLEDGED`) raise `VECTOR_GENERATION_BUILD_FAILED` without
+    false success.
+  - Boundary scan: only `src/app/rag/vector_storage/qdrant_adapter.py` imports
+    `qdrant_client`/`httpx` under `src/`; public adapter signatures return
+    application-owned DTOs. `git diff --check` → clean, exit 0.
+  - No defect was found during verification; no implementation code changed.
+- Outcome: T275 acceptance criteria in §5.2–§5.4, §7.1 (create/upsert), §8,
+  §9, and the T275 task breakdown are met. T275 is closed. T276–T278 remain
+  unauthorized; no next task was started and no merge was performed.
+
+## Previously Completed Task — T274
 - Commit: `615caa8a2833f8dd34fe86cc51c989117cf0c9db`
   (`fix(rag): isolate qdrant url configuration test`), on
   `feature/t274-qdrant-infrastructure-handoff`. The prepared implementation is
@@ -125,8 +179,9 @@
   breakdown are met. The pinned custom Qdrant runtime, readiness healthcheck,
   Compose `service_healthy` dependency, optional API-key setting, and
   configuration tests are present; FastAPI startup remains free of Qdrant
-  network I/O and `/health` remains independent. T274 is closed. T275–T278
-  remain unauthorized; no next task was started and no merge was performed.
+  network I/O and `/health` remains independent. T274 is closed. T275 was
+  subsequently implemented, verified, and closed as recorded above; T276–T278
+  remain unauthorized.
 
 ## Previously Completed Task — T273
 - Task: T273 — Qdrant client adapter and exception normalization
