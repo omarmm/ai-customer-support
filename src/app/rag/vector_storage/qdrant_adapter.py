@@ -5,9 +5,9 @@ response models, raw response bodies, and API keys never escape the adapter:
 every failure is translated into the application-owned taxonomy defined in
 ``app.rag.vector_storage.exceptions``.
 
-This task adds client construction, exception normalization, and bounded retry
-execution only. Collection, point, verification, activation, information, and
-deletion behavior belong to later tasks.
+This module implements client construction, bounded retries, generation
+collection creation, and ordered point upserts. Later tasks own verification,
+activation, generation inspection, and deletion.
 """
 
 from __future__ import annotations
@@ -20,9 +20,18 @@ from typing import Any, Callable, TypeVar
 import httpx
 from qdrant_client import QdrantClient
 from qdrant_client.common.client_exceptions import ResourceExhaustedResponse
+from qdrant_client.http import models
 from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
 
+from app.rag.vector_storage.contracts import (
+    VECTOR_DIMENSION,
+    CollectionInfo,
+    CreateGenerationRequest,
+    UpsertPointsRequest,
+    UpsertPointsResult,
+)
 from app.rag.vector_storage.exceptions import (
+    VectorGenerationBuildFailed,
     VectorStoreConfigurationError,
     VectorStoreError,
     VectorStoreInvalidData,
@@ -204,12 +213,23 @@ def execute_with_retry(
     raise AssertionError("retry loop exhausted without a result")
 
 
+_PAYLOAD_INDEXES = (
+    ("generation_id", models.PayloadSchemaType.KEYWORD),
+    ("document_id", models.PayloadSchemaType.KEYWORD),
+    ("source_path", models.PayloadSchemaType.KEYWORD),
+    ("format", models.PayloadSchemaType.KEYWORD),
+    ("chunking_config_id", models.PayloadSchemaType.KEYWORD),
+    ("embedding_config_id", models.PayloadSchemaType.KEYWORD),
+    ("chunk_index", models.PayloadSchemaType.INTEGER),
+)
+
+
 class QdrantClientAdapter:
     """Owns a Qdrant client and executes SDK calls at the application boundary.
 
-    Later storage tasks add the operation methods. This class deliberately does
-    not implement generation lifecycle orchestration, collection creation, or
-    startup connectivity checks.
+    Application-owned DTOs enter and leave this adapter; Qdrant SDK models and
+    exceptions remain private to this module. Construction performs no network
+    I/O. Each remote operation is executed through the normalized retry policy.
     """
 
     def __init__(
@@ -242,6 +262,107 @@ class QdrantClientAdapter:
             lambda: operation(self._client),
             policy=self._retry_policy,
             sleep=self._sleep,
+        )
+
+    def create_generation(self, request: CreateGenerationRequest) -> CollectionInfo:
+        """Create one immutable generation collection and its exact payload indexes."""
+
+        if not isinstance(request, CreateGenerationRequest):
+            raise TypeError("request must be a CreateGenerationRequest")
+
+        collection_name = f"knowledge_vectors_g_{request.generation_id}"
+        try:
+            created = self._execute(
+                lambda client: client.create_collection(
+                    collection_name=collection_name,
+                    vectors_config=models.VectorParams(
+                        size=VECTOR_DIMENSION,
+                        distance=models.Distance.COSINE,
+                    ),
+                )
+            )
+            if created is not True:
+                raise VectorGenerationBuildFailed(
+                    "Qdrant did not confirm generation collection creation"
+                )
+
+            for field_name, field_schema in _PAYLOAD_INDEXES:
+                index_result = self._execute(
+                    lambda client, name=field_name, schema=field_schema: (
+                        client.create_payload_index(
+                            collection_name=collection_name,
+                            field_name=name,
+                            field_schema=schema,
+                            wait=True,
+                        )
+                    )
+                )
+                if (
+                    getattr(index_result, "status", None)
+                    is not models.UpdateStatus.COMPLETED
+                ):
+                    raise VectorGenerationBuildFailed(
+                        "Qdrant did not confirm a generation payload index"
+                    )
+        except VectorGenerationBuildFailed:
+            raise
+        except Exception as exc:
+            cause = normalize_qdrant_error(exc)
+            raise VectorGenerationBuildFailed(
+                "unable to create the vector generation", cause=cause
+            ) from exc
+
+        return CollectionInfo(
+            generation_id=request.generation_id,
+            collection_name=collection_name,
+            vector_size=VECTOR_DIMENSION,
+            distance="Cosine",
+        )
+
+    def upsert_points(self, request: UpsertPointsRequest) -> UpsertPointsResult:
+        """Upsert one validated, ordered batch and require confirmed completion."""
+
+        if not isinstance(request, UpsertPointsRequest):
+            raise TypeError("request must be an UpsertPointsRequest")
+
+        collection_name = f"knowledge_vectors_g_{request.generation_id}"
+        qdrant_points = []
+        for point in request.points:
+            payload = dict(point.payload)
+            payload["generation_id"] = request.generation_id
+            qdrant_points.append(
+                models.PointStruct(
+                    id=str(point.point_id),
+                    vector=list(point.vector),
+                    payload=payload,
+                )
+            )
+
+        try:
+            result = self._execute(
+                lambda client: client.upsert(
+                    collection_name=collection_name,
+                    points=qdrant_points,
+                    wait=True,
+                )
+            )
+            if getattr(result, "status", None) is not models.UpdateStatus.COMPLETED:
+                raise VectorGenerationBuildFailed(
+                    "Qdrant did not confirm completion of the complete upsert batch"
+                )
+        except VectorGenerationBuildFailed:
+            raise
+        except Exception as exc:
+            cause = normalize_qdrant_error(exc)
+            raise VectorGenerationBuildFailed(
+                "unable to upsert the complete vector generation batch", cause=cause
+            ) from exc
+
+        return UpsertPointsResult(
+            generation_id=request.generation_id,
+            submitted_count=len(request.points),
+            completed_count=len(request.points),
+            succeeded=True,
         )
 
     def close(self) -> None:
