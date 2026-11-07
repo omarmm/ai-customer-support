@@ -194,19 +194,9 @@ def test_upsert_points_preserves_batch_order_and_adds_generation_to_payload():
     assert all("generation_id" not in point.payload for point in request.points)
 
 
-@pytest.mark.parametrize(
-    "status",
-    [models.UpdateStatus.ACKNOWLEDGED, models.UpdateStatus.COMPLETED],
-)
-def test_upsert_points_requires_completed_batch(status):
+@pytest.mark.parametrize("status", [None, models.UpdateStatus.ACKNOWLEDGED])
+def test_upsert_points_rejects_unconfirmed_or_ambiguous_batch(status):
     client = FakeQdrantClient(upsert_status=status)
-
-    if status is models.UpdateStatus.COMPLETED:
-        result = make_adapter(client).upsert_points(
-            UpsertPointsRequest(GENERATION_ID, [make_point("chunk-001")])
-        )
-        assert result.succeeded is True
-        return
 
     with pytest.raises(VectorGenerationBuildFailed) as caught:
         make_adapter(client).upsert_points(
