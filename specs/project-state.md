@@ -35,10 +35,10 @@
 - Task breakdown: `specs/rag/knowledge-vector-storage-tasks.md`
 - Base ref: `f389895506ada89e32f0c36651ceb1c518f3d845` (T274-complete branch head before T275 changes)
 - Implementation branch: `feature/t274-qdrant-infrastructure-handoff`
-- Prepared commit: `fa6c51420f930af60de311ae0c7161e1326e0218`
+- Prepared commit: `216545889b0804306e27f6b0883c34bb5e58bcc3`
 - Status: `T275 implementation prepared; verification pending`
 - Scope prepared:
-  - `src/app/rag/vector_storage/qdrant_adapter.py`: implement generation collection creation with fixed 768-dimensional Cosine vectors and the seven exact payload indexes; implement ordered Qdrant point upserts using deterministic UUIDv5 IDs and adapter-added `generation_id`; require Qdrant's completed operation status; normalize operation failures as `VECTOR_GENERATION_BUILD_FAILED` while preserving the normalized underlying cause.
+  - `src/app/rag/vector_storage/qdrant_adapter.py`: implement generation collection creation with fixed 768-dimensional Cosine vectors and the seven exact payload indexes; implement ordered Qdrant point upserts using deterministic UUIDv5 IDs and adapter-added `generation_id`; require Qdrant's completed operation status; normalize operation failures as `VECTOR_GENERATION_BUILD_FAILED` while preserving the normalized underlying cause and cause chain.
   - `tests/rag/vector_storage/test_generation_build.py`: add offline adapter tests for collection schema/indexes, unconfirmed creation/index operations, error normalization, ordered point conversion, payload generation identity, completed/ambiguous upsert outcomes, and invalid adapter input.
   - `tests/rag/vector_storage/test_qdrant_adapter.py`: update the lifecycle guard so only T275's create/upsert operations are implemented; T276/T277 methods remain absent.
   - Specification and task breakdown record the explicit T275 authorization. No T276/T277 lifecycle operations, composition wiring, retrieval behavior, endpoint, or application startup changes are included.
