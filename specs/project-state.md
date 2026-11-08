@@ -41,13 +41,22 @@
 
 ## Active Implementation Handoff
 
-- T277 — Generation information and explicit deletion — is authorized and in
-  progress on `feature/t277-generation-info-deletion`, based on master
-  `1a5f431860b11c5419a9a1bb9ced88ac57cecc9e`. The implementation adds actual
-  collection metadata inspection with exact point counts and active-alias
-  membership, plus explicit inactive-generation deletion with existence and
-  active-alias guards. Focused tests and the adapter lifecycle guard are added.
-  Local `/verify-task` evidence is pending; do not merge and do not start T278.
+- **Task ID:** T277 — Generation information and explicit deletion.
+- **Approved specification:** `specs/rag/knowledge-vector-storage.md`
+  (Approved, 2026-11-03).
+- **Approved task breakdown:** `specs/rag/knowledge-vector-storage-tasks.md`,
+  T277 section (project-owner authorization recorded 2026-11-09).
+- **Base ref:** `master` at
+  `1a5f431860b11c5419a9a1bb9ced88ac57cecc9e`.
+- **Implementation branch:** `feature/t277-generation-info-deletion`.
+- **Prepared implementation commit (immutable verification target):**
+  `0c0d7716b7b68a46687b7334b91e81519a23a2c0`
+  (`style(test): wrap invalid metadata assertion`), which is the branch HEAD
+  at handoff preparation. This commit includes the complete T277 implementation,
+  focused tests, lifecycle guard, and project-state/task-authorization updates.
+- **Status:** Implementation prepared and ready for local `/verify-task`.
+  Verification evidence is pending; T277 is not yet verified or closed.
+- **Scope reminder:** Verify only T277. Do not merge and do not start T278.
 
 ## Last Completed Task
 - Task: T276 — Generation verification and activation lifecycle
