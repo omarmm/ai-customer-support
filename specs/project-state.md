@@ -63,14 +63,14 @@
   focused composition/startup tests and an opt-in container-backed lifecycle
   test. No endpoint, retrieval semantics, search implementation, or other
   subsystem changes.
-- **Focused verification:** `pytest tests/rag/vector_storage`.
+- **Focused verification:** `docker compose exec api pytest tests/rag/vector_storage`.
 - **Container integration:** Start the project PostgreSQL/Qdrant Compose
   services and run
-  `RUN_QDRANT_INTEGRATION=1 pytest tests/rag/vector_storage/test_qdrant_integration.py`.
+  `docker compose exec -e RUN_QDRANT_INTEGRATION=1 api pytest tests/rag/vector_storage/test_qdrant_integration.py`.
   The integration test creates two uniquely named generations, exercises
   create/upsert/verify/activate/inspect/inactive-delete, and removes its
   temporary alias and remaining test collection in teardown.
-- **Full regression:** `pytest tests`.
+- **Full regression:** `docker compose exec api pytest tests`.
 - **Runtime checks:** `docker compose config`, build the API and Qdrant
   images, start the Compose stack, verify Qdrant `/readyz`, API `/health`,
   and clean shutdown. Confirm application startup itself does not issue a
