@@ -3,7 +3,8 @@
 - **Specification:** `specs/rag/knowledge-vector-storage.md`
 - **Specification status:** Approved (2026-11-03)
 - **Task breakdown status:** Approved by the project owner on 2026-11-03
-- **Implementation authorization:** T272–T276 are complete and closed. T277 was explicitly authorized by the project owner on 2026-11-09; T278 remains unauthorized.
+- **Implementation authorization:** T272–T276 are complete and closed. T277 was
+  explicitly authorized by the project owner on 2026-11-09; T278 remains unauthorized.
 - **Rule:** Execute exactly one explicitly authorized task per session. The approved specification is the source of truth.
 
 ## Scope
