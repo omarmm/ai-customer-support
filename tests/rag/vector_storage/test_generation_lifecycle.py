@@ -93,12 +93,12 @@ class FakeQdrantClient:
         # Apply all operations as one simulated atomic transaction.
         next_aliases = dict(self.aliases)
         for operation in change_aliases_operations:
-            if operation.delete_alias is not None:
-                next_aliases.pop(operation.delete_alias.alias_name, None)
-            if operation.create_alias is not None:
-                next_aliases[operation.create_alias.alias_name] = (
-                    operation.create_alias.collection_name
-                )
+            delete_alias = getattr(operation, "delete_alias", None)
+            create_alias = getattr(operation, "create_alias", None)
+            if delete_alias is not None:
+                next_aliases.pop(delete_alias.alias_name, None)
+            if create_alias is not None:
+                next_aliases[create_alias.alias_name] = create_alias.collection_name
         self.aliases = next_aliases
         return True
 
