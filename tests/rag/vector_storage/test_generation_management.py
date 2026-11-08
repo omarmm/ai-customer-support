@@ -156,7 +156,9 @@ def test_get_generation_info_normalizes_exact_count_failure():
     client = FakeQdrantClient(count_error=httpx.ConnectError("offline"))
 
     with pytest.raises(VectorStoreUnavailable):
-        make_adapter(client).get_generation_info(GetGenerationInfoRequest(GENERATION_ID))
+        make_adapter(client).get_generation_info(
+            GetGenerationInfoRequest(GENERATION_ID)
+        )
 
 
 def test_get_generation_info_rejects_invalid_qdrant_metadata():
