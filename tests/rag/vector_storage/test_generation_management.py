@@ -168,7 +168,9 @@ def test_get_generation_info_rejects_invalid_qdrant_metadata():
     client.collections[COLLECTION] = SimpleNamespace(config=None)
 
     with pytest.raises(VectorStoreServiceError):
-        make_adapter(client).get_generation_info(GetGenerationInfoRequest(GENERATION_ID))
+        make_adapter(client).get_generation_info(
+            GetGenerationInfoRequest(GENERATION_ID)
+        )
 
 
 def test_delete_generation_rejects_missing_collection_without_delete():
