@@ -199,16 +199,16 @@ def test_adapter_close_normalizes_transport_failures():
     assert isinstance(caught.value.__cause__, httpx.ConnectError)
 
 
-def test_adapter_implements_only_the_authorized_generation_build_operations():
-    assert hasattr(QdrantClientAdapter, "create_generation")
-    assert hasattr(QdrantClientAdapter, "upsert_points")
-
+def test_adapter_implements_only_the_authorized_generation_lifecycle_operations():
     for name in (
+        "create_generation",
+        "upsert_points",
         "verify_generation",
         "activate_generation",
-        "get_generation_info",
-        "delete_generation",
     ):
+        assert hasattr(QdrantClientAdapter, name)
+
+    for name in ("get_generation_info", "delete_generation"):
         assert not hasattr(QdrantClientAdapter, name)
 
 

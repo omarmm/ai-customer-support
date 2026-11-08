@@ -6,8 +6,9 @@ every failure is translated into the application-owned taxonomy defined in
 ``app.rag.vector_storage.exceptions``.
 
 This module implements client construction, bounded retries, generation
-collection creation, and ordered point upserts. Later tasks own verification,
-activation, generation inspection, and deletion.
+collection creation, ordered point upserts, generation verification, and
+atomic active-alias activation. Later tasks own generation inspection and
+deletion.
 """
 
 from __future__ import annotations
@@ -26,11 +27,17 @@ from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedR
 from app.rag.vector_storage.contracts import (
     VECTOR_DIMENSION,
     CollectionInfo,
+    ACTIVE_GENERATION_ALIAS,
+    ActivateGenerationRequest,
     CreateGenerationRequest,
+    GenerationActivationResult,
+    GenerationVerificationResult,
     UpsertPointsRequest,
     UpsertPointsResult,
+    VerifyGenerationRequest,
 )
 from app.rag.vector_storage.exceptions import (
+    VectorGenerationActivationFailed,
     VectorGenerationBuildFailed,
     VectorStoreConfigurationError,
     VectorStoreError,
@@ -242,6 +249,9 @@ class QdrantClientAdapter:
         self._client = client
         self._retry_policy = retry_policy or QdrantRetryPolicy()
         self._sleep = sleep
+        # Verification is an explicit lifecycle precondition. It is invalidated
+        # whenever this adapter writes to the generation.
+        self._verified_generations: dict[str, int] = {}
 
     @classmethod
     def from_config(
@@ -271,6 +281,7 @@ class QdrantClientAdapter:
             raise TypeError("request must be a CreateGenerationRequest")
 
         collection_name = f"knowledge_vectors_g_{request.generation_id}"
+        self._verified_generations.pop(request.generation_id, None)
         try:
             created = self._execute(
                 lambda client: client.create_collection(
@@ -326,6 +337,7 @@ class QdrantClientAdapter:
             raise TypeError("request must be an UpsertPointsRequest")
 
         collection_name = f"knowledge_vectors_g_{request.generation_id}"
+        self._verified_generations.pop(request.generation_id, None)
         qdrant_points = []
         for point in request.points:
             payload = dict(point.payload)
@@ -364,6 +376,205 @@ class QdrantClientAdapter:
             completed_count=len(request.points),
             succeeded=True,
         )
+
+
+    def verify_generation(
+        self, request: VerifyGenerationRequest
+    ) -> GenerationVerificationResult:
+        """Verify the complete stored generation against its approved schema."""
+
+        if not isinstance(request, VerifyGenerationRequest):
+            raise TypeError("request must be a VerifyGenerationRequest")
+
+        collection_name = f"knowledge_vectors_g_{request.generation_id}"
+        try:
+            collection = self._execute(
+                lambda client: client.get_collection(collection_name=collection_name)
+            )
+            params = getattr(getattr(collection, "config", None), "params", None)
+            vectors = getattr(params, "vectors", None)
+            # V1 uses one unnamed dense vector. Named/multi-vector configurations
+            # are deliberately rejected rather than guessed or coerced.
+            if not isinstance(vectors, models.VectorParams):
+                raise ValueError(
+                    "generation vector configuration is not a single dense vector"
+                )
+            vector_size = getattr(vectors, "size", None)
+            distance = getattr(vectors, "distance", None)
+            if isinstance(vector_size, bool) or vector_size != VECTOR_DIMENSION:
+                raise ValueError("generation vector dimension does not match V1")
+            if distance is not models.Distance.COSINE:
+                raise ValueError("generation distance does not match Cosine")
+            # CollectionInfo.points_count is explicitly approximate in
+            # qdrant-client. Use Count(exact=True) for the acceptance check.
+            count_result = self._execute(
+                lambda client: client.count(
+                    collection_name=collection_name,
+                    exact=True,
+                )
+            )
+            actual_point_count = getattr(count_result, "count", None)
+            if (
+                isinstance(actual_point_count, bool)
+                or not isinstance(actual_point_count, int)
+                or actual_point_count < 0
+            ):
+                raise ValueError("Qdrant returned an invalid exact point count")
+            if actual_point_count != request.expected_point_count:
+                raise ValueError("generation point count does not match expected count")
+
+            result = GenerationVerificationResult(
+                generation_id=request.generation_id,
+                expected_point_count=request.expected_point_count,
+                actual_point_count=actual_point_count,
+                vector_size=vector_size,
+                distance="Cosine",
+            )
+        except Exception as exc:
+            if isinstance(exc, VectorGenerationBuildFailed):
+                raise
+            cause = normalize_qdrant_error(exc)
+            raise VectorGenerationBuildFailed(
+                "vector generation verification failed", cause=cause
+            ) from cause
+
+        self._verified_generations[request.generation_id] = request.expected_point_count
+        return result
+
+    @staticmethod
+    def _alias_targets(aliases_response: Any) -> dict[str, str]:
+        """Translate Qdrant alias response into alias-name -> collection-name."""
+
+        aliases = getattr(aliases_response, "aliases", None)
+        if aliases is None:
+            raise ValueError("Qdrant returned an invalid alias response")
+        targets: dict[str, str] = {}
+        for alias in aliases:
+            alias_name = getattr(alias, "alias_name", None)
+            collection_name = getattr(alias, "collection_name", None)
+            if not isinstance(alias_name, str) or not isinstance(collection_name, str):
+                raise ValueError("Qdrant returned an invalid alias entry")
+            if alias_name in targets:
+                raise ValueError("Qdrant returned duplicate alias entries")
+            targets[alias_name] = collection_name
+        return targets
+
+    def activate_generation(
+        self, request: ActivateGenerationRequest
+    ) -> GenerationActivationResult:
+        """Atomically move the active alias to a successfully verified generation."""
+
+        if not isinstance(request, ActivateGenerationRequest):
+            raise TypeError("request must be an ActivateGenerationRequest")
+        generation_id = request.generation_id
+        collection_name = f"knowledge_vectors_g_{generation_id}"
+        expected_point_count = self._verified_generations.get(generation_id)
+        if expected_point_count is None:
+            raise VectorGenerationActivationFailed(
+                "generation must pass verification before activation"
+            )
+
+        # Verification is a hard precondition, not part of alias-error
+        # reconciliation. A failed verification must never be mistaken for an
+        # already-active or ambiguously-activated successful generation.
+        try:
+            self.verify_generation(
+                VerifyGenerationRequest(generation_id, expected_point_count)
+            )
+        except Exception as exc:
+            cause = normalize_qdrant_error(exc)
+            raise VectorGenerationActivationFailed(
+                "generation did not pass verification before activation",
+                cause=cause,
+            ) from cause
+
+        previous_collection: str | None = None
+        previous_generation_id: str | None = None
+        alias_update_attempted = False
+        try:
+            aliases_response = self._execute(lambda client: client.get_aliases())
+            alias_targets = self._alias_targets(aliases_response)
+            previous_collection = alias_targets.get(ACTIVE_GENERATION_ALIAS)
+            if previous_collection is not None:
+                prefix = "knowledge_vectors_g_"
+                if not previous_collection.startswith(prefix):
+                    raise ValueError(
+                        "active alias points outside the generation namespace"
+                    )
+                candidate = previous_collection[len(prefix):]
+                if len(candidate) != 64 or any(
+                    ch not in "0123456789abcdef" for ch in candidate
+                ):
+                    raise ValueError(
+                        "active alias points to an invalid generation collection"
+                    )
+                previous_generation_id = candidate
+
+            if previous_collection == collection_name:
+                return GenerationActivationResult(
+                    generation_id=generation_id,
+                    alias_name=ACTIVE_GENERATION_ALIAS,
+                    previous_generation_id=generation_id,
+                )
+
+            operations = []
+            if previous_collection is not None:
+                operations.append(
+                    models.DeleteAliasOperation(
+                        delete_alias=models.DeleteAlias(
+                            alias_name=ACTIVE_GENERATION_ALIAS
+                        )
+                    )
+                )
+            operations.append(
+                models.CreateAliasOperation(
+                    create_alias=models.CreateAlias(
+                        collection_name=collection_name,
+                        alias_name=ACTIVE_GENERATION_ALIAS,
+                    )
+                )
+            )
+            alias_update_attempted = True
+            confirmed = self._execute(
+                lambda client: client.update_collection_aliases(
+                    change_aliases_operations=operations
+                )
+            )
+            if confirmed is not True:
+                raise RuntimeError("Qdrant did not confirm the atomic alias operation")
+
+            return GenerationActivationResult(
+                generation_id=generation_id,
+                alias_name=ACTIVE_GENERATION_ALIAS,
+                previous_generation_id=previous_generation_id,
+            )
+        except Exception as exc:
+            cause = normalize_qdrant_error(exc)
+            # A transport error can occur after Qdrant committed the atomic
+            # operation but before the response reached this client. Reconcile
+            # only after the alias update was attempted: target means confirmed
+            # success; unchanged previous target means a clean failure.
+            if alias_update_attempted:
+                try:
+                    reconciled = self._execute(lambda client: client.get_aliases())
+                    reconciled_targets = self._alias_targets(reconciled)
+                    current_target = reconciled_targets.get(ACTIVE_GENERATION_ALIAS)
+                    if current_target == collection_name:
+                        return GenerationActivationResult(
+                            generation_id=generation_id,
+                            alias_name=ACTIVE_GENERATION_ALIAS,
+                            previous_generation_id=previous_generation_id,
+                        )
+                    if current_target != previous_collection:
+                        cause = VectorStoreServiceError(
+                            "Qdrant alias state could not be reconciled safely",
+                            cause=cause,
+                        )
+                except Exception as reconcile_exc:
+                    cause = normalize_qdrant_error(reconcile_exc)
+            raise VectorGenerationActivationFailed(
+                "unable to activate the verified vector generation", cause=cause
+            ) from cause
 
     def close(self) -> None:
         try:
