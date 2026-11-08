@@ -68,7 +68,7 @@ def test_composed_store_completes_generation_lifecycle() -> None:
                 "format": "markdown",
                 "content": "A disposable integration-test chunk.",
                 "start_offset": 0,
-                "end_offset": 39,
+                "end_offset": len("A disposable integration-test chunk."),
                 "chunk_index": 0,
                 "chunking_config_id": hashlib.sha256(b"t278-chunking").hexdigest(),
                 "embedding_config_id": embedding_config_id,
@@ -134,7 +134,7 @@ def test_composed_store_completes_generation_lifecycle() -> None:
             aliases = client.get_aliases().aliases
             if any(
                 alias.alias_name == "knowledge_vectors_active"
-                and alias.collection_name == f"knowledge_vectors_g_{generation_b}"
+                and alias.collection_name in created
                 for alias in aliases
             ):
                 client.update_collection_aliases(
