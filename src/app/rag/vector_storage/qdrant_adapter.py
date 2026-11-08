@@ -25,26 +25,26 @@ from qdrant_client.http import models
 from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
 
 from app.rag.vector_storage.contracts import (
-    VECTOR_DIMENSION,
-    CollectionInfo,
     ACTIVE_GENERATION_ALIAS,
+    VECTOR_DIMENSION,
     ActivateGenerationRequest,
+    CollectionInfo,
     CreateGenerationRequest,
+    DeleteGenerationRequest,
     GenerationActivationResult,
     GenerationDeletionResult,
     GenerationInfo,
     GetGenerationInfoRequest,
-    DeleteGenerationRequest,
     GenerationVerificationResult,
     UpsertPointsRequest,
     UpsertPointsResult,
     VerifyGenerationRequest,
 )
 from app.rag.vector_storage.exceptions import (
+    VectorGenerationActiveDeleteRejected,
     VectorGenerationActivationFailed,
     VectorGenerationBuildFailed,
     VectorGenerationNotFound,
-    VectorGenerationActiveDeleteRejected,
     VectorStoreConfigurationError,
     VectorStoreError,
     VectorStoreInvalidData,
@@ -613,7 +613,6 @@ class QdrantClientAdapter:
             raise VectorGenerationActivationFailed(
                 "unable to activate the verified vector generation", cause=cause
             ) from cause
-
 
     def get_generation_info(
         self, request: GetGenerationInfoRequest
