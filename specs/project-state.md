@@ -55,7 +55,7 @@
 - **Base ref:** `master` at
   `b08225e864ad386f0a558620e9343d318caec903`.
 - **Implementation branch:** `feature/t278-vector-storage-composition`.
-- **Prepared commit:** `9633c7f9dea5cd0079abee9f08d74d5462b53835`.
+- **Prepared commit:** `4bd41543dde2cc4c52299cfaa0d2b702082cae6b`.
 - **Scope:** Add `build_vector_store(settings)` using the approved
   `QdrantClientConfig` and `QdrantClientAdapter`; expose one application-owned
   instance as `app.state.vector_store` during FastAPI lifespan; preserve
