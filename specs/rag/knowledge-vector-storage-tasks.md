@@ -4,7 +4,8 @@
 - **Specification status:** Approved (2026-11-03)
 - **Task breakdown status:** Approved by the project owner on 2026-11-03
 - **Implementation authorization:** T272–T277 are complete and closed. T278
-  remains unauthorized.
+  was explicitly authorized by the project owner on 2026-11-09 and is prepared
+  for local verification.
 - **Rule:** Execute exactly one explicitly authorized task per session. The approved specification is the source of truth.
 
 ## Scope
@@ -160,4 +161,4 @@ T274 is technically independent of T273, but the proposed sequence is intentiona
 
 ## Authorization gate
 
-This task breakdown was approved by the project owner on 2026-11-03. T272–T277 have been implemented, verified, committed, and closed. T278 remains unauthorized. Execute exactly one task per authorized session, verify it, update project state, and STOP.
+This task breakdown was approved by the project owner on 2026-11-03. T272–T277 have been implemented, verified, committed, and closed. T278 was authorized on 2026-11-09 and is currently prepared for owner-run verification. Execute exactly one task per authorized session, verify it, update project state, and STOP.
