@@ -58,6 +58,7 @@ class FakeQdrantClient:
         delete_error=None,
         count_error=None,
         aliases_error=None,
+        activate_on_alias_read=None,
     ):
         self.collections = dict(collections or {COLLECTION: collection()})
         self.aliases = dict(aliases or {})
@@ -66,6 +67,7 @@ class FakeQdrantClient:
         self.delete_error = delete_error
         self.count_error = count_error
         self.aliases_error = aliases_error
+        self.activate_on_alias_read = activate_on_alias_read
         self.get_collection_calls = []
         self.count_calls = []
         self.get_aliases_calls = 0
@@ -85,6 +87,8 @@ class FakeQdrantClient:
 
     def get_aliases(self):
         self.get_aliases_calls += 1
+        if self.activate_on_alias_read == self.get_aliases_calls:
+            self.aliases[ACTIVE_GENERATION_ALIAS] = COLLECTION
         if self.aliases_error is not None:
             raise self.aliases_error
         return SimpleNamespace(
@@ -220,3 +224,15 @@ def test_delete_generation_normalizes_operational_failure_and_preserves_alias():
     assert client.aliases == {ACTIVE_GENERATION_ALIAS: OTHER_COLLECTION}
     assert COLLECTION in client.collections
     assert client.delete_calls == [COLLECTION]
+
+
+
+def test_delete_generation_rechecks_alias_before_deletion():
+    client = FakeQdrantClient(activate_on_alias_read=2)
+
+    with pytest.raises(VectorGenerationActiveDeleteRejected):
+        make_adapter(client).delete_generation(DeleteGenerationRequest(GENERATION_ID))
+
+    assert client.get_aliases_calls == 2
+    assert client.delete_calls == []
+    assert client.aliases == {ACTIVE_GENERATION_ALIAS: COLLECTION}
