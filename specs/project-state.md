@@ -6,7 +6,7 @@
   embeddings (T267–T271), vector storage contracts (T272), the Qdrant client
   adapter (T273), Qdrant container infrastructure/configuration (T274),
   generation collection creation/point upsert (T275), and generation
-  verification/activation (T276) are complete. T277–T278 remain unauthorized.
+  verification/activation (T276) are complete. T277 is authorized and in progress; T278 remains unauthorized.
 - T272 — Vector storage contracts and application error taxonomy — complete
   (2aed1a8eaa6a98f207feacce7599f7a7e781f461).
 - T273 — Qdrant client adapter and exception normalization — complete
@@ -30,7 +30,7 @@
 - The Vector Storage specification (specs/rag/knowledge-vector-storage.md)
   and task breakdown (specs/rag/knowledge-vector-storage-tasks.md) were
   approved on 2026-11-03. T274, T275, and T276 were closed after verification.
-  T277–T278 remain unauthorized.
+  T277 was explicitly authorized on 2026-11-09; T278 remains unauthorized.
 - Embedding/tokenizer decision approved (2026-10-23) at
   specs/rag/embedding-tokenizer-decision.md; pinned tokenizer identity:
   tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
@@ -40,9 +40,13 @@
 
 ## Active Implementation Handoff
 
-- None. T276 was verified and closed on 2026-11-08. No implementation task is
-  active or authorized. T277–T278 remain unauthorized; do not start T277 and do
-  not merge.
+- T277 — Generation information and explicit deletion — is authorized and in
+  progress on `feature/t277-generation-info-deletion`, based on master
+  `1a5f431860b11c5419a9a1bb9ced88ac57cecc9e`. The implementation adds actual
+  collection metadata inspection with exact point counts and active-alias
+  membership, plus explicit inactive-generation deletion with existence and
+  active-alias guards. Focused tests and the adapter lifecycle guard are added.
+  Local `/verify-task` evidence is pending; do not merge and do not start T278.
 
 ## Last Completed Task
 - Task: T276 — Generation verification and activation lifecycle
@@ -303,7 +307,7 @@
   configuration tests are present; FastAPI startup remains free of Qdrant
   network I/O and `/health` remains independent. T274 is closed. T275 and T276
   were subsequently implemented, verified, and closed as recorded above;
-  T277–T278 remain unauthorized.
+  T277 is authorized and in progress; T278 remains unauthorized.
 
 ## Previously Completed Task — T273
 - Task: T273 — Qdrant client adapter and exception normalization
@@ -963,23 +967,23 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- No implementation task is in progress. T276 — Generation verification and
-  activation lifecycle — is complete and verified on
-  `feature/t276-generation-verification-activation` at
-  `b898f65a0e2e5ac538ddcf0bd9ee54c45f573004` (`test(rag): fix alias operation
-  test double`), following the prepared implementation commit
-  `b86e89542f73a6f6d9dd99c0ca98dfa308940296` and base master
-  `92444a9c3a05fec79b9603df53666afd102f042f`.
-- T276 delivered generation verification against collection schema, distance,
-  and exact point count, plus atomic active-alias activation with re-verification,
-  lost-response reconciliation, and previous-generation retention. Focused
-  vector-storage tests: 178 passed; live Qdrant lifecycle integration passed;
-  full regression: 993 passed, 7 skipped.
-- T276 is closed. T277–T278 remain unauthorized and must not be started early;
-  the T276 branch was not merged.
+- T277 — Generation information and explicit deletion — is the only authorized
+  implementation task, explicitly approved by the project owner on 2026-11-09.
+  Branch: `feature/t277-generation-info-deletion`; base master:
+  `1a5f431860b11c5419a9a1bb9ced88ac57cecc9e`.
+- The implementation adds `get_generation_info` using actual Qdrant collection
+  metadata, exact point count, and active-alias membership. It adds
+  `delete_generation` with existence checks, active-generation rejection,
+  repeated alias inspection immediately before deletion, explicit confirmation,
+  and no alias mutation or automatic cleanup.
+- Offline T277 tests and adapter lifecycle guards have been added. Runtime test,
+  live Qdrant, full regression, and Docker verification evidence are pending the
+  project owner's local `/verify-task` run. T277 is not yet verified or closed.
+- T278 remains unauthorized. Do not merge and do not begin T278.
 
 ## Task Ordering
-1. T277–T278 remain unauthorized and must not be started early.
+1. T277 — Generation information and explicit deletion (authorized; in progress).
+2. T278 — Vector storage composition and integration verification (unauthorized).
 
 Each task requires its own authorized session and must follow its approved
 specification and acceptance criteria.
