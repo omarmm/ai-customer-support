@@ -3,7 +3,7 @@
 - **Status:** Approved — final approval granted by the project owner on 2026-11-03.
 - **Phase:** Phase 4 — RAG
 - **Subsystem:** Vector Storage
-- **Implementation:** T274 and T275 completed; T276 — Generation verification and activation lifecycle — implementation committed on `feature/t276-generation-verification-activation`, verification pending; T277–T278 remain unauthorized.
+- **Implementation:** T274, T275, and T276 completed and verified; T277–T278 remain unauthorized.
 - **Task breakdown:** Approved on 2026-11-03.
 
 ## 1. Purpose
@@ -594,6 +594,6 @@ This specification is ready for approval only when:
 
 - **Status:** Approved — final approval granted by the project owner on 2026-11-03.
 - **Specification approval:** Approved.
-- **Implementation authorization:** T274 was explicitly authorized on 2026-11-06 and T276 — Generation verification and activation lifecycle — was explicitly authorized on 2026-11-07. T275 is complete. This does not authorize T277–T278.
+- **Implementation authorization:** T274 was explicitly authorized on 2026-11-06. T275 and T276 — Generation verification and activation lifecycle — are complete. This does not authorize T277–T278.
 - **Task breakdown:** Approved on 2026-11-03.
-- **Implementation task authorization:** T276 only; T277–T278 remain unauthorized.
+- **Implementation task authorization:** T276 is complete and closed; T277–T278 remain unauthorized.
