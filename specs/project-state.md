@@ -6,7 +6,8 @@
   embeddings (T267–T271), vector storage contracts (T272), the Qdrant client
   adapter (T273), Qdrant container infrastructure/configuration (T274),
   generation collection creation/point upsert (T275), and generation
-  verification/activation (T276) are complete. T277–T278 remain unauthorized.
+  verification/activation (T276), and generation information/explicit deletion
+  (T277) are complete. T278 remains unauthorized.
 - T272 — Vector storage contracts and application error taxonomy — complete
   (2aed1a8eaa6a98f207feacce7599f7a7e781f461).
 - T273 — Qdrant client adapter and exception normalization — complete
@@ -27,10 +28,16 @@
   implementation at `b86e895`
   (`feat(rag): verify and activate vector generations`) and base
   `92444a9c3a05fec79b9603df53666afd102f042f`.
+- T277 — Generation information and explicit deletion — complete and verified
+  at `7c7f855` (`fix(rag): preserve generation management error causes`) on
+  `feature/t277-generation-info-deletion`, after the prepared implementation at
+  `0c0d7716b7b68a46687b7334b91e81519a23a2c0`
+  (`style(test): wrap invalid metadata assertion`) and base
+  `1a5f431860b11c5419a9a1bb9ced88ac57cecc9e` (master).
 - The Vector Storage specification (specs/rag/knowledge-vector-storage.md)
   and task breakdown (specs/rag/knowledge-vector-storage-tasks.md) were
-  approved on 2026-11-03. T274, T275, and T276 were closed after verification.
-  T277–T278 remain unauthorized.
+  approved on 2026-11-03. T274, T275, T276, and T277 were closed after
+  verification. T278 remains unauthorized.
 - Embedding/tokenizer decision approved (2026-10-23) at
   specs/rag/embedding-tokenizer-decision.md; pinned tokenizer identity:
   tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
@@ -40,11 +47,124 @@
 
 ## Active Implementation Handoff
 
-- None. T276 was verified and closed on 2026-11-08. No implementation task is
-  active or authorized. T277–T278 remain unauthorized; do not start T277 and do
-  not merge.
+- None. T277 was verified and closed on 2026-11-09. No implementation task is
+  active or authorized. T278 remains unauthorized; do not start T278 and do not
+  merge.
 
 ## Last Completed Task
+- Task: T277 — Generation information and explicit deletion
+- Prepared implementation commit:
+  `0c0d7716b7b68a46687b7334b91e81519a23a2c0`
+  (`style(test): wrap invalid metadata assertion`) on
+  `feature/t277-generation-info-deletion`, against base
+  `1a5f431860b11c5419a9a1bb9ced88ac57cecc9e` (master). Verification found and
+  fixed one in-scope cause-chain defect at
+  `7c7f85550b7a5ec7dbb446c72a4d1c5e8217d7dc`
+  (`fix(rag): preserve generation management error causes`). Finalization is this
+  documentation-only closure commit; its SHA is recorded in Git history.
+- Scope delivered: `src/app/rag/vector_storage/qdrant_adapter.py` now implements
+  `get_generation_info`, which loads the derived generation collection through
+  the normalized retry boundary, requires one unnamed dense vector
+  configuration, reads the actual vector dimension and distance, requires an
+  exact `count(exact=True)` non-negative point count, reads the current
+  `knowledge_vectors_active` alias target, and constructs the immutable
+  `GenerationInfo` only from actual Qdrant metadata. Missing collections
+  normalize to `VECTOR_GENERATION_NOT_FOUND`. The adapter also implements
+  `delete_generation`, which derives the collection name, resolves existence
+  independently, rejects deletion when the collection is the current active
+  alias target, re-reads alias state immediately before deletion, requires an
+  explicit `True` deletion confirmation, never mutates the active alias, performs
+  no automatic cleanup, and constructs the immutable `GenerationDeletionResult`
+  only after confirmed deletion. Missing collections raise
+  `VECTOR_GENERATION_NOT_FOUND`; active-generation deletion raises
+  `VECTOR_GENERATION_ACTIVE_DELETE_REJECTED`; operational failures use the
+  normalized storage taxonomy. New
+  `tests/rag/vector_storage/test_generation_management.py` covers active and
+  inactive info, exact counts, missing collections, invalid metadata, missing
+  and active deletion rejection, inactive deletion, unconfirmed deletion,
+  operational and existence-check failures, and the pre-deletion alias recheck;
+  `tests/rag/vector_storage/test_qdrant_adapter.py` now guards the authorized
+  T277 methods. No composition wiring, retrieval behavior, endpoint,
+  configuration, Docker, or application startup changes were added.
+- Verification (2026-11-09; image `ai-customer-support-t277:local`, ID
+  `sha256:87947c9c54fd7f30a6abdfa8d41e4e5518c9b1165a075cafa711e8f12a8ea1ce`;
+  Qdrant image `ai-customer-support-qdrant:v1.20.0`, ID
+  `sha256:a13177399a78a20dd70fa38c8b2614a4c202dcf95b29ac67065f4fe02479262e`;
+  no repository bind mount in image verification runs):
+  - Scope review: `git diff 1a5f4318 0c0d771` was limited to
+    `src/app/rag/vector_storage/qdrant_adapter.py`,
+    `tests/rag/vector_storage/test_generation_management.py`,
+    `tests/rag/vector_storage/test_qdrant_adapter.py`, the two authorized
+    specification files, and `specs/project-state.md`. The verification fix
+    touched only the adapter and the new management test file. No unrelated
+    files, secrets, configuration, startup, or composition changes.
+  - Pinned API confirmation inside the image: `qdrant-client` 1.20.0.
+    `QdrantClient.delete_collection(...) -> bool`;
+    `QdrantClient.get_collection(...) -> CollectionInfo`;
+    `QdrantClient.count(..., exact=True) -> CountResult`;
+    `QdrantClient.get_aliases(...) -> CollectionsAliasesResponse`; and
+    `models.Distance.COSINE` reports the application string `Cosine`. This
+    matches the adapter's confirmation, metadata, count, and alias logic.
+  - Build: `docker build -t ai-customer-support-t277:local .` → exit 0.
+  - Defect found and fixed: the new T277 error paths re-raised an
+    already-normalized `VectorStoreError` with `from exc`, which made
+    `__cause__` self-referential and destroyed the original cause chain. The
+    adapter now re-raises already-normalized storage errors unchanged and
+    normalizes only raw SDK/transport exceptions; focused cause-chain assertions
+    and an existence-check failure test were added. No approved contract or
+    scope changed.
+  - Focused offline suite: `docker run --rm --network none
+    ai-customer-support-t277:local python -m pytest tests/rag/vector_storage -q`
+    → 190 passed, exit 0.
+  - Docker Compose runtime: `docker compose config` → exit 0;
+    `docker compose up -d postgres qdrant` → exit 0; PostgreSQL and Qdrant both
+    reported `healthy`. Qdrant `/readyz` returned HTTP 200
+    (`all shards are ready`) and `/healthz` returned HTTP 200
+    (`healthz check passed`); the container healthcheck reported `healthy`.
+  - Live Qdrant lifecycle integration (in-image, Compose network, real
+    Qdrant v1.20.0): create generation A → 3-point upsert → verify (3/3, 768,
+    Cosine); info before activation returned `is_active=False`, `point_count=3`,
+    `vector_size=768`, `distance="Cosine"`; first activation returned
+    `previous_generation_id=None`; info after activation returned
+    `is_active=True`; create generation B → 1-point upsert → verify; info for B
+    returned `is_active=False`; inactive deletion of B returned a confirmed
+    immutable result; subsequent info for B raised
+    `VECTOR_GENERATION_NOT_FOUND`; generation A remained active with 3 points;
+    deleting active generation A raised
+    `VECTOR_GENERATION_ACTIVE_DELETE_REJECTED` and left the alias unchanged; and
+    deleting a missing generation raised `VECTOR_GENERATION_NOT_FOUND`. All
+    checks passed, exit 0. Test generation IDs:
+    `45e01a8c80685f0910a0656a9a8673a0287a4f6c1a1b0de29b66e0880f0e378f` (A)
+    and `4b5ed3c1b22ca3f31bf8aae3d4fbcdea8ef5f4462b3f874af9f634563d8bb002`
+    (B); both were removed during script cleanup.
+  - Full regression: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    ai-customer-support-t277:local python -m pytest tests -q` → 1005 passed,
+    7 skipped, exit 0. The skips are the 4 unchanged environment-conditional
+    ingestion permission fixtures plus the 3 opt-in live embedding conformance
+    tests.
+  - Startup/network boundary: an in-image `TestClient` run with `--network
+    none`, `--env-file .env`, and `socket.socket.connect`,
+    `socket.create_connection`, and `QdrantClient.__init__` replaced by failing
+    stubs → application startup completed; `/health` returned HTTP 200
+    `{"status": "ok"}`; `chunking_service` and `embedding_service` were present
+    and no `vector_store` was constructed. No Qdrant network I/O occurred.
+  - Negative requirements: the lifecycle guard asserts `get_generation_info` and
+    `delete_generation` exist while `search` remains absent; missing generation
+    info/deletion raises `VECTOR_GENERATION_NOT_FOUND`; active-generation
+    deletion raises `VECTOR_GENERATION_ACTIVE_DELETE_REJECTED` before any delete
+    call; inactive deletion returns a result only after explicit `True`
+    confirmation; alias state is re-read immediately before deletion; deletion
+    never mutates the active alias; no automatic cleanup is introduced; and
+    normalized failure causes remain chained without exposing SDK types.
+  - Boundary scan: only `src/app/rag/vector_storage/qdrant_adapter.py` imports
+    `qdrant_client` under `src/`; public adapter signatures return
+    application-owned DTOs. `git diff --check` → clean, exit 0.
+- Outcome: T277 acceptance criteria in the task breakdown and §5, §6.2, §7.1
+  (get/delete), §9, and §11 are met. T277 is closed. T278 remains unauthorized;
+  no next task was started and no merge was performed.
+
+## Previously Completed Task — T276
 - Task: T276 — Generation verification and activation lifecycle
 - Prepared implementation commit:
   `b86e89542f73a6f6d9dd99c0ca98dfa308940296`
@@ -156,8 +276,9 @@
     `qdrant_client` under `src/`; public adapter signatures return
     application-owned DTOs. `git diff --check` → clean, exit 0.
 - Outcome: T276 acceptance criteria in §5.2–§5.4, §6.1, §7.1 (verify/activate),
-  §9, §11, and the T276 task breakdown are met. T276 is closed. T277–T278
-  remain unauthorized; no next task was started and no merge was performed.
+  §9, §11, and the T276 task breakdown are met. T276 is closed. T277 was
+  subsequently implemented, verified, and closed as recorded above; T278
+  remains unauthorized; no next task was started and no merge was performed.
 
 ## Previously Completed Task — T275
 - Task: T275 — Generation collection creation and point upsert
@@ -224,9 +345,9 @@
     application-owned DTOs. `git diff --check` → clean, exit 0.
   - No defect was found during verification; no implementation code changed.
 - Outcome: T275 acceptance criteria in §5.2–§5.4, §7.1 (create/upsert), §8,
-  §9, and the T275 task breakdown are met. T275 is closed. T276 was
-  subsequently implemented, verified, and closed as recorded above; T277–T278
-  remain unauthorized.
+  §9, and the T275 task breakdown are met. T275 is closed. T276 and T277 were
+  subsequently implemented, verified, and closed as recorded above; T278
+  remains unauthorized.
 
 ## Previously Completed Task — T274
 - Commit: `615caa8a2833f8dd34fe86cc51c989117cf0c9db`
@@ -301,9 +422,9 @@
   breakdown are met. The pinned custom Qdrant runtime, readiness healthcheck,
   Compose `service_healthy` dependency, optional API-key setting, and
   configuration tests are present; FastAPI startup remains free of Qdrant
-  network I/O and `/health` remains independent. T274 is closed. T275 and T276
-  were subsequently implemented, verified, and closed as recorded above;
-  T277–T278 remain unauthorized.
+  network I/O and `/health` remains independent. T274 is closed. T275, T276,
+  and T277 were subsequently implemented, verified, and closed as recorded
+  above; T278 remains unauthorized.
 
 ## Previously Completed Task — T273
 - Task: T273 — Qdrant client adapter and exception normalization
@@ -963,28 +1084,48 @@
 - Phase 3 is closed. No open Phase 3 acceptance items.
 
 ## Current Task
-- No implementation task is in progress. T276 — Generation verification and
-  activation lifecycle — is complete and verified on
-  `feature/t276-generation-verification-activation` at
-  `b898f65a0e2e5ac538ddcf0bd9ee54c45f573004` (`test(rag): fix alias operation
-  test double`), following the prepared implementation commit
-  `b86e89542f73a6f6d9dd99c0ca98dfa308940296` and base master
-  `92444a9c3a05fec79b9603df53666afd102f042f`.
-- T276 delivered generation verification against collection schema, distance,
-  and exact point count, plus atomic active-alias activation with re-verification,
-  lost-response reconciliation, and previous-generation retention. Focused
-  vector-storage tests: 178 passed; live Qdrant lifecycle integration passed;
-  full regression: 993 passed, 7 skipped.
-- T276 is closed. T277–T278 remain unauthorized and must not be started early;
-  the T276 branch was not merged.
+- No implementation task is in progress. T277 — Generation information and
+  explicit deletion — is complete and verified on
+  `feature/t277-generation-info-deletion` at
+  `7c7f85550b7a5ec7dbb446c72a4d1c5e8217d7dc`
+  (`fix(rag): preserve generation management error causes`), following the
+  prepared implementation commit
+  `0c0d7716b7b68a46687b7334b91e81519a23a2c0` and base master
+  `1a5f431860b11c5419a9a1bb9ced88ac57cecc9e`.
+- T277 delivered actual collection metadata inspection with exact point counts
+  and active-alias membership, plus explicit inactive-generation deletion with
+  existence and active-alias guards. Focused vector-storage tests: 190 passed;
+  live Qdrant lifecycle integration passed; full regression: 1005 passed,
+  7 skipped.
+- T277 is closed. T278 remains unauthorized and must not be started early; the
+  T277 branch was not merged.
 
 ## Task Ordering
-1. T277–T278 remain unauthorized and must not be started early.
+1. T277 — Generation information and explicit deletion (complete and verified).
+2. T278 — Vector storage composition and integration verification (unauthorized).
 
 Each task requires its own authorized session and must follow its approved
 specification and acceptance criteria.
 
 ## Verified Findings
+- T277 verification (2026-11-09; commit
+  `7c7f85550b7a5ec7dbb446c72a4d1c5e8217d7dc`, prepared implementation
+  `0c0d7716b7b68a46687b7334b91e81519a23a2c0`, base
+  `1a5f431860b11c5419a9a1bb9ced88ac57cecc9e`):
+  `QdrantClientAdapter.get_generation_info` reads the derived collection,
+  requires one unnamed dense vector configuration, returns the actual vector
+  dimension and distance, uses an exact point count, and reports `is_active`
+  only when the collection is the current `knowledge_vectors_active` target;
+  missing collections raise `VECTOR_GENERATION_NOT_FOUND`. `delete_generation`
+  derives the collection name, verifies existence, rejects the active alias
+  target, re-reads alias state immediately before deletion, requires an explicit
+  `True` confirmation, never mutates the alias or performs automatic cleanup,
+  and returns the immutable confirmed result only after deletion; missing
+  collections raise `VECTOR_GENERATION_NOT_FOUND` and active deletion raises
+  `VECTOR_GENERATION_ACTIVE_DELETE_REJECTED`. One in-scope cause-chain defect
+  was fixed in `7c7f855`; focused tests 190 passed, live Qdrant lifecycle
+  integration passed, full regression 1005 passed with 7 skips, and the startup
+  boundary remained free of Qdrant network I/O.
 - T276 verification (2026-11-08; commit
   `b898f65a0e2e5ac538ddcf0bd9ee54c45f573004`, prepared implementation
   `b86e89542f73a6f6d9dd99c0ca98dfa308940296`, base
@@ -1353,8 +1494,8 @@ specification and acceptance criteria.
   closed verification-only, T265 packaged and verified the asset in the image,
   T266 production-wired the chunking composition root, T270 completed live
   Ollama conformance, and T271 production-wired the embedding composition root.
-  The Vector Storage specification and task breakdown are approved. T272–T276
-  are complete; T277–T278 remain unauthorized.
+  The Vector Storage specification and task breakdown are approved. T272–T277
+  are complete; T278 remains unauthorized.
 - Embeddings specification: `specs/rag/knowledge-document-embeddings.md` is
   approved at Revision 2 (2026-10-24) and its implementation sequence T267–T271
   is complete. Decisions D-1 through D-6 are resolved as recorded in the
@@ -1377,8 +1518,9 @@ specification and acceptance criteria.
   35e869b. The canonical `app` import root is used throughout, `uvicorn
   app.main:app` is the runtime entry point, and the composed service is exposed
   through `app.state`.
-- Vector Storage specification and task breakdown are approved. T272–T276 are
-  complete; T277–T278 remain unauthorized. Retrieval, metadata filtering behavior,
+- Vector Storage specification and task breakdown are approved. T272–T277 are
+  complete; T278 remains unauthorized.
+  Retrieval, metadata filtering behavior,
   context construction, source attribution, evaluation, and RAG failure
   handling outside storage remain separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
