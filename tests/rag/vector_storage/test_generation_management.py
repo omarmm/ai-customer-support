@@ -145,7 +145,9 @@ def test_get_generation_info_maps_missing_collection_to_not_found():
     client = FakeQdrantClient(collections={})
 
     with pytest.raises(VectorGenerationNotFound) as caught:
-        make_adapter(client).get_generation_info(GetGenerationInfoRequest(GENERATION_ID))
+        make_adapter(client).get_generation_info(
+            GetGenerationInfoRequest(GENERATION_ID)
+        )
 
     assert caught.value.code == "VECTOR_GENERATION_NOT_FOUND"
 
@@ -191,7 +193,9 @@ def test_delete_generation_deletes_only_the_requested_inactive_collection():
         collections={COLLECTION: collection(), OTHER_COLLECTION: collection()},
     )
 
-    result = make_adapter(client).delete_generation(DeleteGenerationRequest(GENERATION_ID))
+    result = make_adapter(client).delete_generation(
+        DeleteGenerationRequest(GENERATION_ID)
+    )
 
     assert result.generation_id == GENERATION_ID
     assert result.collection_name == COLLECTION
