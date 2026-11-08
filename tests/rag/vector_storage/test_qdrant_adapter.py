@@ -205,10 +205,12 @@ def test_adapter_implements_only_the_authorized_generation_lifecycle_operations(
         "upsert_points",
         "verify_generation",
         "activate_generation",
+        "get_generation_info",
+        "delete_generation",
     ):
         assert hasattr(QdrantClientAdapter, name)
 
-    for name in ("get_generation_info", "delete_generation"):
+    for name in ("search",):
         assert not hasattr(QdrantClientAdapter, name)
 
 
