@@ -6,7 +6,8 @@
   embeddings (T267–T271), vector storage contracts (T272), the Qdrant client
   adapter (T273), Qdrant container infrastructure/configuration (T274),
   generation collection creation/point upsert (T275), and generation
-  verification/activation (T276) are complete. T277 is authorized and in progress; T278 remains unauthorized.
+  verification/activation (T276) are complete. T277 is authorized and in
+  progress; T278 remains unauthorized.
 - T272 — Vector storage contracts and application error taxonomy — complete
   (2aed1a8eaa6a98f207feacce7599f7a7e781f461).
 - T273 — Qdrant client adapter and exception normalization — complete
@@ -1358,7 +1359,7 @@ specification and acceptance criteria.
   T266 production-wired the chunking composition root, T270 completed live
   Ollama conformance, and T271 production-wired the embedding composition root.
   The Vector Storage specification and task breakdown are approved. T272–T276
-  are complete; T277–T278 remain unauthorized.
+  are complete; T277 is authorized and in progress; T278 remains unauthorized.
 - Embeddings specification: `specs/rag/knowledge-document-embeddings.md` is
   approved at Revision 2 (2026-10-24) and its implementation sequence T267–T271
   is complete. Decisions D-1 through D-6 are resolved as recorded in the
@@ -1382,7 +1383,8 @@ specification and acceptance criteria.
   app.main:app` is the runtime entry point, and the composed service is exposed
   through `app.state`.
 - Vector Storage specification and task breakdown are approved. T272–T276 are
-  complete; T277–T278 remain unauthorized. Retrieval, metadata filtering behavior,
+  complete; T277 is authorized and in progress; T278 remains unauthorized.
+  Retrieval, metadata filtering behavior,
   context construction, source attribution, evaluation, and RAG failure
   handling outside storage remain separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
