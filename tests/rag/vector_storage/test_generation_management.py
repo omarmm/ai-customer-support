@@ -157,10 +157,12 @@ def test_get_generation_info_maps_missing_collection_to_not_found():
 def test_get_generation_info_normalizes_exact_count_failure():
     client = FakeQdrantClient(count_error=httpx.ConnectError("offline"))
 
-    with pytest.raises(VectorStoreUnavailable):
+    with pytest.raises(VectorStoreUnavailable) as caught:
         make_adapter(client).get_generation_info(
             GetGenerationInfoRequest(GENERATION_ID)
         )
+
+    assert isinstance(caught.value.__cause__, httpx.ConnectError)
 
 
 def test_get_generation_info_rejects_invalid_qdrant_metadata():
@@ -228,12 +230,28 @@ def test_delete_generation_normalizes_operational_failure_and_preserves_alias():
         delete_error=httpx.ConnectError("offline"),
     )
 
-    with pytest.raises(VectorStoreUnavailable):
+    with pytest.raises(VectorStoreUnavailable) as caught:
         make_adapter(client).delete_generation(DeleteGenerationRequest(GENERATION_ID))
 
+    assert isinstance(caught.value.__cause__, httpx.ConnectError)
     assert client.aliases == {ACTIVE_GENERATION_ALIAS: OTHER_COLLECTION}
     assert COLLECTION in client.collections
     assert client.delete_calls == [COLLECTION]
+
+
+def test_delete_generation_normalizes_existence_check_failure():
+    client = FakeQdrantClient()
+
+    def failing_get_collection(*, collection_name):
+        raise httpx.ConnectError("offline")
+
+    client.get_collection = failing_get_collection
+
+    with pytest.raises(VectorStoreUnavailable) as caught:
+        make_adapter(client).delete_generation(DeleteGenerationRequest(GENERATION_ID))
+
+    assert isinstance(caught.value.__cause__, httpx.ConnectError)
+    assert client.delete_calls == []
 
 
 

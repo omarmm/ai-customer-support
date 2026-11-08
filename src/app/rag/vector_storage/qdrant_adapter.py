@@ -632,6 +632,8 @@ class QdrantClientAdapter:
                 raise VectorGenerationNotFound(
                     "vector generation does not exist"
                 ) from exc
+            if isinstance(exc, VectorStoreError):
+                raise
             raise normalize_qdrant_error(exc) from exc
 
         try:
@@ -675,6 +677,8 @@ class QdrantClientAdapter:
                 is_active=is_active,
             )
         except Exception as exc:
+            if isinstance(exc, VectorStoreError):
+                raise
             raise normalize_qdrant_error(exc) from exc
 
     def delete_generation(
@@ -697,6 +701,8 @@ class QdrantClientAdapter:
                 raise VectorGenerationNotFound(
                     "vector generation does not exist"
                 ) from exc
+            if isinstance(exc, VectorStoreError):
+                raise
             raise normalize_qdrant_error(exc) from exc
 
         try:
@@ -733,6 +739,8 @@ class QdrantClientAdapter:
                 raise VectorGenerationNotFound(
                     "vector generation does not exist"
                 ) from exc
+            if isinstance(exc, VectorStoreError):
+                raise
             raise normalize_qdrant_error(exc) from exc
 
         return GenerationDeletionResult(
