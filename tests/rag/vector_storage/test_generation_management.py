@@ -60,7 +60,9 @@ class FakeQdrantClient:
         aliases_error=None,
         activate_on_alias_read=None,
     ):
-        self.collections = dict(collections or {COLLECTION: collection()})
+        self.collections = dict(
+            {COLLECTION: collection()} if collections is None else collections
+        )
         self.aliases = dict(aliases or {})
         self.exact_count = exact_count
         self.delete_result = delete_result
