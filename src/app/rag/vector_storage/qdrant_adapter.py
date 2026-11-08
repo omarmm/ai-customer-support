@@ -6,8 +6,8 @@ every failure is translated into the application-owned taxonomy defined in
 ``app.rag.vector_storage.exceptions``.
 
 This module implements client construction, bounded retries, generation
-collection creation, ordered point upserts, generation verification, and
-atomic active-alias activation. Later tasks own generation inspection and
+collection creation, ordered point upserts, generation verification, atomic
+active-alias activation, generation inspection, and explicit inactive-generation
 deletion.
 """
 
@@ -31,6 +31,10 @@ from app.rag.vector_storage.contracts import (
     ActivateGenerationRequest,
     CreateGenerationRequest,
     GenerationActivationResult,
+    GenerationDeletionResult,
+    GenerationInfo,
+    GetGenerationInfoRequest,
+    DeleteGenerationRequest,
     GenerationVerificationResult,
     UpsertPointsRequest,
     UpsertPointsResult,
@@ -39,6 +43,8 @@ from app.rag.vector_storage.contracts import (
 from app.rag.vector_storage.exceptions import (
     VectorGenerationActivationFailed,
     VectorGenerationBuildFailed,
+    VectorGenerationNotFound,
+    VectorGenerationActiveDeleteRejected,
     VectorStoreConfigurationError,
     VectorStoreError,
     VectorStoreInvalidData,
@@ -229,6 +235,38 @@ _PAYLOAD_INDEXES = (
     ("embedding_config_id", models.PayloadSchemaType.KEYWORD),
     ("chunk_index", models.PayloadSchemaType.INTEGER),
 )
+
+
+def _is_collection_not_found(exc: BaseException) -> bool:
+    """Return whether a normalized/raw Qdrant error represents HTTP 404."""
+
+    pending: list[BaseException] = [exc]
+    visited: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if id(current) in visited:
+            continue
+        visited.add(id(current))
+        if isinstance(current, UnexpectedResponse) and current.status_code == 404:
+            return True
+        source = getattr(current, "source", None)
+        cause = getattr(current, "cause", None)
+        chained = getattr(current, "__cause__", None)
+        for candidate in (source, cause, chained):
+            if isinstance(candidate, BaseException):
+                pending.append(candidate)
+    return False
+
+
+def _distance_name(distance: Any) -> str:
+    """Translate the Qdrant distance enum into an application-owned string."""
+
+    value = getattr(distance, "value", None)
+    if isinstance(value, str):
+        return value
+    if isinstance(distance, str):
+        return distance
+    raise ValueError("Qdrant returned an invalid vector distance")
 
 
 class QdrantClientAdapter:
@@ -575,6 +613,134 @@ class QdrantClientAdapter:
             raise VectorGenerationActivationFailed(
                 "unable to activate the verified vector generation", cause=cause
             ) from cause
+
+
+    def get_generation_info(
+        self, request: GetGenerationInfoRequest
+    ) -> GenerationInfo:
+        """Return actual collection metadata and active-alias membership."""
+
+        if not isinstance(request, GetGenerationInfoRequest):
+            raise TypeError("request must be a GetGenerationInfoRequest")
+
+        collection_name = f"knowledge_vectors_g_{request.generation_id}"
+        try:
+            collection = self._execute(
+                lambda client: client.get_collection(collection_name=collection_name)
+            )
+        except Exception as exc:
+            if _is_collection_not_found(exc):
+                raise VectorGenerationNotFound(
+                    "vector generation does not exist"
+                ) from exc
+            raise normalize_qdrant_error(exc) from exc
+
+        try:
+            params = getattr(getattr(collection, "config", None), "params", None)
+            vectors = getattr(params, "vectors", None)
+            if not isinstance(vectors, models.VectorParams):
+                raise ValueError("generation does not have one unnamed dense vector")
+            vector_size = getattr(vectors, "size", None)
+            if (
+                isinstance(vector_size, bool)
+                or not isinstance(vector_size, int)
+                or vector_size <= 0
+            ):
+                raise ValueError("Qdrant returned an invalid vector dimension")
+            distance = _distance_name(getattr(vectors, "distance", None))
+
+            count_result = self._execute(
+                lambda client: client.count(
+                    collection_name=collection_name,
+                    exact=True,
+                )
+            )
+            point_count = getattr(count_result, "count", None)
+            if (
+                isinstance(point_count, bool)
+                or not isinstance(point_count, int)
+                or point_count < 0
+            ):
+                raise ValueError("Qdrant returned an invalid exact point count")
+
+            aliases_response = self._execute(lambda client: client.get_aliases())
+            alias_targets = self._alias_targets(aliases_response)
+            is_active = alias_targets.get(ACTIVE_GENERATION_ALIAS) == collection_name
+
+            return GenerationInfo(
+                generation_id=request.generation_id,
+                collection_name=collection_name,
+                point_count=point_count,
+                vector_size=vector_size,
+                distance=distance,
+                is_active=is_active,
+            )
+        except Exception as exc:
+            raise normalize_qdrant_error(exc) from exc
+
+    def delete_generation(
+        self, request: DeleteGenerationRequest
+    ) -> GenerationDeletionResult:
+        """Delete one explicitly requested generation only when it is inactive."""
+
+        if not isinstance(request, DeleteGenerationRequest):
+            raise TypeError("request must be a DeleteGenerationRequest")
+
+        collection_name = f"knowledge_vectors_g_{request.generation_id}"
+        try:
+            # Resolve existence independently so a missing collection has the
+            # stable generation-not-found contract rather than a generic 404.
+            self._execute(
+                lambda client: client.get_collection(collection_name=collection_name)
+            )
+        except Exception as exc:
+            if _is_collection_not_found(exc):
+                raise VectorGenerationNotFound(
+                    "vector generation does not exist"
+                ) from exc
+            raise normalize_qdrant_error(exc) from exc
+
+        try:
+            aliases_response = self._execute(lambda client: client.get_aliases())
+            alias_targets = self._alias_targets(aliases_response)
+            if alias_targets.get(ACTIVE_GENERATION_ALIAS) == collection_name:
+                raise VectorGenerationActiveDeleteRejected(
+                    "the active vector generation cannot be deleted"
+                )
+
+            # Re-read alias state immediately before deletion to minimize the
+            # window in which a concurrent activation could make this target
+            # active. Qdrant does not provide a conditional delete primitive.
+            latest_aliases = self._execute(lambda client: client.get_aliases())
+            latest_targets = self._alias_targets(latest_aliases)
+            if latest_targets.get(ACTIVE_GENERATION_ALIAS) == collection_name:
+                raise VectorGenerationActiveDeleteRejected(
+                    "the active vector generation cannot be deleted"
+                )
+
+            confirmed = self._execute(
+                lambda client: client.delete_collection(
+                    collection_name=collection_name
+                )
+            )
+            if confirmed is not True:
+                raise VectorStoreServiceError(
+                    "Qdrant did not confirm generation deletion"
+                )
+        except (VectorGenerationActiveDeleteRejected, VectorGenerationNotFound):
+            raise
+        except Exception as exc:
+            if _is_collection_not_found(exc):
+                raise VectorGenerationNotFound(
+                    "vector generation does not exist"
+                ) from exc
+            raise normalize_qdrant_error(exc) from exc
+
+        return GenerationDeletionResult(
+            generation_id=request.generation_id,
+            collection_name=collection_name,
+            deleted=True,
+        )
 
     def close(self) -> None:
         try:
