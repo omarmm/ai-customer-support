@@ -125,7 +125,7 @@ RetrievalService
 
 The RetrievalService must not import Qdrant SDK types, HTTPX, FastAPI, database models, or provider-specific embedding adapters. It depends on the application-owned `EmbeddingService` and `VectorStore` contracts. The Qdrant adapter remains the only production module that translates Qdrant SDK request/response models.
 
-The exact query-embedding composition and lifecycle wiring must be decided before implementation. In particular, no new network I/O may be introduced during FastAPI startup; query embedding and Qdrant search occur only when a retrieval operation is invoked.
+The query-embedding composition and lifecycle wiring must reuse the application-owned `EmbeddingService`. No new network I/O may be introduced during FastAPI startup; query embedding and Qdrant search occur only when a retrieval operation is invoked. In particular, no new network I/O may be introduced during FastAPI startup; query embedding and Qdrant search occur only when a retrieval operation is invoked.
 
 ## 6. Query Contract
 
@@ -155,9 +155,9 @@ Whitespace policy, maximum query length, default/max result limit, and score-thr
 
 The query embedding must:
 
-- Use the approved provider/model identity `ollama:nomic-embed-text:v1.5`.
-- Prefix the input with exactly `search_query: `.
-- Use the same effective `EmbeddingConfig` identity and dimension as document embeddings.
+- Be produced by the typed `EmbeddingService.embed_query(query)` operation.
+- Use the query-specific prefix and provider/model configuration encapsulated by `EmbeddingService` (current V1: `search_query: ` and `ollama:nomic-embed-text:v1.5`).
+- Resolve to an embedding space explicitly compatible with the document embeddings in the active generation. Compatibility must not be inferred from vector dimension alone.
 - Return exactly one vector containing 768 finite numeric values.
 - Preserve provider-returned values; no normalization, truncation, padding, or dimension coercion is allowed.
 - Use the existing bounded retry and timeout semantics where the approved query-embedding design permits reuse.
@@ -343,7 +343,7 @@ Approval may accept, reject, or amend each recommendation. Any unresolved decisi
 Tests are to be designed after the decisions in §14 are approved. At minimum, the approved test plan must cover:
 
 1. Query validation, whitespace behavior, maximum length, and invalid limits.
-2. Query prefix applied exactly once and query embedding uses the pinned model/config identity.
+2. Query prefix applied exactly once through `EmbeddingService`; query/document vectors use an explicitly compatible embedding-space identity and the pinned V1 configuration.
 3. Query embedding returns one finite 768-dimensional vector; malformed provider output prevents storage search.
 4. Query embedding failures preserve normalized error semantics and do not trigger a second search.
 5. Retrieval uses only `knowledge_vectors_active`; callers cannot choose a collection or alias.
