@@ -136,7 +136,7 @@ Proposed logical input fields:
 | Field | Meaning | Status |
 | --- | --- | --- |
 | `query` | Original natural-language query | Required |
-| `limit` | Maximum number of returned chunks | Proposed; default and maximum require approval |
+| `limit` | Maximum number of returned chunks | Approved by R-3: default 5, range 1–20; no pagination in V1 |
 | `filters` | Optional allowlisted metadata filters | Proposed; exact shape and semantics require approval |
 | `score_threshold` | Optional minimum similarity score | Proposed; enablement and default require approval |
 
@@ -149,7 +149,7 @@ Validation requirements to approve:
 - Limit and filter cardinality must be bounded to prevent unbounded work.
 - Query text and filter values are untrusted input and must never be interpolated into executable expressions.
 
-Whitespace policy, maximum query length, default/max result limit, and score-threshold semantics remain approval decisions (§14).
+Whitespace policy, maximum query length, and score-threshold semantics remain approval decisions (§14). Result-limit semantics are approved by R-3.
 
 ## 7. Query Embedding Contract
 
@@ -325,7 +325,7 @@ The following decisions are intentionally unresolved. Recommendations are propos
 | --- | --- | --- | --- |
 | R-1 | Query embedding ownership | **Approved:** Add typed `EmbeddingService.embed_query(query)` alongside `embed_chunks()`. The EmbeddingService owns provider/model identity, operation-specific prefixes, configuration identity, validation, timeout, and retry behavior. Query/document vectors must share an explicitly compatible embedding-space identity; equal dimensions alone are insufficient. | Keeps embedding concerns behind one boundary and prevents Retrieval from coupling to a provider/model or comparing incompatible vector spaces. |
 | R-2 | V1 retrieval mode | **Approved:** Dense semantic search only, using the existing dense 768-dimensional Cosine vector through `knowledge_vectors_active`. Sparse and hybrid search are excluded from V1; any future hybrid capability requires a separate Vector Storage specification amendment, generation rebuild plan, and comparative evaluation. | Establishes a measurable dense baseline without expanding the approved storage schema; hybrid can be considered only with evidence and an explicit storage change. |
-| R-3 | Result limits | Default top_k = 5; maximum top_k = 20. | Bounds Qdrant work and downstream context size; must be aligned with later Context Construction. |
+| R-3 | Result limits | **Approved:** `limit` defaults to 5 and has a maximum of 20. Values below 1 or above 20 are rejected before any Qdrant call. Retrieval V1 does not support pagination. | Bounds Qdrant work and downstream context size while keeping the request contract explicit; evaluation may inform a future revision.
 | R-4 | Score threshold | No default threshold in V1; optionally leave the field out until evaluation. | Similarity scores are not calibrated relevance probabilities; threshold needs evaluation evidence. |
 | R-5 | Metadata filters | Exact-match allowlist on document_id, source_path, format, chunking_config_id, embedding_config_id; AND across fields and OR within values. | Defines a safe, indexed, bounded contract without inventing range semantics. |
 | R-6 | chunk_index filtering | Exclude from V1 filters. | No current business requirement; integer range semantics add surface area. |
@@ -365,10 +365,10 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 
 This specification is ready for approval only when:
 
-- All decisions in §14 have explicit owner outcomes.
+- All decisions in §14 have explicit owner outcomes; R-1, R-2, and R-3 are approved.
 - R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
 - The typed search request/result contracts are precise and compatible with the existing VectorStore boundary.
-- Active-alias, filter, limit, score, payload, and error semantics are unambiguous.
+- Active-alias, filter, limit (default 5, maximum 20, no pagination), score, payload, and error semantics are unambiguous.
 - Context Construction, Source Attribution, Evaluation, and RAG Failure Handling boundaries remain explicit.
 - Test and security requirements are accepted.
 - No implementation task is inferred from this draft.
