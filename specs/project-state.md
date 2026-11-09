@@ -1658,7 +1658,10 @@ specification and acceptance criteria.
   must be included in the Retrieval task breakdown before implementation.
   R-3 (result limits) was approved on 2026-11-09: `limit` defaults to 5, accepts
   values from 1 through 20, rejects out-of-range values before Qdrant, and does
-  not support pagination in V1. Remaining Retrieval decisions R-4 through R-12
+  not support pagination in V1. R-4 (score threshold) was approved on 2026-11-09: omit `score_threshold` from
+  the V1 request contract; apply no default or caller-supplied threshold. Return
+  the top bounded candidates by similarity and reconsider thresholding only
+  after retrieval evaluation. Remaining Retrieval decisions R-5 through R-12
   are open. Context
   construction, source attribution, evaluation, and RAG failure handling remain
   separate SDD cycles.
