@@ -55,7 +55,8 @@
 ## Active Implementation Handoff
 
 - None. T278 was verified and closed on 2026-11-09. No implementation task is
-  active or authorized. Do not start another task and do not merge.
+  active or authorized. The verified branch is ready for PR merge; do not start
+  another task until the merge is complete.
 
 ## Last Completed Task
 - Task: T278 — Vector storage composition and integration verification
