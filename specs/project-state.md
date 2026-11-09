@@ -1665,8 +1665,9 @@ specification and acceptance criteria.
   `document_id`, `source_path`, `format`, `chunking_config_id`, and
   `embedding_config_id`; AND across fields and OR within values. Unknown fields,
   unsupported operators, and empty values are rejected before Qdrant; filters
-  are applied server-side. Remaining Retrieval decisions R-6 through R-12 are
-  open. Context
+  are applied server-side. R-6 (`chunk_index` filtering) was approved on 2026-11-09: exclude exact and
+  range filters on `chunk_index` from V1 while retaining the field in returned
+  provenance. Remaining Retrieval decisions R-7 through R-12 are open. Context
   construction, source attribution, evaluation, and RAG failure handling remain
   separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
