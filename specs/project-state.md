@@ -1642,9 +1642,10 @@ specification and acceptance criteria.
   app.main:app` is the runtime entry point, and the composed service is exposed
   through `app.state`.
 - Vector Storage specification and task breakdown are approved. T272–T278 are
-  complete and closed. Retrieval, metadata filtering behavior,
-  context construction, source attribution, evaluation, and RAG failure
-  handling outside storage remain separate SDD cycles.
+  complete and closed. A draft Retrieval specification is available at
+  `specs/rag/knowledge-retrieval.md` on `docs/rag-retrieval-sdd-draft`; it is not
+  approved and authorizes no implementation. Context construction, source
+  attribution, evaluation, and RAG failure handling remain separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
