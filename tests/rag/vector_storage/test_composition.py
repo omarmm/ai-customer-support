@@ -80,10 +80,15 @@ def test_application_startup_exposes_one_vector_store_without_qdrant_io(
         return sentinel
 
     monkeypatch.setattr(composition, "build_vector_store", build)
+
     def blocked(*args, **kwargs):
         raise AssertionError("network access attempted during application startup")
 
-    monkeypatch.setattr(socket, "socket", blocked)
+    # Block outbound connections without replacing socket.socket itself:
+    # anyio's TestClient portal creates an internal AF_UNIX socketpair that
+    # never connects and must keep working.
+    monkeypatch.setattr(socket.socket, "connect", blocked)
+    monkeypatch.setattr(socket.socket, "connect_ex", blocked)
     monkeypatch.setattr(socket, "create_connection", blocked)
 
     for key, value in REQUIRED_ENV.items():
