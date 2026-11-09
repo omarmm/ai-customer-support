@@ -5,9 +5,10 @@
 - Current Phase: Phase 4 — RAG. Ingestion (T255–T259), chunking (T260–T266),
   embeddings (T267–T271), vector storage contracts (T272), the Qdrant client
   adapter (T273), Qdrant container infrastructure/configuration (T274),
-  generation collection creation/point upsert (T275), and generation
-  verification/activation (T276), and generation information/explicit deletion
-  (T277) are complete. T278 is authorized and prepared for local verification.
+  generation collection creation/point upsert (T275), generation
+  verification/activation (T276), generation information/explicit deletion
+  (T277), and vector storage composition/integration verification (T278) are
+  complete and closed.
 - T272 — Vector storage contracts and application error taxonomy — complete
   (2aed1a8eaa6a98f207feacce7599f7a7e781f461).
 - T273 — Qdrant client adapter and exception normalization — complete
@@ -34,10 +35,16 @@
   `0c0d7716b7b68a46687b7334b91e81519a23a2c0`
   (`style(test): wrap invalid metadata assertion`) and base
   `1a5f431860b11c5419a9a1bb9ced88ac57cecc9e` (master).
+- T278 — Vector storage composition and integration verification — complete and
+  verified at `e63952fad1ba2c12477e02cfa384512242b6320e`
+  (`test(rag): narrow startup network guard`) on
+  `feature/t278-vector-storage-composition`, after the prepared implementation
+  at `4bd41543dde2cc4c52299cfaa0d2b702082cae6b` and base
+  `b08225e864ad386f0a558620e9343d318caec903` (master).
 - The Vector Storage specification (specs/rag/knowledge-vector-storage.md)
   and task breakdown (specs/rag/knowledge-vector-storage-tasks.md) were
-  approved on 2026-11-03. T272–T277 were closed after verification. T278 is
-  authorized and currently awaiting owner-run verification.
+  approved on 2026-11-03. T272–T278 were closed after verification. No further
+  task is authorized or active.
 - Embedding/tokenizer decision approved (2026-10-23) at
   specs/rag/embedding-tokenizer-decision.md; pinned tokenizer identity:
   tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
@@ -47,40 +54,105 @@
 
 ## Active Implementation Handoff
 
-- **Task:** T278 — Vector storage composition and integration verification.
-- **Status:** Implementation prepared; owner verification required. Do not merge
-  or start another task until verification is complete.
-- **Approved specification:** `specs/rag/knowledge-vector-storage.md`.
-- **Approved task breakdown:** `specs/rag/knowledge-vector-storage-tasks.md`.
-- **Base ref:** `master` at
-  `b08225e864ad386f0a558620e9343d318caec903`.
-- **Implementation branch:** `feature/t278-vector-storage-composition`.
-- **Prepared commit:** `4bd41543dde2cc4c52299cfaa0d2b702082cae6b`.
-- **Scope:** Add `build_vector_store(settings)` using the approved
-  `QdrantClientConfig` and `QdrantClientAdapter`; expose one application-owned
-  instance as `app.state.vector_store` during FastAPI lifespan; preserve
-  network-free construction/startup and the existing `/health` behavior; add
-  focused composition/startup tests and an opt-in container-backed lifecycle
-  test. No endpoint, retrieval semantics, search implementation, or other
-  subsystem changes.
-- **Focused verification:** `docker compose exec api pytest tests/rag/vector_storage`.
-- **Container integration:** Start the project PostgreSQL/Qdrant Compose
-  services and run
-  `docker compose exec -e RUN_QDRANT_INTEGRATION=1 api pytest tests/rag/vector_storage/test_qdrant_integration.py`.
-  The integration test creates two uniquely named generations, exercises
-  create/upsert/verify/activate/inspect/inactive-delete, and removes its
-  temporary alias and remaining test collection in teardown.
-- **Full regression:** `docker compose exec api pytest tests`.
-- **Runtime checks:** `docker compose config`, build the API and Qdrant
-  images, start the Compose stack, verify Qdrant `/readyz`, API `/health`,
-  and clean shutdown. Confirm application startup itself does not issue a
-  Qdrant request.
-- **Final checks:** inspect the complete diff against the base, run
-  `git diff --check`, confirm no secrets or unrelated changes, record actual
-  command output and counts, then commit the verification result and update
-  this file before handoff closure.
+- None. T278 was verified and closed on 2026-11-09. No implementation task is
+  active or authorized. Do not start another task and do not merge.
 
 ## Last Completed Task
+- Task: T278 — Vector storage composition and integration verification
+- Prepared implementation commit:
+  `4bd41543dde2cc4c52299cfaa0d2b702082cae6b`
+  (`style(test): simplify startup network guard`) on
+  `feature/t278-vector-storage-composition`, against base
+  `b08225e864ad386f0a558620e9343d318caec903` (master). Verification found and
+  fixed one in-scope startup-test defect at
+  `e63952fad1ba2c12477e02cfa384512242b6320e`
+  (`test(rag): narrow startup network guard`). Finalization is this
+  documentation-only closure commit; its SHA is recorded in Git history.
+- Scope delivered: new `src/app/rag/vector_storage/composition.py` with
+  `build_vector_store(settings)`, which constructs one `QdrantClientConfig` from
+  explicit `qdrant_url`/`qdrant_api_key` settings and delegates to the approved
+  `QdrantClientAdapter.from_config`. `src/app/main.py` startup lifespan exposes
+  that single application-owned instance through `app.state.vector_store`
+  alongside the existing chunking and embedding services. New
+  `tests/rag/vector_storage/test_composition.py` covers explicit setting
+  forwarding, network-free factory construction, one-instance startup, the
+  health endpoint, and the absence of Qdrant I/O during startup; new
+  `tests/rag/vector_storage/test_qdrant_integration.py` is an opt-in
+  container-backed lifecycle test. No endpoint, retrieval semantics, search
+  implementation, configuration, Docker, or other subsystem changes were added.
+- Verification (2026-11-09; final API image `ai-customer-support-api:latest`,
+  ID `sha256:14e46b2fc061420aa741979acfd1f871f6b2cbad4f14f3e26d86523b58d044cd`;
+  Qdrant image `ai-customer-support-qdrant:v1.20.0`, ID
+  `sha256:42574bd137d89e4097ddb69965b6502ff045e7b539a4089fa0b498a04eb93be2`;
+  no repository bind mount in image-level verification runs):
+  - Scope review: `git diff b08225e8 4bd4154` was limited to
+    `src/app/main.py`, `src/app/rag/vector_storage/composition.py`,
+    `tests/rag/vector_storage/test_composition.py`,
+    `tests/rag/vector_storage/test_qdrant_integration.py`, the two authorized
+    specification files, and `specs/project-state.md`. The verification fix
+    touched only `tests/rag/vector_storage/test_composition.py`. No unrelated
+    files, secrets, endpoints, retrieval behavior, or configuration changes.
+  - `docker compose config` → exit 0; the project network, pinned Qdrant image,
+    healthcheck, and `service_healthy` dependency remain intact.
+  - Build: `docker compose build api qdrant` → exit 0. The API image was rebuilt
+    after the test fix; the Qdrant image reused its cached pinned layers.
+  - Defect found and fixed: the first focused run failed
+    `test_application_startup_exposes_one_vector_store_without_qdrant_io`
+    (1 failed, 192 passed, 1 skipped) with
+    `AssertionError: network access attempted during application startup`. The
+    test replaced the `socket.socket` class, which also intercepted anyio's
+    internal AF_UNIX `socketpair()` used to run `TestClient`; this was not
+    Qdrant I/O. The guard now patches `socket.socket.connect`,
+    `socket.socket.connect_ex`, and `socket.create_connection`, which still
+    fail on any outbound connection. No production code changed.
+  - Focused compose suite: `docker compose exec -T api pytest
+    tests/rag/vector_storage -q` → 193 passed, 1 skipped, exit 0. The skip is
+    the opt-in Qdrant integration test.
+  - Focused in-image suite without a bind mount: `docker run --rm --network none
+    ai-customer-support-api:latest python -m pytest tests/rag/vector_storage -q`
+    → 193 passed, 1 skipped, exit 0.
+  - Docker Compose runtime: `docker compose up -d` → exit 0; PostgreSQL and
+    Qdrant reported `healthy` and the API started. Qdrant `/readyz` returned
+    HTTP 200 (`all shards are ready`) and API `/health` returned HTTP 200
+    `{"status": "ok"}`. `docker compose down` → exit 0; all three containers and
+    the project network were removed.
+  - Live Qdrant lifecycle integration (real Qdrant v1.20.0): `docker compose
+    exec -T -e RUN_QDRANT_INTEGRATION=1 api pytest
+    tests/rag/vector_storage/test_qdrant_integration.py -q` → 1 passed, exit 0.
+    The same test in-image on the Compose network → 1 passed, exit 0. It created
+    two uniquely named generations, upserted a point into each, verified each,
+    activated A then B, inspected both (A inactive with 1 point, B active with
+    1 point), and deleted inactive A. Teardown removed the temporary alias and
+    the remaining collection; `/collections` and `/aliases` were both empty
+    afterward.
+  - Full regression via Compose: `docker compose exec -T api pytest tests -q`
+    → 1008 passed, 8 skipped, exit 0. Full regression in-image without a bind
+    mount on the Compose network → 1008 passed, 8 skipped, exit 0. The skips are
+    the 4 unchanged environment-conditional ingestion permission fixtures, the
+    3 opt-in live embedding conformance tests, and the opt-in Qdrant
+    integration test.
+  - Startup/network boundary: an in-image `TestClient` run with
+    `--network none`, `--env-file .env`, and `socket.socket.connect`,
+    `socket.socket.connect_ex`, and `socket.create_connection` replaced by
+    failing stubs → application startup completed; `app.state.vector_store` was
+    a `QdrantClientAdapter` whose underlying client was a `QdrantClient`; and
+    `/health` returned HTTP 200 `{"status": "ok"}`. No Qdrant request occurred.
+  - Negative requirements: startup exposes exactly one vector-store instance;
+    construction receives explicit settings and the approved adapter; the
+    factory and application startup perform no Qdrant network I/O; `/health`
+    remains a static endpoint independent of Qdrant; and no endpoint, search
+    implementation, retrieval semantics, or additional subsystem wiring was
+    introduced.
+  - Boundary scan: composition imports only application settings and the
+    application-owned adapter; Qdrant SDK types remain confined to the adapter
+    and tests. `git diff --check` → clean, exit 0.
+- Outcome: T278 acceptance criteria in the task breakdown and §7.4 are met. The
+  storage subsystem is composed once from explicit settings and exposed through
+  `app.state.vector_store`, startup remains network-free, the container-backed
+  lifecycle passes, and the full regression suite passes. T278 is closed. No
+  next task was started and no merge was performed.
+
+## Previously Completed Task — T277
 - Task: T277 — Generation information and explicit deletion
 - Prepared implementation commit:
   `0c0d7716b7b68a46687b7334b91e81519a23a2c0`
@@ -190,8 +262,9 @@
     `qdrant_client` under `src/`; public adapter signatures return
     application-owned DTOs. `git diff --check` → clean, exit 0.
 - Outcome: T277 acceptance criteria in the task breakdown and §5, §6.2, §7.1
-  (get/delete), §9, and §11 are met. T277 is closed. T278 remains unauthorized;
-  no next task was started and no merge was performed.
+  (get/delete), §9, and §11 are met. T277 is closed. T278 was subsequently
+  implemented, verified, and closed as recorded above; no next task was started
+  and no merge was performed.
 
 ## Previously Completed Task — T276
 - Task: T276 — Generation verification and activation lifecycle
@@ -305,9 +378,9 @@
     `qdrant_client` under `src/`; public adapter signatures return
     application-owned DTOs. `git diff --check` → clean, exit 0.
 - Outcome: T276 acceptance criteria in §5.2–§5.4, §6.1, §7.1 (verify/activate),
-  §9, §11, and the T276 task breakdown are met. T276 is closed. T277 was
-  subsequently implemented, verified, and closed as recorded above; T278
-  remains unauthorized; no next task was started and no merge was performed.
+  §9, §11, and the T276 task breakdown are met. T276 is closed. T277 and T278
+  were subsequently implemented, verified, and closed as recorded above; no next
+  task was started and no merge was performed.
 
 ## Previously Completed Task — T275
 - Task: T275 — Generation collection creation and point upsert
@@ -374,9 +447,8 @@
     application-owned DTOs. `git diff --check` → clean, exit 0.
   - No defect was found during verification; no implementation code changed.
 - Outcome: T275 acceptance criteria in §5.2–§5.4, §7.1 (create/upsert), §8,
-  §9, and the T275 task breakdown are met. T275 is closed. T276 and T277 were
-  subsequently implemented, verified, and closed as recorded above; T278
-  remains unauthorized.
+  §9, and the T275 task breakdown are met. T275 is closed. T276, T277, and T278
+  were subsequently implemented, verified, and closed as recorded above.
 
 ## Previously Completed Task — T274
 - Commit: `615caa8a2833f8dd34fe86cc51c989117cf0c9db`
@@ -452,8 +524,8 @@
   Compose `service_healthy` dependency, optional API-key setting, and
   configuration tests are present; FastAPI startup remains free of Qdrant
   network I/O and `/health` remains independent. T274 is closed. T275, T276,
-  and T277 were subsequently implemented, verified, and closed as recorded
-  above; T278 remains unauthorized.
+  T277, and T278 were subsequently implemented, verified, and closed as recorded
+  above.
 
 ## Previously Completed Task — T273
 - Task: T273 — Qdrant client adapter and exception normalization
@@ -1126,17 +1198,37 @@
   existence and active-alias guards. Focused vector-storage tests: 190 passed;
   live Qdrant lifecycle integration passed; full regression: 1005 passed,
   7 skipped.
-- T277 is closed. T278 remains unauthorized and must not be started early; the
-  T277 branch was not merged.
+- T277 is closed. T278 was subsequently implemented, verified, and closed as
+  recorded above; the T277 branch was not merged.
 
 ## Task Ordering
 1. T277 — Generation information and explicit deletion (complete and verified).
-2. T278 — Vector storage composition and integration verification (unauthorized).
+2. T278 — Vector storage composition and integration verification (complete and
+   verified).
 
 Each task requires its own authorized session and must follow its approved
 specification and acceptance criteria.
 
 ## Verified Findings
+- T278 verification (2026-11-09; commit
+  `e63952fad1ba2c12477e02cfa384512242b6320e`, prepared implementation
+  `4bd41543dde2cc4c52299cfaa0d2b702082cae6b`, base
+  `b08225e864ad386f0a558620e9343d318caec903`):
+  `build_vector_store(settings)` constructs one `QdrantClientConfig` from the
+  explicit Qdrant URL and optional API key and delegates to the approved
+  `QdrantClientAdapter.from_config`. FastAPI lifespan exposes exactly one
+  application-owned instance as `app.state.vector_store`; construction and
+  startup perform no Qdrant network I/O because the adapter disables SDK
+  compatibility checks. `/health` remains static and independent. One in-scope
+  startup-test defect was fixed in `e63952f`: replacing the `socket.socket`
+  class also blocked anyio's internal `socketpair()`; the guard now blocks only
+  outbound `connect`/`connect_ex`/`create_connection`. The composed store
+  completed the real Qdrant lifecycle (create → upsert → verify → activate →
+  inspect → inactive delete) and cleaned up its alias and collections. Focused
+  suite: 193 passed, 1 skipped; integration: 1 passed; full regression: 1008
+  passed, 8 skipped; in-image `--network none` startup completed with a
+  `QdrantClientAdapter` present, `/health` HTTP 200, and no Qdrant request.
+  `git diff --check` clean.
 - T277 verification (2026-11-09; commit
   `7c7f85550b7a5ec7dbb446c72a4d1c5e8217d7dc`, prepared implementation
   `0c0d7716b7b68a46687b7334b91e81519a23a2c0`, base
@@ -1523,8 +1615,8 @@ specification and acceptance criteria.
   closed verification-only, T265 packaged and verified the asset in the image,
   T266 production-wired the chunking composition root, T270 completed live
   Ollama conformance, and T271 production-wired the embedding composition root.
-  The Vector Storage specification and task breakdown are approved. T272–T277
-  are complete; T278 remains unauthorized.
+  The Vector Storage specification and task breakdown are approved. T272–T278
+  are complete and closed.
 - Embeddings specification: `specs/rag/knowledge-document-embeddings.md` is
   approved at Revision 2 (2026-10-24) and its implementation sequence T267–T271
   is complete. Decisions D-1 through D-6 are resolved as recorded in the
@@ -1547,9 +1639,8 @@ specification and acceptance criteria.
   35e869b. The canonical `app` import root is used throughout, `uvicorn
   app.main:app` is the runtime entry point, and the composed service is exposed
   through `app.state`.
-- Vector Storage specification and task breakdown are approved. T272–T277 are
-  complete; T278 is implemented and awaiting verification.
-  Retrieval, metadata filtering behavior,
+- Vector Storage specification and task breakdown are approved. T272–T278 are
+  complete and closed. Retrieval, metadata filtering behavior,
   context construction, source attribution, evaluation, and RAG failure
   handling outside storage remain separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
