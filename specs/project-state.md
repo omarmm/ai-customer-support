@@ -1644,8 +1644,16 @@ specification and acceptance criteria.
 - Vector Storage specification and task breakdown are approved. T272–T278 are
   complete and closed. A draft Retrieval specification is available at
   `specs/rag/knowledge-retrieval.md` on `docs/rag-retrieval-sdd-draft`; it is not
-  approved and authorizes no implementation. Context construction, source
-  attribution, evaluation, and RAG failure handling remain separate SDD cycles.
+  approved and authorizes no implementation. Decision R-1 (query embedding
+  ownership) was approved on 2026-11-09: extend the existing `EmbeddingService`
+  with typed `embed_query(query)` alongside `embed_chunks()`, keeping provider,
+  model, prefixes, validation, timeout, and retry inside the Embeddings boundary.
+  Query/document vectors must share an explicitly compatible embedding-space
+  identity; equal dimensions alone are insufficient. The required Embeddings
+  specification amendment must be included in the Retrieval task breakdown
+  before implementation. Remaining Retrieval decisions are open. Context
+  construction, source attribution, evaluation, and RAG failure handling remain
+  separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
