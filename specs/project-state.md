@@ -1649,9 +1649,14 @@ specification and acceptance criteria.
   with typed `embed_query(query)` alongside `embed_chunks()`, keeping provider,
   model, prefixes, validation, timeout, and retry inside the Embeddings boundary.
   Query/document vectors must share an explicitly compatible embedding-space
-  identity; equal dimensions alone are insufficient. The required Embeddings
-  specification amendment must be included in the Retrieval task breakdown
-  before implementation. Remaining Retrieval decisions are open. Context
+  identity; equal dimensions alone are insufficient. R-2 (V1 retrieval mode) was
+  approved on 2026-11-09: dense semantic search only using the existing dense
+  768-dimensional Cosine vector through `knowledge_vectors_active`; sparse and
+  hybrid search are excluded from V1 and require a separate Vector Storage
+  specification amendment, generation rebuild plan, and comparative evaluation
+  before any future adoption. The required Embeddings specification amendment
+  must be included in the Retrieval task breakdown before implementation.
+  Remaining Retrieval decisions R-3 through R-12 are open. Context
   construction, source attribution, evaluation, and RAG failure handling remain
   separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
