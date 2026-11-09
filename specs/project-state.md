@@ -1656,7 +1656,10 @@ specification and acceptance criteria.
   specification amendment, generation rebuild plan, and comparative evaluation
   before any future adoption. The required Embeddings specification amendment
   must be included in the Retrieval task breakdown before implementation.
-  Remaining Retrieval decisions R-3 through R-12 are open. Context
+  R-3 (result limits) was approved on 2026-11-09: `limit` defaults to 5, accepts
+  values from 1 through 20, rejects out-of-range values before Qdrant, and does
+  not support pagination in V1. Remaining Retrieval decisions R-4 through R-12
+  are open. Context
   construction, source attribution, evaluation, and RAG failure handling remain
   separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
