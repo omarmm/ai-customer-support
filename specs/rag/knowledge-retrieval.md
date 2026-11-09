@@ -20,7 +20,7 @@ Query
   ↓
 Validate query and retrieval options
   ↓
-Create query embedding using the approved query prefix/model
+EmbeddingService.embed_query(query)
   ↓
 Search the active Qdrant generation with approved metadata filters
   ↓
@@ -29,12 +29,14 @@ Validate and normalize candidate results
 Ranked RetrievalResult (application-owned DTOs)
 ```
 
+`EmbeddingService` owns both document and query embedding operations. Retrieval depends on that application-owned capability, not on a concrete provider or model.
+
 This specification does not assemble an LLM prompt or generate an answer. It returns evidence candidates for a later Context Construction boundary.
 
 ## 2. Goals
 
 - Retrieve semantically relevant chunks using the active vector generation.
-- Use the existing `nomic-embed-text:v1.5` embedding identity and the reserved `search_query: ` prefix.
+- Obtain query vectors through the Embeddings boundary using an explicitly compatible embedding-space identity. The current approved V1 configuration is `ollama:nomic-embed-text:v1.5` with the reserved `search_query: ` prefix; Retrieval must not hard-code this provider/model as its architectural dependency.
 - Search through the application-owned `VectorStore` port; Qdrant SDK types must not escape the adapter.
 - Support a bounded, explicit metadata-filter contract over fields already stored and indexed.
 - Preserve source identity, provenance, offsets, generation identity, and similarity score in every result.
@@ -67,11 +69,11 @@ The approved Embeddings specification establishes:
 - Query prefix: `search_query: ` (reserved for Retrieval; document embedding uses `search_document: `).
 - Expected and live-observed vector dimension: 768.
 - Vector normalization: none; provider-returned values are preserved.
-- Query prefix and embedding identity are pinned in code, not selected by an environment variable.
-- The embedding provider is already hidden behind an application-owned provider abstraction.
-- The current `EmbeddingService.embed_chunks` accepts chunk objects and applies the document prefix. It is not a query API and must not be misused by manufacturing fake `Chunk` instances.
+- Query prefix and the current V1 embedding configuration are pinned in code, not selected by an environment variable.
+- The embedding provider is hidden behind an application-owned provider abstraction.
+- The existing `EmbeddingService` currently exposes `embed_chunks(chunks)` and applies the document prefix; it must be extended with a typed `embed_query(query)` operation. Retrieval must not manufacture fake `Chunk` instances.
 
-**Compatibility requirement:** Retrieval must obtain a query vector using the same approved provider/model/configuration identity and the exact query prefix. The design for exposing query embedding is an explicit approval decision in §14; no implementation may call the provider ad hoc or duplicate retry/validation behavior without approval.
+**Compatibility requirement:** `EmbeddingService` owns provider/model identity, operation-specific prefixes, validation, timeout, and retry behavior for both document and query embeddings. Both operations must resolve to an explicitly compatible embedding-space identity. Equal vector dimensions alone do not establish compatibility. Provider/model-specific prefixes and configuration remain encapsulated behind the Embeddings boundary. Vectors from incompatible embedding configurations must never be compared.
 
 ### 4.2 Vector Storage
 
@@ -114,14 +116,14 @@ Proposed flow:
 
 ```text
 RetrievalService
-  ├── QueryEmbeddingPort
-  │     └── approved Ollama embedding implementation
+  ├── EmbeddingService
+  │     └── approved embedding provider abstraction
   └── VectorStore (existing application-owned port)
         └── QdrantClientAdapter (existing infrastructure adapter)
               └── knowledge_vectors_active alias
 ```
 
-The RetrievalService must not import Qdrant SDK types, HTTPX, FastAPI, or database models. The Qdrant adapter remains the only production module that translates Qdrant SDK request/response models.
+The RetrievalService must not import Qdrant SDK types, HTTPX, FastAPI, database models, or provider-specific embedding adapters. It depends on the application-owned `EmbeddingService` and `VectorStore` contracts. The Qdrant adapter remains the only production module that translates Qdrant SDK request/response models.
 
 The exact query-embedding composition and lifecycle wiring must be decided before implementation. In particular, no new network I/O may be introduced during FastAPI startup; query embedding and Qdrant search occur only when a retrieval operation is invoked.
 
@@ -162,11 +164,9 @@ The query embedding must:
 - Fail as a whole if the provider fails or returns malformed output; no search is issued with an invalid vector.
 - Avoid logging the raw query or vector.
 
-The approved Embeddings implementation currently exposes `embed_chunks(chunks)`, applies `search_document: `, and returns `EmbeddingResult`. It does not expose query embedding. Retrieval approval must therefore explicitly decide whether to:
-- amend the Embeddings subsystem with a typed `embed_query(query)` operation and query result contract; or
-- introduce a Retrieval-owned query-embedding port backed by the existing provider/configuration/retry primitives without duplicating their behavior.
+The approved Embeddings implementation currently exposes `embed_chunks(chunks)`, applies `search_document: `, and returns `EmbeddingResult`. R-1 is approved: amend the Embeddings subsystem with a typed `embed_query(query)` operation and an application-owned query result contract. Both document and query operations remain under `EmbeddingService`, including provider calls, operation-specific prefixes, configuration identity, dimension/finiteness validation, timeout, and retry semantics.
 
-The first option is the current design recommendation because it keeps provider calls, prefix handling, dimension validation, and retry semantics inside the Embeddings boundary. This recommendation is not approved yet.
+The query and document operations must identify their embedding space explicitly. For current V1, the Nomic model contract defines compatible document/query vectors despite their distinct task prefixes. A future provider/model change that is not explicitly compatible requires a new embedding configuration and a new document vector generation (including re-embedding and verification) before activation. Retrieval must not compare vectors across incompatible spaces.
 
 ## 8. Vector Search Contract
 
@@ -323,7 +323,7 @@ The following decisions are intentionally unresolved. Recommendations are propos
 
 | ID | Decision required | Current recommendation | Why approval is required |
 | --- | --- | --- | --- |
-| R-1 | Query embedding ownership | Add a typed query-embedding operation to the existing EmbeddingService, reusing its provider, pinned config, prefix, validation, timeout, and retry behavior. | Existing service only accepts Chunks and applies the document prefix; the approved embedding spec reserves a query prefix but does not define a query API. |
+| R-1 | Query embedding ownership | **Approved:** Add typed `EmbeddingService.embed_query(query)` alongside `embed_chunks()`. The EmbeddingService owns provider/model identity, operation-specific prefixes, configuration identity, validation, timeout, and retry behavior. Query/document vectors must share an explicitly compatible embedding-space identity; equal dimensions alone are insufficient. | Keeps embedding concerns behind one boundary and prevents Retrieval from coupling to a provider/model or comparing incompatible vector spaces. |
 | R-2 | V1 retrieval mode | Dense semantic search only. | Existing Qdrant schema contains one dense Cosine vector; hybrid requires storage-schema work. |
 | R-3 | Result limits | Default top_k = 5; maximum top_k = 20. | Bounds Qdrant work and downstream context size; must be aligned with later Context Construction. |
 | R-4 | Score threshold | No default threshold in V1; optionally leave the field out until evaluation. | Similarity scores are not calibrated relevance probabilities; threshold needs evaluation evidence. |
@@ -366,7 +366,7 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 This specification is ready for approval only when:
 
 - All decisions in §14 have explicit owner outcomes.
-- Query embedding ownership and the required Embeddings specification amendment are resolved.
+- R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
 - The typed search request/result contracts are precise and compatible with the existing VectorStore boundary.
 - Active-alias, filter, limit, score, payload, and error semantics are unambiguous.
 - Context Construction, Source Attribution, Evaluation, and RAG Failure Handling boundaries remain explicit.
