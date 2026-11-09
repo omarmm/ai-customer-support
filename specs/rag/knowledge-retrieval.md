@@ -52,7 +52,7 @@ The following are separate boundaries and must not be silently pulled into this 
 - Source attribution/citations: citation formatting, source-link resolution, and answer-to-source traceability require a separate specification.
 - Retrieval evaluation: datasets, relevance labels, metrics, baselines, and acceptance thresholds require a separate evaluation specification.
 - End-to-end RAG failure handling: cross-stage recovery, fallback policy, and user-facing degraded behavior require a separate specification.
-- Hybrid dense/sparse search. The approved V1 collection contains one dense vector configuration; adding sparse vectors or a hybrid index requires a storage-schema amendment and rebuild plan.
+- Sparse and hybrid dense/sparse search are excluded from Retrieval V1 (R-2 approved). Any future hybrid capability requires a separate Vector Storage specification amendment, generation rebuild plan, and comparative evaluation.
 - Reranking with a second model/provider. It requires its own quality, latency, and cost evidence before inclusion.
 - HTTP endpoints, chat APIs, agent/tool integration, prompt assembly, answer generation, and business decisions.
 - Changes to ingestion, chunking, document identity, chunk identity, document embedding generation, vector generation identity, or vector payload schema.
@@ -240,7 +240,7 @@ A score threshold can remove weak candidates, but a useful threshold is model/co
 
 ### 10.4 Hybrid retrieval
 
-**Recommendation:** exclude hybrid search from V1. The approved collection has one dense vector and no sparse-vector schema or sparse-index lifecycle. Hybrid search would require a separate Vector Storage specification amendment, data rebuild, and comparative evaluation. It must not be approximated by silently combining unrelated scores.
+**Approved decision R-2:** exclude sparse and hybrid search from V1. The approved collection has one dense vector and no sparse-vector schema or sparse-index lifecycle. Any future hybrid search requires a separate Vector Storage specification amendment, data rebuild, and comparative evaluation. It must not be approximated by silently combining unrelated scores.
 
 ## 11. Result Contract and Provenance
 
@@ -324,7 +324,7 @@ The following decisions are intentionally unresolved. Recommendations are propos
 | ID | Decision required | Current recommendation | Why approval is required |
 | --- | --- | --- | --- |
 | R-1 | Query embedding ownership | **Approved:** Add typed `EmbeddingService.embed_query(query)` alongside `embed_chunks()`. The EmbeddingService owns provider/model identity, operation-specific prefixes, configuration identity, validation, timeout, and retry behavior. Query/document vectors must share an explicitly compatible embedding-space identity; equal dimensions alone are insufficient. | Keeps embedding concerns behind one boundary and prevents Retrieval from coupling to a provider/model or comparing incompatible vector spaces. |
-| R-2 | V1 retrieval mode | Dense semantic search only. | Existing Qdrant schema contains one dense Cosine vector; hybrid requires storage-schema work. |
+| R-2 | V1 retrieval mode | **Approved:** Dense semantic search only, using the existing dense 768-dimensional Cosine vector through `knowledge_vectors_active`. Sparse and hybrid search are excluded from V1; any future hybrid capability requires a separate Vector Storage specification amendment, generation rebuild plan, and comparative evaluation. | Establishes a measurable dense baseline without expanding the approved storage schema; hybrid can be considered only with evidence and an explicit storage change. |
 | R-3 | Result limits | Default top_k = 5; maximum top_k = 20. | Bounds Qdrant work and downstream context size; must be aligned with later Context Construction. |
 | R-4 | Score threshold | No default threshold in V1; optionally leave the field out until evaluation. | Similarity scores are not calibrated relevance probabilities; threshold needs evaluation evidence. |
 | R-5 | Metadata filters | Exact-match allowlist on document_id, source_path, format, chunking_config_id, embedding_config_id; AND across fields and OR within values. | Defines a safe, indexed, bounded contract without inventing range semantics. |
