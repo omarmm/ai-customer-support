@@ -54,9 +54,9 @@
 
 ## Active Implementation Handoff
 
-- None. T278 was verified and closed on 2026-11-09. No implementation task is
-  active or authorized. The verified branch is ready for PR merge; do not start
-  another task until the merge is complete.
+- None. T278 was verified, closed, and merged on 2026-11-09. No implementation
+  task is active or authorized. Retrieval and all remaining RAG work are deferred
+  until a separate SDD cycle is explicitly started.
 
 ## Last Completed Task
 - Task: T278 — Vector storage composition and integration verification
@@ -151,7 +151,8 @@
   storage subsystem is composed once from explicit settings and exposed through
   `app.state.vector_store`, startup remains network-free, the container-backed
   lifecycle passes, and the full regression suite passes. T278 is closed. No
-  next task was started and no merge was performed.
+  next task was started. PR #8 was merged into master at
+  `41025def5bcd31b7d84165f88cb07d26e73be5c4`.
 
 ## Previously Completed Task — T277
 - Task: T277 — Generation information and explicit deletion
