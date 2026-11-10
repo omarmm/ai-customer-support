@@ -142,7 +142,7 @@ Proposed logical input fields:
 
 Validation requirements to approve:
 
-- Query must be a string, non-empty after validation, and bounded in length.
+- Query must be a string, non-empty after trimming leading/trailing whitespace for validation, and bounded by the configured `retrieval_max_query_length` (default 2000 Unicode code points). The length check applies to the original unmodified query.
 - The original query is not rewritten, translated, summarized, or augmented by Retrieval V1.
 - The query prefix is applied exactly once by the query-embedding boundary.
 - The request must not accept collection names, aliases, raw Qdrant filters, vector values, or embedding model selection.
@@ -188,10 +188,10 @@ Proposed successful result semantics:
 - Every candidate contains the original chunk payload fields needed by later context/source boundaries, plus the similarity score.
 - Candidate values are application-owned immutable DTOs. Qdrant SDK models and raw responses never escape the adapter.
 - Return only fields defined by the approved storage payload contract; do not invent business metadata.
-- Preserve Qdrant's returned candidate order for equal scores unless a deterministic tie-break rule is explicitly approved.
+- Preserve Qdrant's returned candidate order for equal scores; do not apply a secondary sort or promise stable tie ordering across calls (R-9).
 - Do not claim that similarity score is a calibrated probability or a relevance percentage.
 
-The exact Qdrant operation, score interpretation, tie behavior, and typed DTO schema must be finalized against the pinned client version during specification review and implementation planning.
+The exact Qdrant operation, score interpretation, and typed DTO schema must be finalized against the pinned client version during specification finalization and implementation planning. R-9 approves preservation of Qdrant's returned order for ties without a stability guarantee.
 
 ## 9. Metadata Filtering
 
@@ -280,7 +280,7 @@ Proposed categories (exact stable codes and inheritance require approval):
 
 - Invalid query/options/filter: non-retryable client-contract failure.
 - Query embedding failure: preserve the normalized Embeddings error as the internal cause; do not issue vector search.
-- Active generation missing: explicit unavailable/not-initialized condition, not a successful empty result.
+- Active generation missing: raise the normalized application-owned `ActiveGenerationNotFound` error; this is not a successful empty result (R-8).
 - Vector search timeout/unavailable/transient failure: normalized storage/retrieval service failure, with retry behavior owned by the relevant adapter boundary.
 - Invalid or incompatible active-generation vector metadata: configuration/contract failure; do not silently search a mismatched collection.
 - Malformed returned payload/score: response-contract failure; do not return partial candidates.
@@ -319,7 +319,7 @@ The exact telemetry schema and correlation-ID integration may be finalized with 
 
 ## 14. Approval Decisions
 
-The following decisions are intentionally unresolved. Recommendations are proposals for review, not approved requirements.
+The following table records the owner decisions. Rows marked **Approved** are binding requirements for the subsequent specification finalization and task breakdown; they do not independently authorize implementation.
 
 | ID | Decision required | Current recommendation | Why approval is required |
 | --- | --- | --- | --- |
@@ -330,17 +330,17 @@ The following decisions are intentionally unresolved. Recommendations are propos
 | R-5 | Metadata filters | **Approved:** Exact-match allowlist only for `document_id`, `source_path`, `format`, `chunking_config_id`, and `embedding_config_id`. Combine different fields with AND and multiple values within one field with OR. Reject unknown fields, unsupported operators, and empty values before Qdrant; apply filters server-side. | Uses existing indexed payload fields and provides bounded semantics without exposing raw Qdrant filters or inventing range behavior. |
 | R-6 | `chunk_index` filtering | **Approved:** Exclude `chunk_index` from Retrieval V1 metadata filters, including exact-value and range filters. The field remains part of returned provenance. | No current business requirement justifies exposing positional filtering; exclusion keeps the filter contract narrow without discarding provenance needed downstream. |
 | R-7 | Reranking | **Approved:** Exclude model-based reranking from Retrieval V1. Establish and evaluate the dense retrieval baseline first; any future reranker requires a separate specification backed by measurable quality, latency, and cost evidence. | A reranker adds another model, latency, cost, configuration, and failure modes before a baseline demonstrates a need. |
-| R-8 | Missing active alias | Raise an explicit normalized ActiveGenerationNotFound error. | Distinguishes uninitialized knowledge base from a valid query with no matches. |
-| R-9 | Equal-score ordering | Preserve Qdrant order; do not promise stable tie order in V1. | Stable secondary ordering may require extra work and is not a relevance guarantee. |
-| R-10 | Query length and whitespace | Trim leading/trailing whitespace for validation, reject empty-after-trim; preserve the original query text for embedding; maximum 2,000 Unicode code points. | A bounded request contract is needed; exact maximum is proposed and must be approved. |
-| R-11 | Result payload | Return all stored provenance fields and exact chunk content with the score. | Downstream Context Construction and Source Attribution need evidence and provenance. |
-| R-12 | Retrieval composition | Construct/reuse query-embedding capability and the existing app-owned VectorStore at operation time; no startup network calls. | Avoids coupling or eager network I/O and preserves the existing lifecycle guarantees. |
+| R-8 | Missing active alias | **Approved:** Raise the normalized application-owned `ActiveGenerationNotFound` error when `knowledge_vectors_active` is absent. Do not convert this condition into an empty successful result. | Distinguishes an uninitialized/unavailable active knowledge generation from a valid query that has no matches. |
+| R-9 | Equal-score ordering | **Approved:** Preserve the order returned by Qdrant for equal scores. Do not add a secondary sort and do not promise stable tie ordering across calls in V1. | Avoids extra application sorting without claiming that a tie-breaker improves relevance. |
+| R-10 | Query length and whitespace | **Approved:** Reject a query that is empty after trimming leading/trailing whitespace; preserve and embed the original unmodified query. Enforce the maximum against the original string's Unicode code-point length using configurable `retrieval_max_query_length`, default `2000`, validated as an integer greater than zero. | Provides bounded input while allowing deployment-specific configuration and keeping validation separate from the exact text embedded. |
+| R-11 | Result payload | **Approved:** Return all stored provenance fields and exact stored chunk content unchanged, together with the similarity score, in each candidate. | Downstream Context Construction and Source Attribution need the original evidence and complete provenance without another storage lookup. |
+| R-12 | Retrieval composition | **Approved:** Reuse the existing application-owned `EmbeddingService` and `VectorStore`, wire them through the composition root, and perform no network I/O during FastAPI startup. Query embedding and Qdrant search occur only when a retrieval operation is invoked. | Preserves dependency boundaries and startup lifecycle guarantees while avoiding duplicate infrastructure capabilities. |
 
 Approval may accept, reject, or amend each recommendation. Any unresolved decision remains a blocker for the affected contract; implementation must not guess.
 
 ## 15. Testing and Verification Requirements
 
-Tests are to be designed after the decisions in §14 are approved. At minimum, the approved test plan must cover:
+Tests are to be finalized in the dependency-ordered task breakdown now that decisions in §14 are approved. At minimum, the test plan must cover:
 
 1. Query validation, whitespace behavior, maximum length, and invalid limits.
 2. Query prefix applied exactly once through `EmbeddingService`; query/document vectors use an explicitly compatible embedding-space identity and the pinned V1 configuration.
@@ -365,10 +365,10 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 
 This specification is ready for approval only when:
 
-- All decisions in §14 have explicit owner outcomes; R-1 through R-7 are approved.
+- All decisions in §14 have explicit owner outcomes; R-1 through R-12 are approved.
 - R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
 - The typed search request/result contracts are precise and compatible with the existing VectorStore boundary.
-- Active-alias, filter allowlist and composition, limit (default 5, maximum 20, no pagination), score-threshold exclusion, payload, and error semantics are unambiguous.
+- Active-alias and missing-alias behavior, filter allowlist and composition, limit (default 5, maximum 20, no pagination), score-threshold exclusion, tie ordering, configurable query validation, full payload, and composition semantics are unambiguous.
 - Context Construction, Source Attribution, Evaluation, and RAG Failure Handling boundaries remain explicit.
 - Test and security requirements are accepted.
 - No implementation task is inferred from this draft.
