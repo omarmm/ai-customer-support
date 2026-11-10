@@ -285,7 +285,23 @@ The proposed immutable candidate DTO contains:
 | `generation_id` | Stored payload | Generation that produced the candidate |
 | `score` | Qdrant result | Dense similarity ranking signal |
 
-The retrieval result also carries the requested/active generation identity when it can be established safely by the search boundary. The precise response envelope and whether generation identity is repeated at both envelope and candidate levels must be finalized in the typed DTO contract during specification finalization.
+**Approved response envelope (R-15):** the application-owned retrieval result contains:
+
+```json
+{
+  "active_generation_id": "generation-123",
+  "results": [
+    {
+      "chunk_id": "...",
+      "generation_id": "generation-123",
+      "content": "...",
+      "score": 0.87
+    }
+  ]
+}
+```
+
+The envelope's `active_generation_id` identifies the active generation against which the search was executed, including when `results` is empty. Each candidate retains its own stored `generation_id` as provenance. Every returned candidate MUST have a `generation_id` equal to the envelope's `active_generation_id`; any mismatch is a response-contract failure and no partial result is returned. A successful empty result still carries the verified active generation identity. The identity must be established from the trusted generation-level metadata defined by the required Vector Storage Amendment, not inferred from candidate payloads.
 
 Provenance requirements:
 
@@ -360,8 +376,9 @@ The following table records the owner decisions. Rows marked **Approved** are bi
 | R-12 | Retrieval composition | **Approved:** Reuse the existing application-owned `EmbeddingService` and `VectorStore`, wire them through the composition root, and perform no network I/O during FastAPI startup. Query embedding and Qdrant search occur only when a retrieval operation is invoked. | Preserves dependency boundaries and startup lifecycle guarantees while avoiding duplicate infrastructure capabilities. |
 | R-13 | Filter cardinality | **Approved:** A request may contain at most 5 filter fields (the complete allowlist) and at most 20 values per field. Reject cardinality violations before any Qdrant call. | Bounds filter complexity while preserving the approved exact-match AND/OR semantics. |
 | R-14 | Vector Storage Amendment sequencing | **Approved — sequencing only:** Complete Retrieval SDD and its dependency-ordered task breakdown first. Then create and approve a separate Vector Storage specification amendment and its implementation/verification tasks. Retrieval implementation is blocked until that amendment is implemented, verified, and closed. The technical amendment contract itself is not approved by this sequencing decision. | Keeps the current SDD review focused while making the upstream contract change an explicit, non-bypassable implementation dependency. |
+| R-15 | Retrieval result envelope generation identity | **Approved:** Return `active_generation_id` at the result-envelope level and retain `generation_id` in every candidate. The envelope identifies the generation searched even when the result set is empty. Every candidate generation ID must equal the envelope identity; otherwise fail the entire operation with a response-contract error and return no partial results. The envelope identity must come from trusted generation-level metadata established by the required Vector Storage Amendment. | Makes empty-result provenance explicit and enforces that every candidate belongs to the exact active generation searched. |
 
-R-1 through R-13 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
+R-1 through R-13 and R-15 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
 
 ## 15. Testing and Verification Requirements
 
@@ -390,7 +407,7 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 
 This specification can be submitted for final approval only when:
 
-- All decisions in §14 have explicit owner outcomes; R-1 through R-13 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
+- All decisions in §14 have explicit owner outcomes; R-1 through R-13 and R-15 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
 - R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
 - The separate Vector Storage Amendment must be specified, approved, implemented, verified, and closed after Retrieval SDD/task-breakdown approval but before any Retrieval implementation task is authorized.
 - The typed search request/result contracts are precise and compatible with the existing VectorStore boundary. Filter cardinality is fixed at no more than 5 allowlisted fields and 20 values per field.
