@@ -1691,8 +1691,16 @@ specification and acceptance criteria.
 
 ## Retrieval SDD — Decision Status (2026-11-10)
 
-- Retrieval decisions R-1 through R-13 are approved; Retrieval SDD remains a
-  draft pending consistency review and dependency-ordered task breakdown.
+- Retrieval decisions R-1 through R-13 and R-15 are approved; Retrieval SDD
+  remains a draft pending consistency review and dependency-ordered task
+  breakdown.
+- R-15 result contract: the retrieval response envelope carries
+  `active_generation_id`; each candidate retains `generation_id`. The
+  candidate identity must equal the envelope identity, including the empty
+  result case where the envelope still identifies the verified active
+  generation. A mismatch fails the complete operation with no partial result.
+  The envelope identity must come from trusted generation-level metadata
+  established by the required Vector Storage Amendment.
 - R-14 sequencing is approved: complete Retrieval SDD and its task breakdown
   first; then prepare and approve a separate Vector Storage specification
   amendment and its implementation/verification tasks. No Retrieval
