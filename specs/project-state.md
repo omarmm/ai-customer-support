@@ -1681,7 +1681,7 @@ specification and acceptance criteria.
   provenance fields with the score. R-12 (composition) was approved: reuse the
   application-owned EmbeddingService and VectorStore through the composition
   root; no startup network I/O, with embedding/search only on retrieval
-  invocation. R-13 (filter cardinality) was approved on 2026-11-10: a retrieval request may contain at most 5 distinct allowlisted filter fields and at most 20 distinct values per field; cardinality violations are rejected before Qdrant. All Retrieval decisions R-1 through R-13 are now approved; the
+  invocation. R-13 (filter cardinality) was approved on 2026-11-10: a retrieval request may contain at most 5 distinct allowlisted filter fields and at most 20 values per field; cardinality violations are rejected before Qdrant. All Retrieval decisions R-1 through R-13 are now approved; the
   Retrieval specification remains a draft pending final consistency review and
   dependency-ordered task breakdown. No implementation is authorized. Context
   construction, source attribution, evaluation, and RAG failure handling remain
