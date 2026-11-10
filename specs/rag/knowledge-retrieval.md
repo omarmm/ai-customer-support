@@ -236,7 +236,7 @@ A score threshold can remove weak candidates, but a useful threshold is model/co
 
 ### 10.3 Reranking
 
-**Recommendation:** exclude model-based reranking from Retrieval V1. First establish a dense retrieval baseline and an evaluation dataset. A reranker adds latency, provider/model configuration, cost, failure modes, and another quality-sensitive stage; it should be specified separately if evaluation demonstrates a measurable need.
+**Approved decision R-7:** exclude model-based reranking from Retrieval V1. First establish a dense retrieval baseline and an evaluation dataset. A reranker adds latency, provider/model configuration, cost, failure modes, and another quality-sensitive stage; it may be specified separately only if evaluation demonstrates a measurable need.
 
 ### 10.4 Hybrid retrieval
 
@@ -329,7 +329,7 @@ The following decisions are intentionally unresolved. Recommendations are propos
 | R-4 | Score threshold | **Approved:** Exclude `score_threshold` from the Retrieval V1 request contract; do not apply a default or caller-supplied threshold. Return the top bounded candidates ordered by similarity. Reconsider only after retrieval evaluation provides evidence. | Similarity scores are ranking signals, not calibrated relevance probabilities; an arbitrary threshold could discard useful evidence.
 | R-5 | Metadata filters | **Approved:** Exact-match allowlist only for `document_id`, `source_path`, `format`, `chunking_config_id`, and `embedding_config_id`. Combine different fields with AND and multiple values within one field with OR. Reject unknown fields, unsupported operators, and empty values before Qdrant; apply filters server-side. | Uses existing indexed payload fields and provides bounded semantics without exposing raw Qdrant filters or inventing range behavior. |
 | R-6 | `chunk_index` filtering | **Approved:** Exclude `chunk_index` from Retrieval V1 metadata filters, including exact-value and range filters. The field remains part of returned provenance. | No current business requirement justifies exposing positional filtering; exclusion keeps the filter contract narrow without discarding provenance needed downstream. |
-| R-7 | Reranking | Exclude from V1. | Establish baseline first; reranking requires separate model/latency/cost evaluation. |
+| R-7 | Reranking | **Approved:** Exclude model-based reranking from Retrieval V1. Establish and evaluate the dense retrieval baseline first; any future reranker requires a separate specification backed by measurable quality, latency, and cost evidence. | A reranker adds another model, latency, cost, configuration, and failure modes before a baseline demonstrates a need. |
 | R-8 | Missing active alias | Raise an explicit normalized ActiveGenerationNotFound error. | Distinguishes uninitialized knowledge base from a valid query with no matches. |
 | R-9 | Equal-score ordering | Preserve Qdrant order; do not promise stable tie order in V1. | Stable secondary ordering may require extra work and is not a relevance guarantee. |
 | R-10 | Query length and whitespace | Trim leading/trailing whitespace for validation, reject empty-after-trim; preserve the original query text for embedding; maximum 2,000 Unicode code points. | A bounded request contract is needed; exact maximum is proposed and must be approved. |
@@ -365,7 +365,7 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 
 This specification is ready for approval only when:
 
-- All decisions in §14 have explicit owner outcomes; R-1 through R-6 are approved.
+- All decisions in §14 have explicit owner outcomes; R-1 through R-7 are approved.
 - R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
 - The typed search request/result contracts are precise and compatible with the existing VectorStore boundary.
 - Active-alias, filter allowlist and composition, limit (default 5, maximum 20, no pagination), score-threshold exclusion, payload, and error semantics are unambiguous.
