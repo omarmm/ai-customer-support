@@ -1670,7 +1670,22 @@ specification and acceptance criteria.
   provenance. R-7 (reranking) was approved on 2026-11-10: exclude model-based reranking from
   V1. Establish and evaluate the dense baseline first; any future reranker needs
   a separate specification supported by measurable quality, latency, and cost
-  evidence. Remaining Retrieval decisions R-8 through R-12 are open. Context
+  evidence. R-8 (missing active alias) was approved on 2026-11-10: raise normalized
+  `ActiveGenerationNotFound`, distinct from an empty successful result. R-9
+  (equal-score ordering) was approved: preserve Qdrant order without a secondary
+  sort or cross-call stability guarantee. R-10 (query validation) was approved:
+  reject empty-after-trim input, embed the original unmodified query, and enforce
+  the original string's Unicode code-point length using configurable
+  `retrieval_max_query_length` (default 2000, integer greater than zero). R-11
+  (result payload) was approved: return exact stored chunk content and all stored
+  provenance fields with the score. R-12 (composition) was approved: reuse the
+  application-owned EmbeddingService and VectorStore through the composition
+  root; no startup network I/O, with embedding/search only on retrieval
+  invocation. All Retrieval decisions R-1 through R-12 are now approved; the
+  Retrieval specification remains a draft pending final consistency review and
+  dependency-ordered task breakdown. No implementation is authorized. Context
+  construction, source attribution, evaluation, and RAG failure handling remain
+  separate SDD cycles. Context
   construction, source attribution, evaluation, and RAG failure handling remain
   separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
