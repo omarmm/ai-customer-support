@@ -88,6 +88,27 @@ The approved Vector Storage specification establishes:
 - Payload indexes already exist for `generation_id`, `document_id`, `source_path`, `format`, `chunking_config_id`, and `embedding_config_id` (keyword), and `chunk_index` (integer).
 - The application-owned `VectorStore.search` method is currently reserved and intentionally has no retrieval semantics.
 
+#### Required Vector Storage Amendment — blocking dependency
+
+The current Vector Storage contract does not yet expose trusted generation-level
+embedding-space identity. Retrieval MUST NOT infer active-generation
+compatibility from point payloads or vector dimensions alone.
+
+A separate Vector Storage specification amendment and its implementation/
+verification task sequence are mandatory before any Retrieval implementation.
+The amendment is intentionally deferred until the Retrieval SDD and its
+dependency-ordered task breakdown are complete. The amendment must define how
+the active generation's `embedding_config_id` is stored, returned through
+`GenerationInfo`, and validated by generation verification. Retrieval will
+compare the query embedding's configuration identity with the active
+generation's trusted identity before issuing search, including when the
+generation contains zero points. Missing, malformed, or mismatched identity
+must fail closed without a Qdrant search.
+
+This is a sequencing approval only. The exact storage metadata contract,
+migration/backfill/rebuild policy, and amendment acceptance criteria remain
+subject to a separate specification review and explicit approval.
+
 Retrieval must search the active alias, not guess a collection name or accept a caller-supplied collection name. It must not mutate generations or aliases.
 
 ### 4.3 Upstream identity and provenance
@@ -338,8 +359,9 @@ The following table records the owner decisions. Rows marked **Approved** are bi
 | R-11 | Result payload | **Approved:** Return all stored provenance fields and exact stored chunk content unchanged, together with the similarity score, in each candidate. | Downstream Context Construction and Source Attribution need the original evidence and complete provenance without another storage lookup. |
 | R-12 | Retrieval composition | **Approved:** Reuse the existing application-owned `EmbeddingService` and `VectorStore`, wire them through the composition root, and perform no network I/O during FastAPI startup. Query embedding and Qdrant search occur only when a retrieval operation is invoked. | Preserves dependency boundaries and startup lifecycle guarantees while avoiding duplicate infrastructure capabilities. |
 | R-13 | Filter cardinality | **Approved:** A request may contain at most 5 filter fields (the complete allowlist) and at most 20 values per field. Reject cardinality violations before any Qdrant call. | Bounds filter complexity while preserving the approved exact-match AND/OR semantics. |
+| R-14 | Vector Storage Amendment sequencing | **Approved — sequencing only:** Complete Retrieval SDD and its dependency-ordered task breakdown first. Then create and approve a separate Vector Storage specification amendment and its implementation/verification tasks. Retrieval implementation is blocked until that amendment is implemented, verified, and closed. The technical amendment contract itself is not approved by this sequencing decision. | Keeps the current SDD review focused while making the upstream contract change an explicit, non-bypassable implementation dependency. |
 
-All thirteen owner decisions are approved as recorded above. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
+R-1 through R-13 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
 
 ## 15. Testing and Verification Requirements
 
@@ -368,8 +390,9 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 
 This specification can be submitted for final approval only when:
 
-- All decisions in §14 have explicit owner outcomes; R-1 through R-13 are approved (complete).
+- All decisions in §14 have explicit owner outcomes; R-1 through R-13 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
 - R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
+- The separate Vector Storage Amendment must be specified, approved, implemented, verified, and closed after Retrieval SDD/task-breakdown approval but before any Retrieval implementation task is authorized.
 - The typed search request/result contracts are precise and compatible with the existing VectorStore boundary. Filter cardinality is fixed at no more than 5 allowlisted fields and 20 values per field.
 - Active-alias and missing-alias behavior, filter allowlist and composition, limit (default 5, maximum 20, no pagination), score-threshold exclusion, tie ordering, configurable query validation, full payload, and composition semantics are unambiguous.
 - Context Construction, Source Attribution, Evaluation, and RAG Failure Handling boundaries remain explicit.
