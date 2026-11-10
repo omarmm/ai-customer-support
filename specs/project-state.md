@@ -1685,8 +1685,6 @@ specification and acceptance criteria.
   Retrieval specification remains a draft pending final consistency review and
   dependency-ordered task breakdown. No implementation is authorized. Context
   construction, source attribution, evaluation, and RAG failure handling remain
-  separate SDD cycles. Context
-  construction, source attribution, evaluation, and RAG failure handling remain
   separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
