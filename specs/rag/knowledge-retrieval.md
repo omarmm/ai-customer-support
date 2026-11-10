@@ -125,7 +125,7 @@ RetrievalService
 
 The RetrievalService must not import Qdrant SDK types, HTTPX, FastAPI, database models, or provider-specific embedding adapters. It depends on the application-owned `EmbeddingService` and `VectorStore` contracts. The Qdrant adapter remains the only production module that translates Qdrant SDK request/response models.
 
-The query-embedding composition and lifecycle wiring must reuse the application-owned `EmbeddingService`. No new network I/O may be introduced during FastAPI startup; query embedding and Qdrant search occur only when a retrieval operation is invoked. In particular, no new network I/O may be introduced during FastAPI startup; query embedding and Qdrant search occur only when a retrieval operation is invoked.
+The query-embedding composition and lifecycle wiring must reuse the application-owned `EmbeddingService`. No new network I/O may be introduced during FastAPI startup; query embedding and Qdrant search occur only when a retrieval operation is invoked.
 
 ## 6. Query Contract
 
@@ -175,7 +175,7 @@ The application-owned search port must replace the current reserved `search(requ
 Proposed request semantics:
 
 - Search the fixed active alias `knowledge_vectors_active`.
-- Supply the validated query vector, bounded result limit, optional score threshold, and a typed metadata filter.
+- Supply the validated query vector, bounded result limit, and an optional typed metadata filter. The V1 search request has no score-threshold field.
 - Never allow callers to choose a collection, alias, vector name, distance metric, or raw SDK filter object.
 - Do not create, activate, delete, or otherwise mutate generations during search.
 - Apply filters server-side in Qdrant; do not retrieve an unbounded candidate set and filter it in application memory.
@@ -209,16 +209,18 @@ Fields available in the approved payload/index schema:
 | `chunk_index` | Integer | Exact value or bounded range (range requires decision) |
 | `generation_id` | Keyword | Internal generation scoping only; caller must not override active alias |
 
-Proposed filter composition:
+Approved filter cardinality and composition (R-13):
 
+- A request may contain at most 5 distinct filter fields; this is the complete V1 allowlist.
+- Each filter field may contain at most 20 distinct values.
 - Different filter fields are combined with logical AND.
 - Multiple allowed values for one field are combined with logical OR.
-- Empty filter values are rejected rather than interpreted as no filter.
-- Unknown fields and unsupported operators are rejected before any Qdrant call.
+- Empty filter values and duplicate values are rejected rather than interpreted as no filter or silently deduplicated.
+- Unknown fields, unsupported operators, and cardinality violations are rejected before any Qdrant call.
 - Filters are applied within the active generation only.
 - No implicit customer, tenant, or authorization filter is invented. If tenant isolation becomes a requirement, it must be designed from an authoritative domain contract before exposing retrieval to customer data.
 
-R-5 approves exact-match filtering and multi-value OR semantics for the five allowlisted fields. Integer range filtering is unsupported, and `chunk_index` filtering (exact or range) is excluded from V1 by R-6. The stored `chunk_index` remains in each returned candidate as provenance.
+R-5 approves exact-match filtering and multi-value OR semantics for the five allowlisted fields. R-13 approves a maximum of 5 distinct filter fields per request and 20 distinct values per field. Integer range filtering is unsupported, and `chunk_index` filtering (exact or range) is excluded from V1 by R-6. The stored `chunk_index` remains in each returned candidate as provenance.
 
 ## 10. Ranking, Thresholds, and Hybrid Search
 
