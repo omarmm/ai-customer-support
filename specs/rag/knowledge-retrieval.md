@@ -137,10 +137,10 @@ Proposed logical input fields:
 | --- | --- | --- |
 | `query` | Original natural-language query | Required |
 | `limit` | Maximum number of returned chunks | Approved by R-3: default 5, range 1–20; no pagination in V1 |
-| `filters` | Optional allowlisted metadata filters | Proposed; exact shape and semantics require approval |
+| `filters` | Optional allowlisted metadata filters | Approved by R-5: exact-match allowlist and AND/OR composition; see §9 |
 | `score_threshold` | Optional minimum similarity score | Excluded from V1 by approved R-4 |
 
-Validation requirements to approve:
+Validation requirements:
 
 - Query must be a string, non-empty after trimming leading/trailing whitespace for validation, and bounded by the configured `retrieval_max_query_length` (default 2000 Unicode code points). The length check applies to the original unmodified query.
 - The original query is not rewritten, translated, summarized, or augmented by Retrieval V1.
@@ -149,7 +149,7 @@ Validation requirements to approve:
 - Limit and filter cardinality must be bounded to prevent unbounded work.
 - Query text and filter values are untrusted input and must never be interpolated into executable expressions.
 
-Whitespace policy and maximum query length remain approval decisions (§14). Result-limit semantics are approved by R-3; score-threshold exclusion is approved by R-4.
+Whitespace and maximum query length are approved by R-10. Result-limit semantics are approved by R-3; score-threshold exclusion is approved by R-4.
 
 ## 7. Query Embedding Contract
 
@@ -232,7 +232,7 @@ Candidates are ordered by descending similarity score. The score is a ranking si
 
 A score threshold can remove weak candidates, but a useful threshold is model/corpus/query-distribution dependent. No threshold may be selected from intuition alone and presented as an evidence-based relevance boundary.
 
-**Recommendation:** begin V1 with no default threshold (return the top bounded candidates), record scores in offline evaluation, and introduce a threshold only after a retrieval evaluation set supports it. Whether callers may supply an optional threshold in V1 remains an approval decision.
+**Approved decision R-4:** Retrieval V1 has no score-threshold field and applies no default or caller-supplied threshold. Return the top bounded candidates and record scores for offline evaluation. Reconsider thresholding only after an evaluation set provides evidence.
 
 ### 10.3 Reranking
 
@@ -262,7 +262,7 @@ The proposed immutable candidate DTO contains:
 | `generation_id` | Stored payload | Generation that produced the candidate |
 | `score` | Qdrant result | Dense similarity ranking signal |
 
-The retrieval result also carries the requested/active generation identity when it can be established safely by the search boundary. The precise response envelope and whether generation identity is repeated at both envelope and candidate levels are review decisions.
+The retrieval result also carries the requested/active generation identity when it can be established safely by the search boundary. The precise response envelope and whether generation identity is repeated at both envelope and candidate levels must be finalized in the typed DTO contract during specification finalization.
 
 Provenance requirements:
 
@@ -336,7 +336,7 @@ The following table records the owner decisions. Rows marked **Approved** are bi
 | R-11 | Result payload | **Approved:** Return all stored provenance fields and exact stored chunk content unchanged, together with the similarity score, in each candidate. | Downstream Context Construction and Source Attribution need the original evidence and complete provenance without another storage lookup. |
 | R-12 | Retrieval composition | **Approved:** Reuse the existing application-owned `EmbeddingService` and `VectorStore`, wire them through the composition root, and perform no network I/O during FastAPI startup. Query embedding and Qdrant search occur only when a retrieval operation is invoked. | Preserves dependency boundaries and startup lifecycle guarantees while avoiding duplicate infrastructure capabilities. |
 
-Approval may accept, reject, or amend each recommendation. Any unresolved decision remains a blocker for the affected contract; implementation must not guess.
+All twelve owner decisions are approved as recorded above. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
 
 ## 15. Testing and Verification Requirements
 
@@ -363,9 +363,9 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 
 ## 16. Acceptance Criteria (Draft)
 
-This specification is ready for approval only when:
+This specification can be submitted for final approval only when:
 
-- All decisions in §14 have explicit owner outcomes; R-1 through R-12 are approved.
+- All decisions in §14 have explicit owner outcomes; R-1 through R-12 are approved (complete).
 - R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
 - The typed search request/result contracts are precise and compatible with the existing VectorStore boundary.
 - Active-alias and missing-alias behavior, filter allowlist and composition, limit (default 5, maximum 20, no pagination), score-threshold exclusion, tie ordering, configurable query validation, full payload, and composition semantics are unambiguous.
