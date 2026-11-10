@@ -1667,7 +1667,10 @@ specification and acceptance criteria.
   unsupported operators, and empty values are rejected before Qdrant; filters
   are applied server-side. R-6 (`chunk_index` filtering) was approved on 2026-11-09: exclude exact and
   range filters on `chunk_index` from V1 while retaining the field in returned
-  provenance. Remaining Retrieval decisions R-7 through R-12 are open. Context
+  provenance. R-7 (reranking) was approved on 2026-11-10: exclude model-based reranking from
+  V1. Establish and evaluate the dense baseline first; any future reranker needs
+  a separate specification supported by measurable quality, latency, and cost
+  evidence. Remaining Retrieval decisions R-8 through R-12 are open. Context
   construction, source attribution, evaluation, and RAG failure handling remain
   separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
