@@ -206,16 +206,16 @@ Fields available in the approved payload/index schema:
 | `format` | Keyword | Exact value(s) |
 | `chunking_config_id` | Keyword | Exact value(s) |
 | `embedding_config_id` | Keyword | Exact value(s) |
-| `chunk_index` | Integer | Exact value or bounded range (range requires decision) |
+| `chunk_index` | Integer | Excluded from caller filters in V1; returned as provenance only |
 | `generation_id` | Keyword | Internal generation scoping only; caller must not override active alias |
 
 Approved filter cardinality and composition (R-13):
 
-- A request may contain at most 5 distinct filter fields; this is the complete V1 allowlist.
-- Each filter field may contain at most 20 distinct values.
+- A request may contain at most 5 filter fields; this is the complete V1 allowlist.
+- Each filter field may contain at most 20 values.
 - Different filter fields are combined with logical AND.
 - Multiple allowed values for one field are combined with logical OR.
-- Empty filter values and duplicate values are rejected rather than interpreted as no filter or silently deduplicated.
+- Empty filter values are rejected rather than interpreted as no filter.
 - Unknown fields, unsupported operators, and cardinality violations are rejected before any Qdrant call.
 - Filters are applied within the active generation only.
 - No implicit customer, tenant, or authorization filter is invented. If tenant isolation becomes a requirement, it must be designed from an authoritative domain contract before exposing retrieval to customer data.
@@ -337,8 +337,9 @@ The following table records the owner decisions. Rows marked **Approved** are bi
 | R-10 | Query length and whitespace | **Approved:** Reject a query that is empty after trimming leading/trailing whitespace; preserve and embed the original unmodified query. Enforce the maximum against the original string's Unicode code-point length using configurable `retrieval_max_query_length`, default `2000`, validated as an integer greater than zero. | Provides bounded input while allowing deployment-specific configuration and keeping validation separate from the exact text embedded. |
 | R-11 | Result payload | **Approved:** Return all stored provenance fields and exact stored chunk content unchanged, together with the similarity score, in each candidate. | Downstream Context Construction and Source Attribution need the original evidence and complete provenance without another storage lookup. |
 | R-12 | Retrieval composition | **Approved:** Reuse the existing application-owned `EmbeddingService` and `VectorStore`, wire them through the composition root, and perform no network I/O during FastAPI startup. Query embedding and Qdrant search occur only when a retrieval operation is invoked. | Preserves dependency boundaries and startup lifecycle guarantees while avoiding duplicate infrastructure capabilities. |
+| R-13 | Filter cardinality | **Approved:** A request may contain at most 5 filter fields (the complete allowlist) and at most 20 values per field. Reject cardinality violations before any Qdrant call. | Bounds filter complexity while preserving the approved exact-match AND/OR semantics. |
 
-All twelve owner decisions are approved as recorded above. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
+All thirteen owner decisions are approved as recorded above. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
 
 ## 15. Testing and Verification Requirements
 
@@ -367,9 +368,9 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 
 This specification can be submitted for final approval only when:
 
-- All decisions in §14 have explicit owner outcomes; R-1 through R-12 are approved (complete).
+- All decisions in §14 have explicit owner outcomes; R-1 through R-13 are approved (complete).
 - R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
-- The typed search request/result contracts are precise and compatible with the existing VectorStore boundary.
+- The typed search request/result contracts are precise and compatible with the existing VectorStore boundary. Filter cardinality is fixed at no more than 5 allowlisted fields and 20 values per field.
 - Active-alias and missing-alias behavior, filter allowlist and composition, limit (default 5, maximum 20, no pagination), score-threshold exclusion, tie ordering, configurable query validation, full payload, and composition semantics are unambiguous.
 - Context Construction, Source Attribution, Evaluation, and RAG Failure Handling boundaries remain explicit.
 - Test and security requirements are accepted.
