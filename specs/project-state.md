@@ -1689,6 +1689,25 @@ specification and acceptance criteria.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
 
+## Retrieval SDD — Decision Status (2026-11-10)
+
+- Retrieval decisions R-1 through R-13 are approved; Retrieval SDD remains a
+  draft pending consistency review and dependency-ordered task breakdown.
+- R-14 sequencing is approved: complete Retrieval SDD and its task breakdown
+  first; then prepare and approve a separate Vector Storage specification
+  amendment and its implementation/verification tasks. No Retrieval
+  implementation may begin until that amendment is implemented, verified, and
+  closed.
+- R-14 approves sequencing only. The technical amendment contract remains
+  unapproved. The proposed direction is to store trusted `embedding_config_id`
+  at generation/collection metadata level, expose it through `GenerationInfo`,
+  and validate it during generation verification. Retrieval must compare the
+  query embedding identity against the active generation identity before
+  Qdrant search, including for empty generations, and fail closed when identity
+  is missing or incompatible. The exact metadata, migration/backfill/rebuild,
+  and recovery contract must be specified and approved separately.
+- No Retrieval implementation is authorized.
+
 ## Rules
 - Specifications are the source of truth.
 - Never start RAG before Phase 3 closure.
