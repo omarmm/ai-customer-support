@@ -313,19 +313,24 @@ Provenance requirements:
 
 ## 12. Errors and Failure Semantics
 
-Retrieval must expose an application-owned error taxonomy. Raw Qdrant, HTTPX, and provider exceptions must not escape the subsystem boundary.
+**Approved decision R-16 — Retrieval-owned Error Taxonomy:** Retrieval owns the stable error contract exposed at its subsystem boundary. It maps upstream normalized Embeddings and Vector Storage failures into explicitly defined Retrieval-owned error types while preserving the original normalized exception as the chained cause (`__cause__`). This mapping is explicit per failure category; it must not indiscriminately wrap programming defects or erase useful retryability/diagnostic metadata.
 
-Proposed categories (exact stable codes and inheritance require approval):
+Retrieval-owned categories:
+- `InvalidRetrievalRequest`: invalid query, options, or metadata filters; non-retryable request-contract failure.
+- `ActiveGenerationNotFound`: the active alias/generation is absent (R-8); distinct from an empty successful result.
+- `IncompatibleEmbeddingSpace`: query embedding identity does not match the trusted active-generation identity; fail closed before Qdrant search.
+- `RetrievalEmbeddingError`: a normalized Embeddings operation fails; preserve that normalized error as `__cause__` and do not issue vector search.
+- `RetrievalVectorSearchError`: a normalized Vector Storage search operation fails; preserve that normalized error as `__cause__`.
+- `RetrievalResponseContractError`: malformed candidate payload/score, missing required provenance, or candidate generation identity inconsistent with the result envelope; fail the whole operation and return no partial results.
 
-- Invalid query/options/filter: non-retryable client-contract failure.
-- Query embedding failure: preserve the normalized Embeddings error as the internal cause; do not issue vector search.
-- Active generation missing: raise the normalized application-owned `ActiveGenerationNotFound` error; this is not a successful empty result (R-8).
-- Vector search timeout/unavailable/transient failure: normalized storage/retrieval service failure, with retry behavior owned by the relevant adapter boundary.
-- Invalid or incompatible active-generation vector metadata: configuration/contract failure; do not silently search a mismatched collection.
-- Malformed returned payload/score: response-contract failure; do not return partial candidates.
-- No matches: successful empty result, not an error.
+Raw Qdrant SDK, HTTPX, provider-specific, and other infrastructure exceptions must never escape Retrieval. The Retrieval layer must not import or branch on those concrete exception types; translation begins from the upstream subsystem's normalized application-owned errors. Public messages/codes must be safe and stable, and must not expose raw exception text, credentials, URLs containing secrets, or stack traces.
 
-Retry ownership must remain singular: Retrieval must not wrap the Qdrant adapter's retry policy in a second retry loop or retry a non-retryable normalized error. Query embedding retry behavior belongs to the approved Embeddings implementation. Cancellation must propagate and must not be converted into a retryable service error.
+Retry and control-flow rules:
+- Retry ownership remains singular. EmbeddingService owns query-embedding retries; Vector Storage owns storage-operation retries. Retrieval adds no retry loop and does not retry upstream failures.
+- Mapping must preserve relevant normalized metadata (including retryability and stable upstream code) in the internal cause/diagnostic context without making upstream implementation details part of the public Retrieval contract.
+- Cancellation propagates unchanged and is never converted into a retryable service error. Never catch `BaseException` as an ordinary failure.
+- Empty candidate results are successful responses, not errors.
+- Any candidate/envelope generation mismatch fails the complete operation; no partial result is returned.
 
 This section covers retrieval-operation semantics only. Cross-stage RAG fallback, degraded answer policy, and user-facing messaging remain in the separate RAG Failure Handling SDD.
 
@@ -377,8 +382,9 @@ The following table records the owner decisions. Rows marked **Approved** are bi
 | R-13 | Filter cardinality | **Approved:** A request may contain at most 5 filter fields (the complete allowlist) and at most 20 values per field. Reject cardinality violations before any Qdrant call. | Bounds filter complexity while preserving the approved exact-match AND/OR semantics. |
 | R-14 | Vector Storage Amendment sequencing | **Approved — sequencing only:** Complete Retrieval SDD and its dependency-ordered task breakdown first. Then create and approve a separate Vector Storage specification amendment and its implementation/verification tasks. Retrieval implementation is blocked until that amendment is implemented, verified, and closed. The technical amendment contract itself is not approved by this sequencing decision. | Keeps the current SDD review focused while making the upstream contract change an explicit, non-bypassable implementation dependency. |
 | R-15 | Retrieval result envelope generation identity | **Approved:** Return `active_generation_id` at the result-envelope level and retain `generation_id` in every candidate. The envelope identifies the generation searched even when the result set is empty. Every candidate generation ID must equal the envelope identity; otherwise fail the entire operation with a response-contract error and return no partial results. The envelope identity must come from trusted generation-level metadata established by the required Vector Storage Amendment. | Makes empty-result provenance explicit and enforces that every candidate belongs to the exact active generation searched. |
+| R-16 | Retrieval error taxonomy ownership | **Approved:** Retrieval owns its stable boundary error taxonomy and maps normalized Embeddings/Vector Storage errors into Retrieval-owned typed errors, preserving the original normalized exception as `__cause__`. Mapping is explicit; Retrieval adds no retry loop, cancellation propagates, and raw infrastructure exceptions never escape. | Keeps the Retrieval contract independent of upstream subsystem taxonomies while retaining diagnostic causes and single-owner retry semantics. |
 
-R-1 through R-13 and R-15 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
+R-1 through R-13 and R-15 through R-16 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
 
 ## 15. Testing and Verification Requirements
 
@@ -407,7 +413,7 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 
 This specification can be submitted for final approval only when:
 
-- All decisions in §14 have explicit owner outcomes; R-1 through R-13 and R-15 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
+- All decisions in §14 have explicit owner outcomes; R-1 through R-13 and R-15 through R-16 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
 - R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
 - The separate Vector Storage Amendment must be specified, approved, implemented, verified, and closed after Retrieval SDD/task-breakdown approval but before any Retrieval implementation task is authorized.
 - The typed search request/result contracts are precise and compatible with the existing VectorStore boundary. Filter cardinality is fixed at no more than 5 allowlisted fields and 20 values per field.
