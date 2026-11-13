@@ -1757,3 +1757,9 @@ specification and acceptance criteria.
 - R-20 Concurrency Control is approved (option A): Retrieval uses bounded in-process concurrency and a finite waiting queue. Queue waiting consumes the R-19 overall deadline. A full queue rejects new arrivals immediately with `RetrievalCapacityExceeded`; an accepted queued request whose deadline expires receives `RetrievalDeadlineExceeded`. Cancellation while queued removes the waiter without starting work.
 - Numeric concurrency and queue capacities are intentionally deferred to evidence-based task breakdown. They must account for actual worker/process/replica multiplication and upstream Embeddings/Qdrant capacity. The process-local limit must not be represented as a deployment-wide global limit.
 - R-1 through R-13 and R-15 through R-20 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, final consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
+
+
+## Retrieval SDD — Decision Update (2026-11-13)
+
+- R-21 Caching is approved (option A): no Retrieval query-result cache in V1. Each accepted invocation follows the approved query-embedding and active-generation vector-search flow. Caching may be reconsidered only after baseline evaluation demonstrates a measurable need and a separate design addresses generation/config/filter-aware cache identity, invalidation, freshness, and bounded resource behavior.
+- R-1 through R-13 and R-15 through R-21 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, final consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
