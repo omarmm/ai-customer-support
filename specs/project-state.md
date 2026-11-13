@@ -1750,3 +1750,10 @@ specification and acceptance criteria.
 - R-19 Timeout Policy is approved (option A): one Retrieval invocation has a 10-second overall deadline measured with a monotonic clock; query embedding has a maximum 5-second stage timeout; vector search has a maximum 3-second stage timeout. Each stage is capped by the remaining overall budget.
 - Upstream retries consume the same stage and overall budget and may not reset or extend it. Retrieval adds no retry loop. No new stage starts after the overall deadline expires. Overall expiry raises Retrieval-owned `RetrievalDeadlineExceeded`; an upstream stage timeout is mapped under R-16 with its normalized cause preserved. Cancellation remains distinct and propagates unchanged; no partial result is returned.
 - R-1 through R-13 and R-15 through R-19 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, final consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
+
+
+## Retrieval SDD — Decision Update (2026-11-13)
+
+- R-20 Concurrency Control is approved (option A): Retrieval uses bounded in-process concurrency and a finite waiting queue. Queue waiting consumes the R-19 overall deadline. A full queue rejects new arrivals immediately with `RetrievalCapacityExceeded`; an accepted queued request whose deadline expires receives `RetrievalDeadlineExceeded`. Cancellation while queued removes the waiter without starting work.
+- Numeric concurrency and queue capacities are intentionally deferred to evidence-based task breakdown. They must account for actual worker/process/replica multiplication and upstream Embeddings/Qdrant capacity. The process-local limit must not be represented as a deployment-wide global limit.
+- R-1 through R-13 and R-15 through R-20 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, final consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
