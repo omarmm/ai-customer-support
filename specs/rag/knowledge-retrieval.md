@@ -132,6 +132,7 @@ Candidate responsibilities:
 5. Translate storage results into immutable retrieval DTOs.
 6. Normalize retrieval-specific errors and preserve safe internal causes.
 7. Emit the structured metadata-only observability event defined by R-17.
+8. Execute each request against the current active generation without a Retrieval result cache in V1 (R-21).
 
 Proposed flow:
 
@@ -409,8 +410,9 @@ The following table records the owner decisions. Rows marked **Approved** are bi
 | R-18 | Failure atomicity | **Approved:** Retrieval is all-or-nothing. Return either a complete contract-valid result (including a valid empty result) or a failure; never return partial candidates after any stage or response-contract failure. | Prevents downstream consumers and agents from treating incomplete evidence as a complete retrieval outcome. |
 | R-19 | Retrieval timeout policy | **Approved:** Use a 10-second overall deadline, a maximum 5-second query-embedding stage timeout, and a maximum 3-second vector-search stage timeout. Each stage is capped by the remaining overall budget; retries consume the same budget and cannot reset it. Overall expiry raises `RetrievalDeadlineExceeded`; upstream stage timeouts follow R-16 mapping. | Gives the caller a hard upper bound while retaining stage-level latency diagnosis and preventing retries from extending request lifetime. |
 | R-20 | Retrieval concurrency and admission control | **Approved:** Enforce bounded in-process concurrency and a finite waiting queue. Queue waiting consumes the R-19 overall deadline. Reject immediately with `RetrievalCapacityExceeded` when the waiting queue is full; a queued request whose deadline expires receives `RetrievalDeadlineExceeded`. Numeric concurrency/queue capacities are deferred to evidence-based task breakdown and must account for deployment process/replica multiplication and upstream capacity. | Prevents unbounded resource growth while distinguishing admission rejection from expiration of an accepted request's deadline. |
+| R-21 | Retrieval caching | **Approved:** No Retrieval query-result cache in V1. Every accepted invocation performs the approved query-embedding and active-generation vector-search flow. Reconsider caching only after baseline evaluation demonstrates a measurable need and a separate design defines generation/config/filter-aware cache identity, invalidation, freshness, and bounded resource behavior. | Establishes an uncached retrieval baseline and avoids stale-generation results and premature cache-invalidation complexity. |
 
-R-1 through R-13 and R-15 through R-20 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
+R-1 through R-13 and R-15 through R-21 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
 
 ## 15. Testing and Verification Requirements
 
@@ -433,7 +435,8 @@ Tests are to be finalized in the dependency-ordered task breakdown now that deci
 15. Opt-in live Ollama query-embedding conformance and container-backed Qdrant retrieval integration tests are explicitly gated and clean up their test-owned resources.
 16. Overall deadline and per-stage timeout enforcement use a monotonic clock; retries consume the same remaining budget, no stage starts after expiry, overall expiry maps to `RetrievalDeadlineExceeded`, and cancellation propagates unchanged.
 17. Bounded concurrency and finite queue admission are enforced per process; queue-full requests fail immediately with `RetrievalCapacityExceeded`; queued requests respect the overall deadline; cancellation removes queued waiters; capacity settings are tested against configured process/replica topology.
-18. Full regression preserves ingestion, chunking, embeddings, vector-storage lifecycle, domain, and LLM behavior.
+18. Retrieval V1 performs no query-result cache reads or writes; repeated equivalent requests follow the normal embedding/search path and active-generation changes cannot expose stale cached candidates.
+19. Full regression preserves ingestion, chunking, embeddings, vector-storage lifecycle, domain, and LLM behavior.
 
 The final task breakdown must split offline contract/unit tests from opt-in live provider/Qdrant integration where appropriate and define measurable acceptance criteria for each task.
 
@@ -441,7 +444,7 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 
 This specification can be submitted for final approval only when:
 
-- All decisions in §14 have explicit owner outcomes; R-1 through R-13 and R-15 through R-20 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
+- All decisions in §14 have explicit owner outcomes; R-1 through R-13 and R-15 through R-21 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
 - R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
 - The separate Vector Storage Amendment must be specified, approved, implemented, verified, and closed after Retrieval SDD/task-breakdown approval but before any Retrieval implementation task is authorized.
 - The typed search request/result contracts are precise and compatible with the existing VectorStore boundary. Filter cardinality is fixed at no more than 5 allowlisted fields and 20 values per field.
