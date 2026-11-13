@@ -344,6 +344,10 @@ Retry and control-flow rules:
 - If the overall deadline expires, fail the complete operation with the Retrieval-owned `RetrievalDeadlineExceeded` error. If an upstream stage-specific timeout occurs before the overall deadline, map it according to R-16 while preserving the normalized cause.
 - Deadline expiration does not permit partial results. Caller/task cancellation remains distinct and propagates unchanged.
 
+**Approved decision R-20 — Bounded Concurrency (option A):** Retrieval must enforce a bounded in-process concurrency limit and a finite waiting queue. Requests may wait only while capacity is expected to become available and only within their existing R-19 overall deadline. A full waiting queue rejects new work immediately with the Retrieval-owned `RetrievalCapacityExceeded` error. A request already waiting whose overall deadline expires fails with `RetrievalDeadlineExceeded`, not a capacity error. No unbounded queue, unbounded wait, or unbounded accumulation of pending request state is permitted.
+
+The concurrency limit and queue capacity are intentionally **not assigned numeric values by R-20**. They must be selected during task breakdown using measured resource capacity and the actual configured deployment topology, including worker/process/replica multiplication and upstream Embeddings/Qdrant capacity. The limit is per application process unless a separately approved distributed coordination mechanism is specified; do not imply a deployment-wide global limit from a process-local semaphore. Queue waiting consumes the same overall deadline and must not reset stage budgets. Cancellation while queued removes the waiter without consuming a concurrency slot or starting downstream work.
+
 This section covers retrieval-operation semantics only. Cross-stage RAG fallback, degraded answer policy, and user-facing messaging remain in the separate RAG Failure Handling SDD.
 
 ## 13. Security and Observability
@@ -404,8 +408,9 @@ The following table records the owner decisions. Rows marked **Approved** are bi
 | R-17 | Retrieval observability | **Approved:** Emit structured metadata-only events containing correlation ID (when supplied), active generation and embedding config identities, requested limit, result count, filter field names only, embedding/search/total durations, upstream retry count, outcome, and stable Retrieval error code on failure. Never log query text, chunk content, vectors, filter values, credentials, or raw exception/provider/storage payloads. | Enables stage-level latency and failure diagnosis while keeping customer content and sensitive inputs out of telemetry. |
 | R-18 | Failure atomicity | **Approved:** Retrieval is all-or-nothing. Return either a complete contract-valid result (including a valid empty result) or a failure; never return partial candidates after any stage or response-contract failure. | Prevents downstream consumers and agents from treating incomplete evidence as a complete retrieval outcome. |
 | R-19 | Retrieval timeout policy | **Approved:** Use a 10-second overall deadline, a maximum 5-second query-embedding stage timeout, and a maximum 3-second vector-search stage timeout. Each stage is capped by the remaining overall budget; retries consume the same budget and cannot reset it. Overall expiry raises `RetrievalDeadlineExceeded`; upstream stage timeouts follow R-16 mapping. | Gives the caller a hard upper bound while retaining stage-level latency diagnosis and preventing retries from extending request lifetime. |
+| R-20 | Retrieval concurrency and admission control | **Approved:** Enforce bounded in-process concurrency and a finite waiting queue. Queue waiting consumes the R-19 overall deadline. Reject immediately with `RetrievalCapacityExceeded` when the waiting queue is full; a queued request whose deadline expires receives `RetrievalDeadlineExceeded`. Numeric concurrency/queue capacities are deferred to evidence-based task breakdown and must account for deployment process/replica multiplication and upstream capacity. | Prevents unbounded resource growth while distinguishing admission rejection from expiration of an accepted request's deadline. |
 
-R-1 through R-13 and R-15 through R-19 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
+R-1 through R-13 and R-15 through R-20 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
 
 ## 15. Testing and Verification Requirements
 
@@ -427,7 +432,8 @@ Tests are to be finalized in the dependency-ordered task breakdown now that deci
 14. Offline unit tests use fakes and require no Ollama or Qdrant.
 15. Opt-in live Ollama query-embedding conformance and container-backed Qdrant retrieval integration tests are explicitly gated and clean up their test-owned resources.
 16. Overall deadline and per-stage timeout enforcement use a monotonic clock; retries consume the same remaining budget, no stage starts after expiry, overall expiry maps to `RetrievalDeadlineExceeded`, and cancellation propagates unchanged.
-17. Full regression preserves ingestion, chunking, embeddings, vector-storage lifecycle, domain, and LLM behavior.
+17. Bounded concurrency and finite queue admission are enforced per process; queue-full requests fail immediately with `RetrievalCapacityExceeded`; queued requests respect the overall deadline; cancellation removes queued waiters; capacity settings are tested against configured process/replica topology.
+18. Full regression preserves ingestion, chunking, embeddings, vector-storage lifecycle, domain, and LLM behavior.
 
 The final task breakdown must split offline contract/unit tests from opt-in live provider/Qdrant integration where appropriate and define measurable acceptance criteria for each task.
 
@@ -435,7 +441,7 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 
 This specification can be submitted for final approval only when:
 
-- All decisions in §14 have explicit owner outcomes; R-1 through R-13 and R-15 through R-19 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
+- All decisions in §14 have explicit owner outcomes; R-1 through R-13 and R-15 through R-20 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
 - R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
 - The separate Vector Storage Amendment must be specified, approved, implemented, verified, and closed after Retrieval SDD/task-breakdown approval but before any Retrieval implementation task is authorized.
 - The typed search request/result contracts are precise and compatible with the existing VectorStore boundary. Filter cardinality is fixed at no more than 5 allowlisted fields and 20 values per field.
