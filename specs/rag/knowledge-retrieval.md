@@ -131,7 +131,7 @@ Candidate responsibilities:
 4. Call `VectorStore.search` using the active alias.
 5. Translate storage results into immutable retrieval DTOs.
 6. Normalize retrieval-specific errors and preserve safe internal causes.
-7. Emit metadata-only retrieval telemetry.
+7. Emit the structured metadata-only observability event defined by R-17.
 
 Proposed flow:
 
@@ -345,21 +345,27 @@ Security:
 - Do not expose raw SDK exceptions, URLs containing credentials, or internal stack traces in public error messages.
 - No authorization or tenant isolation behavior may be inferred. Such behavior requires an authoritative domain/security contract before customer-facing exposure.
 
-Metadata-only observability should be sufficient to investigate retrieval without storing sensitive content. Candidate fields for approval:
+**Approved decision R-17 — Structured Metadata Observability (option A):** emit a structured metadata-only event for each completed Retrieval operation, including successful empty results and failures. The event contract includes:
 
-- operation/correlation ID (if the surrounding request contract provides one),
-- active generation ID,
-- query embedding model/config identity,
-- requested limit,
-- number of candidates returned,
-- filter field names (not necessarily values),
-- embedding duration,
-- vector search duration,
-- total retrieval duration,
-- retry count,
-- outcome/error code.
+| Field | Meaning / constraint |
+| --- | --- |
+| `correlation_id` | Propagate the caller/request correlation identifier when supplied by the surrounding request contract; Retrieval does not invent a new cross-system identity. |
+| `active_generation_id` | Trusted active generation identity, when resolved. |
+| `embedding_config_id` | Query embedding configuration identity, when available. |
+| `requested_limit` | Validated result limit. |
+| `result_count` | Number of candidates returned; zero for successful empty results. |
+| `filter_field_names` | Names of applied allowlisted fields only; never filter values. |
+| `embedding_duration_ms` | Time spent in the query-embedding stage, when that stage was entered. |
+| `vector_search_duration_ms` | Time spent in the Vector Storage search stage, when that stage was entered. |
+| `total_duration_ms` | Total elapsed Retrieval operation duration. |
+| `retry_count` | Total upstream retries reported by the Embeddings and Vector Storage boundaries; Retrieval itself performs no retries. Preserve stage-level retry counts in structured attributes where available. |
+| `outcome` | Bounded outcome classification, such as `success` or `failure`. |
+| `error_code` | Stable Retrieval-owned error code on failure; absent on success. |
 
-The exact telemetry schema and correlation-ID integration may be finalized with the project observability specification. Never emit raw query or chunk content.
+Telemetry must never contain raw query text, chunk content, vectors, filter values, credentials, raw provider/storage response bodies, or exception text. Missing stage values are represented as absent/null rather than fabricated. The event must distinguish a successful empty result (`outcome=success`, `result_count=0`) from a failure.
+
+The exact logger/metrics exporter and correlation-ID integration point may follow the project's shared observability infrastructure; this decision defines the Retrieval event fields and privacy boundary, not a new telemetry platform. Telemetry emission must not change the Retrieval result/error contract or introduce a second retry path.
+
 
 ## 14. Approval Decisions
 
@@ -383,8 +389,10 @@ The following table records the owner decisions. Rows marked **Approved** are bi
 | R-14 | Vector Storage Amendment sequencing | **Approved — sequencing only:** Complete Retrieval SDD and its dependency-ordered task breakdown first. Then create and approve a separate Vector Storage specification amendment and its implementation/verification tasks. Retrieval implementation is blocked until that amendment is implemented, verified, and closed. The technical amendment contract itself is not approved by this sequencing decision. | Keeps the current SDD review focused while making the upstream contract change an explicit, non-bypassable implementation dependency. |
 | R-15 | Retrieval result envelope generation identity | **Approved:** Return `active_generation_id` at the result-envelope level and retain `generation_id` in every candidate. The envelope identifies the generation searched even when the result set is empty. Every candidate generation ID must equal the envelope identity; otherwise fail the entire operation with a response-contract error and return no partial results. The envelope identity must come from trusted generation-level metadata established by the required Vector Storage Amendment. | Makes empty-result provenance explicit and enforces that every candidate belongs to the exact active generation searched. |
 | R-16 | Retrieval error taxonomy ownership | **Approved:** Retrieval owns its stable boundary error taxonomy and maps normalized Embeddings/Vector Storage errors into Retrieval-owned typed errors, preserving the original normalized exception as `__cause__`. Mapping is explicit; Retrieval adds no retry loop, cancellation propagates, and raw infrastructure exceptions never escape. | Keeps the Retrieval contract independent of upstream subsystem taxonomies while retaining diagnostic causes and single-owner retry semantics. |
+| R-17 | Retrieval observability | **Approved:** Emit structured metadata-only events containing correlation ID (when supplied), active generation and embedding config identities, requested limit, result count, filter field names only, embedding/search/total durations, upstream retry count, outcome, and stable Retrieval error code on failure. Never log query text, chunk content, vectors, filter values, credentials, or raw exception/provider/storage payloads. | Enables stage-level latency and failure diagnosis while keeping customer content and sensitive inputs out of telemetry. |
+| R-16 | Retrieval error taxonomy ownership | **Approved:** Retrieval owns its stable boundary error taxonomy and maps normalized Embeddings/Vector Storage errors into Retrieval-owned typed errors, preserving the original normalized exception as `__cause__`. Mapping is explicit; Retrieval adds no retry loop, cancellation propagates, and raw infrastructure exceptions never escape. | Keeps the Retrieval contract independent of upstream subsystem taxonomies while retaining diagnostic causes and single-owner retry semantics. |
 
-R-1 through R-13 and R-15 through R-16 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
+R-1 through R-13 and R-15 through R-17 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
 
 ## 15. Testing and Verification Requirements
 
@@ -413,7 +421,7 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 
 This specification can be submitted for final approval only when:
 
-- All decisions in §14 have explicit owner outcomes; R-1 through R-13 and R-15 through R-16 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
+- All decisions in §14 have explicit owner outcomes; R-1 through R-13 and R-15 through R-17 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
 - R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
 - The separate Vector Storage Amendment must be specified, approved, implemented, verified, and closed after Retrieval SDD/task-breakdown approval but before any Retrieval implementation task is authorized.
 - The typed search request/result contracts are precise and compatible with the existing VectorStore boundary. Filter cardinality is fixed at no more than 5 allowlisted fields and 20 values per field.
