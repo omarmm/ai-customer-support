@@ -1723,3 +1723,10 @@ specification and acceptance criteria.
 - Do not repeat completed audits unless evidence is stale
   or a specific change requires re-verification.
 - Update this file at every verified task closure.
+
+
+## Retrieval SDD — Decision Update (2026-11-13)
+
+- R-16 Error Taxonomy is approved: Retrieval owns the stable error contract exposed at its boundary. It explicitly maps normalized Embeddings and Vector Storage failures into Retrieval-owned typed errors while preserving the original normalized exception as `__cause__`. The agreed categories are `InvalidRetrievalRequest`, `ActiveGenerationNotFound`, `IncompatibleEmbeddingSpace`, `RetrievalEmbeddingError`, `RetrievalVectorSearchError`, and `RetrievalResponseContractError`.
+- Retrieval does not import or expose raw Qdrant SDK, HTTPX, or provider-specific exceptions. EmbeddingService and Vector Storage retain sole ownership of their respective retry loops; Retrieval adds no retry loop. Cancellation propagates unchanged, empty results remain successful, and malformed or generation-inconsistent candidates fail the complete operation without partial results.
+- R-1 through R-13 and R-15 through R-16 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
