@@ -333,6 +333,17 @@ Retry and control-flow rules:
 - Any candidate/envelope generation mismatch fails the complete operation; no partial result is returned.
 - **Approved decision R-18 — All-or-Nothing Failure Atomicity:** the Retrieval operation returns either one complete, contract-valid `RetrievalResult` or one failure. It MUST NOT return partial candidates when query embedding, active-generation compatibility checks, vector search, payload validation, or result-envelope validation fails. A successful empty candidate set remains a complete success, not a partial result.
 
+**Approved decision R-19 — Overall Deadline with Stage Limits (option A):**
+
+- Overall Retrieval deadline: **10 seconds** for one invocation, measured with a monotonic clock.
+- Query-embedding stage timeout: **5 seconds maximum**.
+- Vector-search stage timeout: **3 seconds maximum**.
+- Each stage's effective timeout is the smaller of its configured stage limit and the remaining overall deadline. The overall deadline is authoritative; stage limits do not extend it.
+- Do not start a new stage after the overall deadline expires. In particular, do not issue Vector Storage search if query embedding or compatibility checks consume the remaining deadline.
+- Retries performed inside EmbeddingService or Vector Storage consume the same stage and overall time budget. No retry may reset or extend the Retrieval deadline; Retrieval itself adds no retry loop.
+- If the overall deadline expires, fail the complete operation with the Retrieval-owned `RetrievalDeadlineExceeded` error. If an upstream stage-specific timeout occurs before the overall deadline, map it according to R-16 while preserving the normalized cause.
+- Deadline expiration does not permit partial results. Caller/task cancellation remains distinct and propagates unchanged.
+
 This section covers retrieval-operation semantics only. Cross-stage RAG fallback, degraded answer policy, and user-facing messaging remain in the separate RAG Failure Handling SDD.
 
 ## 13. Security and Observability
@@ -392,9 +403,9 @@ The following table records the owner decisions. Rows marked **Approved** are bi
 | R-16 | Retrieval error taxonomy ownership | **Approved:** Retrieval owns its stable boundary error taxonomy and maps normalized Embeddings/Vector Storage errors into Retrieval-owned typed errors, preserving the original normalized exception as `__cause__`. Mapping is explicit; Retrieval adds no retry loop, cancellation propagates, and raw infrastructure exceptions never escape. | Keeps the Retrieval contract independent of upstream subsystem taxonomies while retaining diagnostic causes and single-owner retry semantics. |
 | R-17 | Retrieval observability | **Approved:** Emit structured metadata-only events containing correlation ID (when supplied), active generation and embedding config identities, requested limit, result count, filter field names only, embedding/search/total durations, upstream retry count, outcome, and stable Retrieval error code on failure. Never log query text, chunk content, vectors, filter values, credentials, or raw exception/provider/storage payloads. | Enables stage-level latency and failure diagnosis while keeping customer content and sensitive inputs out of telemetry. |
 | R-18 | Failure atomicity | **Approved:** Retrieval is all-or-nothing. Return either a complete contract-valid result (including a valid empty result) or a failure; never return partial candidates after any stage or response-contract failure. | Prevents downstream consumers and agents from treating incomplete evidence as a complete retrieval outcome. |
-| R-16 | Retrieval error taxonomy ownership | **Approved:** Retrieval owns its stable boundary error taxonomy and maps normalized Embeddings/Vector Storage errors into Retrieval-owned typed errors, preserving the original normalized exception as `__cause__`. Mapping is explicit; Retrieval adds no retry loop, cancellation propagates, and raw infrastructure exceptions never escape. | Keeps the Retrieval contract independent of upstream subsystem taxonomies while retaining diagnostic causes and single-owner retry semantics. |
+| R-19 | Retrieval timeout policy | **Approved:** Use a 10-second overall deadline, a maximum 5-second query-embedding stage timeout, and a maximum 3-second vector-search stage timeout. Each stage is capped by the remaining overall budget; retries consume the same budget and cannot reset it. Overall expiry raises `RetrievalDeadlineExceeded`; upstream stage timeouts follow R-16 mapping. | Gives the caller a hard upper bound while retaining stage-level latency diagnosis and preventing retries from extending request lifetime. |
 
-R-1 through R-13 and R-15 through R-18 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
+R-1 through R-13 and R-15 through R-19 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
 
 ## 15. Testing and Verification Requirements
 
@@ -415,7 +426,8 @@ Tests are to be finalized in the dependency-ordered task breakdown now that deci
 13. No network I/O occurs during application startup; retrieval network calls occur only when invoked.
 14. Offline unit tests use fakes and require no Ollama or Qdrant.
 15. Opt-in live Ollama query-embedding conformance and container-backed Qdrant retrieval integration tests are explicitly gated and clean up their test-owned resources.
-16. Full regression preserves ingestion, chunking, embeddings, vector-storage lifecycle, domain, and LLM behavior.
+16. Overall deadline and per-stage timeout enforcement use a monotonic clock; retries consume the same remaining budget, no stage starts after expiry, overall expiry maps to `RetrievalDeadlineExceeded`, and cancellation propagates unchanged.
+17. Full regression preserves ingestion, chunking, embeddings, vector-storage lifecycle, domain, and LLM behavior.
 
 The final task breakdown must split offline contract/unit tests from opt-in live provider/Qdrant integration where appropriate and define measurable acceptance criteria for each task.
 
@@ -423,7 +435,7 @@ The final task breakdown must split offline contract/unit tests from opt-in live
 
 This specification can be submitted for final approval only when:
 
-- All decisions in §14 have explicit owner outcomes; R-1 through R-13 and R-15 through R-18 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
+- All decisions in §14 have explicit owner outcomes; R-1 through R-13 and R-15 through R-19 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
 - R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
 - The separate Vector Storage Amendment must be specified, approved, implemented, verified, and closed after Retrieval SDD/task-breakdown approval but before any Retrieval implementation task is authorized.
 - The typed search request/result contracts are precise and compatible with the existing VectorStore boundary. Filter cardinality is fixed at no more than 5 allowlisted fields and 20 values per field.
