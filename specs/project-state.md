@@ -1737,3 +1737,9 @@ specification and acceptance criteria.
 - R-17 Observability is approved (option A): emit a structured metadata-only event for each completed Retrieval operation. Fields include caller-provided correlation ID when available, active generation ID, embedding config ID, requested limit, result count, filter field names only, embedding/search/total durations, upstream retry count, outcome, and stable Retrieval error code on failure.
 - Privacy constraints: never log query text, chunk content, vectors, filter values, credentials, raw provider/storage response bodies, or exception text. Successful empty results remain distinguishable from failures. Retrieval does not invent a cross-system correlation ID and telemetry does not alter the Retrieval result/error contract.
 - R-1 through R-13 and R-15 through R-17 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
+
+
+## Retrieval SDD — Decision Update (2026-11-13)
+
+- R-18 Failure Atomicity is approved (option A — All-or-Nothing): a Retrieval invocation returns either a complete contract-valid result or a failure. It never returns partial candidates when query embedding, generation compatibility, vector search, payload validation, or envelope validation fails. A valid empty result remains a successful complete result.
+- R-1 through R-13 and R-15 through R-18 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, final consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
