@@ -54,9 +54,11 @@
 
 ## Active Implementation Handoff
 
-- None. T278 was verified, closed, and merged on 2026-11-09. No implementation
-  task is active or authorized. Retrieval and all remaining RAG work are deferred
-  until a separate SDD cycle is explicitly started.
+- None. T278 was verified, closed, and merged on 2026-11-09. The Retrieval SDD
+  and dependency-ordered task breakdown were approved for planning on
+  2026-11-14. No implementation task is active or authorized. The next task is
+  T279, a specification-only Embeddings amendment, and requires separate
+  authorization.
 
 ## Last Completed Task
 - Task: T278 — Vector storage composition and integration verification
@@ -1642,11 +1644,79 @@ specification and acceptance criteria.
   app.main:app` is the runtime entry point, and the composed service is exposed
   through `app.state`.
 - Vector Storage specification and task breakdown are approved. T272–T278 are
-  complete and closed. Retrieval, metadata filtering behavior,
-  context construction, source attribution, evaluation, and RAG failure
-  handling outside storage remain separate SDD cycles.
+  complete and closed. A draft Retrieval specification is available at
+  `specs/rag/knowledge-retrieval.md` on `docs/rag-retrieval-sdd-draft`; it is not
+  approved and authorizes no implementation. Decision R-1 (query embedding
+  ownership) was approved on 2026-11-09: extend the existing `EmbeddingService`
+  with typed `embed_query(query)` alongside `embed_chunks()`, keeping provider,
+  model, prefixes, validation, timeout, and retry inside the Embeddings boundary.
+  Query/document vectors must share an explicitly compatible embedding-space
+  identity; equal dimensions alone are insufficient. R-2 (V1 retrieval mode) was
+  approved on 2026-11-09: dense semantic search only using the existing dense
+  768-dimensional Cosine vector through `knowledge_vectors_active`; sparse and
+  hybrid search are excluded from V1 and require a separate Vector Storage
+  specification amendment, generation rebuild plan, and comparative evaluation
+  before any future adoption. The required Embeddings specification amendment
+  must be included in the Retrieval task breakdown before implementation.
+  R-3 (result limits) was approved on 2026-11-09: `limit` defaults to 5, accepts
+  values from 1 through 20, rejects out-of-range values before Qdrant, and does
+  not support pagination in V1. R-4 (score threshold) was approved on 2026-11-09: omit `score_threshold` from
+  the V1 request contract; apply no default or caller-supplied threshold. Return
+  the top bounded candidates by similarity and reconsider thresholding only
+  after retrieval evaluation. R-5 (metadata filters) was approved on 2026-11-09: exact-match allowlist for
+  `document_id`, `source_path`, `format`, `chunking_config_id`, and
+  `embedding_config_id`; AND across fields and OR within values. Unknown fields,
+  unsupported operators, and empty values are rejected before Qdrant; filters
+  are applied server-side. R-6 (`chunk_index` filtering) was approved on 2026-11-09: exclude exact and
+  range filters on `chunk_index` from V1 while retaining the field in returned
+  provenance. R-7 (reranking) was approved on 2026-11-10: exclude model-based reranking from
+  V1. Establish and evaluate the dense baseline first; any future reranker needs
+  a separate specification supported by measurable quality, latency, and cost
+  evidence. R-8 (missing active alias) was approved on 2026-11-10: raise normalized
+  `ActiveGenerationNotFound`, distinct from an empty successful result. R-9
+  (equal-score ordering) was approved: preserve Qdrant order without a secondary
+  sort or cross-call stability guarantee. R-10 (query validation) was approved:
+  reject empty-after-trim input, embed the original unmodified query, and enforce
+  the original string's Unicode code-point length using configurable
+  `retrieval_max_query_length` (default 2000, integer greater than zero). R-11
+  (result payload) was approved: return exact stored chunk content and all stored
+  provenance fields with the score. R-12 (composition) was approved: reuse the
+  application-owned EmbeddingService and VectorStore through the composition
+  root; no startup network I/O, with embedding/search only on retrieval
+  invocation. R-13 (filter cardinality) was approved on 2026-11-10: a retrieval request may contain at most 5 distinct allowlisted filter fields and at most 20 values per field; cardinality violations are rejected before Qdrant. All Retrieval decisions R-1 through R-13 are now approved; the
+  Retrieval specification remains a draft pending final consistency review and
+  dependency-ordered task breakdown. No implementation is authorized. Context
+  construction, source attribution, evaluation, and RAG failure handling remain
+  separate SDD cycles.
 - Retry concrete defaults (chosen in T253) may be revisited during future
   hardening; not a Phase 3 blocker.
+
+## Retrieval SDD — Decision Status (2026-11-10)
+
+- Retrieval decisions R-1 through R-13 and R-15 are approved; Retrieval SDD
+  remains a draft pending consistency review and dependency-ordered task
+  breakdown.
+- R-15 result contract: the retrieval response envelope carries
+  `active_generation_id`; each candidate retains `generation_id`. The
+  candidate identity must equal the envelope identity, including the empty
+  result case where the envelope still identifies the verified active
+  generation. A mismatch fails the complete operation with no partial result.
+  The envelope identity must come from trusted generation-level metadata
+  established by the required Vector Storage Amendment.
+- R-14 sequencing is approved: complete Retrieval SDD and its task breakdown
+  first; then prepare and approve a separate Vector Storage specification
+  amendment and its implementation/verification tasks. No Retrieval
+  implementation may begin until that amendment is implemented, verified, and
+  closed.
+- R-14 approves sequencing only. The technical amendment contract remains
+  unapproved. The proposed direction is to store trusted `embedding_config_id`
+  at generation/collection metadata level, expose it through `GenerationInfo`,
+  and validate it during generation verification. Retrieval must compare the
+  query embedding identity against the active generation identity before
+  Qdrant search, including for empty generations, and fail closed when identity
+  is missing or incompatible. The exact metadata, migration/backfill/rebuild,
+  and recovery contract must be specified and approved separately.
+- No Retrieval implementation is authorized.
 
 ## Rules
 - Specifications are the source of truth.
@@ -1655,3 +1725,79 @@ specification and acceptance criteria.
 - Do not repeat completed audits unless evidence is stale
   or a specific change requires re-verification.
 - Update this file at every verified task closure.
+
+
+## Retrieval SDD — Decision Update (2026-11-13)
+
+- R-16 Error Taxonomy is approved: Retrieval owns the stable error contract exposed at its boundary. It explicitly maps normalized Embeddings and Vector Storage failures into Retrieval-owned typed errors while preserving the original normalized exception as `__cause__`. The agreed categories are `InvalidRetrievalRequest`, `ActiveGenerationNotFound`, `IncompatibleEmbeddingSpace`, `RetrievalEmbeddingError`, `RetrievalVectorSearchError`, and `RetrievalResponseContractError`.
+- Retrieval does not import or expose raw Qdrant SDK, HTTPX, or provider-specific exceptions. EmbeddingService and Vector Storage retain sole ownership of their respective retry loops; Retrieval adds no retry loop. Cancellation propagates unchanged, empty results remain successful, and malformed or generation-inconsistent candidates fail the complete operation without partial results.
+- R-1 through R-13 and R-15 through R-16 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
+
+
+## Retrieval SDD — Decision Update (2026-11-13)
+
+- R-17 Observability is approved (option A): emit a structured metadata-only event for each completed Retrieval operation. Fields include caller-provided correlation ID when available, active generation ID, embedding config ID, requested limit, result count, filter field names only, embedding/search/total durations, upstream retry count, outcome, and stable Retrieval error code on failure.
+- Privacy constraints: never log query text, chunk content, vectors, filter values, credentials, raw provider/storage response bodies, or exception text. Successful empty results remain distinguishable from failures. Retrieval does not invent a cross-system correlation ID and telemetry does not alter the Retrieval result/error contract.
+- R-1 through R-13 and R-15 through R-17 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
+
+
+## Retrieval SDD — Decision Update (2026-11-13)
+
+- R-18 Failure Atomicity is approved (option A — All-or-Nothing): a Retrieval invocation returns either a complete contract-valid result or a failure. It never returns partial candidates when query embedding, generation compatibility, vector search, payload validation, or envelope validation fails. A valid empty result remains a successful complete result.
+- R-1 through R-13 and R-15 through R-18 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, final consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
+
+
+## Retrieval SDD — Decision Update (2026-11-13)
+
+- R-19 Timeout Policy is approved (option A): one Retrieval invocation has a 10-second overall deadline measured with a monotonic clock; query embedding has a maximum 5-second stage timeout; vector search has a maximum 3-second stage timeout. Each stage is capped by the remaining overall budget.
+- Upstream retries consume the same stage and overall budget and may not reset or extend it. Retrieval adds no retry loop. No new stage starts after the overall deadline expires. Overall expiry raises Retrieval-owned `RetrievalDeadlineExceeded`; an upstream stage timeout is mapped under R-16 with its normalized cause preserved. Cancellation remains distinct and propagates unchanged; no partial result is returned.
+- R-1 through R-13 and R-15 through R-19 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, final consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
+
+
+## Retrieval SDD — Decision Update (2026-11-13)
+
+- R-20 Concurrency Control is approved (option A): Retrieval uses bounded in-process concurrency and a finite waiting queue. Queue waiting consumes the R-19 overall deadline. A full queue rejects new arrivals immediately with `RetrievalCapacityExceeded`; an accepted queued request whose deadline expires receives `RetrievalDeadlineExceeded`. Cancellation while queued removes the waiter without starting work.
+- Numeric concurrency and queue capacities are intentionally deferred to evidence-based task breakdown. They must account for actual worker/process/replica multiplication and upstream Embeddings/Qdrant capacity. The process-local limit must not be represented as a deployment-wide global limit.
+- R-1 through R-13 and R-15 through R-20 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, final consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
+
+
+## Retrieval SDD — Decision Update (2026-11-13)
+
+- R-21 Caching is approved (option A): no Retrieval query-result cache in V1. Each accepted invocation follows the approved query-embedding and active-generation vector-search flow. Caching may be reconsidered only after baseline evaluation demonstrates a measurable need and a separate design addresses generation/config/filter-aware cache identity, invalidation, freshness, and bounded resource behavior.
+- R-1 through R-13 and R-15 through R-21 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, final consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
+
+
+## Retrieval SDD and Task Breakdown Approval — 2026-11-14
+
+- Specification: `specs/rag/knowledge-retrieval.md`.
+- Task breakdown: `specs/rag/knowledge-retrieval-tasks.md`.
+- Decisions R-1–R-13 and R-15–R-21 are approved. R-14 is sequencing approval only; no technical Vector Storage amendment details are approved.
+- Retrieval V1 is dense semantic search through `knowledge_vectors_active`, default limit 5/max 20, exact-match allowlisted metadata filters, no score threshold, no reranking, no hybrid search, and no result cache.
+- Retrieval returns exact stored content/provenance and a trusted active-generation envelope; all operations are all-or-nothing.
+- Retrieval-owned errors include `RetrievalDeadlineExceeded` and `RetrievalCapacityExceeded`.
+- Required upstream gates: T279 Embeddings query-operation amendment (specification only), T280 its implementation/verification, then T281 separate Vector Storage generation-identity amendment (specification only) followed by its own approved implementation/verification tasks.
+- Retrieval implementation is blocked until both upstream amendments are implemented, verified, and closed.
+- T282–T288 are planned in the approved task breakdown. T282 is documentation-only capacity/topology sizing; numeric per-process concurrency and queue limits must be evidence-based and explicitly approved before runtime implementation.
+- **Current authorized implementation task:** None. T279 is the next planned task and requires separate explicit authorization.
+- Approval authorizes planning only. No Retrieval or upstream implementation has been started or authorized by this approval.
+
+
+## T279 — Embeddings Query Operation Amendment (2026-11-14)
+
+- Draft amendment EMB-Q-001 appended to `specs/rag/knowledge-document-embeddings.md`.
+- Draft task breakdown added at `specs/rag/knowledge-document-embeddings-query-tasks.md`.
+- Proposed API: `EmbeddingService.embed_query(query: str) -> QueryEmbedding`.
+- The query operation reuses the existing provider, `EmbeddingConfig`, shared `embedding_config_id`, query prefix, timeout, retry policy, and normalized error taxonomy. Document embeddings remain unchanged.
+- T279 is documentation-only. No production code or tests were changed.
+- **Status:** Approved by user on 2026-11-14.
+- **T280:** Query-operation implementation explicitly authorized by user on 2026-11-14.
+- **Current authorized implementation task:** T280 — Query operation implementation only.
+- Retrieval remains blocked pending T280 implementation/verification/closure, and the separate T281 Vector Storage generation-identity amendment and its implementation/verification.
+
+
+## T279 Approval and T280 Authorization — 2026-11-14
+
+- User approved Amendment EMB-Q-001 and its T280 task breakdown.
+- User explicitly authorized T280 — Query operation implementation.
+- T280 is the only currently authorized implementation task. Implement only the approved query operation, contract, and tests within its file scope; do not begin T281 or Retrieval.
+- T279 remains documentation-only and contains no production code changes.
