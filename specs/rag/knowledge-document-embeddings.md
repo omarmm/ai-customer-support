@@ -1159,3 +1159,190 @@ Revision 2 was approved on 2026-10-24.
   specification is amended before any incompatible assumption proceeds.
 - Approval does not authorize combining tasks, skipping acceptance criteria, or
   implementing later tasks early.
+
+
+---
+
+# Amendment Proposal — First-Class Query Embeddings
+
+**Amendment ID:** EMB-Q-001  
+**Target revision:** Revision 2  
+**Status:** Draft for review — not approved; no implementation authorized  
+**Task:** T279 — Embeddings query-operation amendment (specification only)  
+**Date:** 2026-11-14  
+**Scope:** Add query embedding as a first-class operation of the existing Embeddings subsystem. All Revision 2 behavior for document embeddings remains unchanged unless this amendment explicitly extends it.
+
+## A.1. Motivation and architectural boundary
+
+Retrieval must embed a user query into the same configured embedding space used by stored knowledge chunks. The existing configuration already pins both task prefixes, but the service currently exposes only `embed_chunks()`. This amendment adds a typed query operation without creating a second provider, service, configuration, retry policy, or composition root.
+
+The operation remains inside `src/app/rag/embeddings/`. It has no knowledge of Qdrant, active generations, Retrieval contracts, HTTP endpoints, persistence, or application business rules.
+
+## A.2. Approved-by-amendment target API
+
+The amendment proposes the following public service operation:
+
+```python
+async def embed_query(self, query: str) -> QueryEmbedding:
+    ...
+```
+
+Contract:
+
+- Accept exactly one raw query string.
+- Reject a non-string value or a string that is empty after `strip()` with `ValueError`.
+- Use trimming only to determine emptiness. Do not trim, normalize, reflow, lowercase, tokenize-and-reconstruct, or otherwise alter the original query.
+- Prepend `config.query_prefix` exactly once. The provider receives the exact string `config.query_prefix + query`.
+- Pass the already-prefixed text to the existing provider protocol as a one-element sequence, using the same `EmbeddingProvider.embed(..., timeout=...)` method.
+- Do not fabricate a `Chunk`, `ChunkEmbedding`, document ID, chunk ID, or provenance fields to reuse `embed_chunks()`.
+- Do not batch multiple queries in this amendment. A single call represents one query.
+- Do not add per-call provider/model/prefix/timeout/retry overrides.
+
+Retrieval's approved maximum query length remains owned by Retrieval request validation. The Embeddings operation enforces non-empty input and provider/model response invariants; it does not introduce a second configurable character limit. No truncation or silent query modification is permitted. Provider rejection due to model input limits is normalized using the existing invalid-request error mapping.
+
+## A.3. Immutable query result contract
+
+Add a frozen dataclass named `QueryEmbedding` in `src/app/rag/embeddings/contracts.py`:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `config` | `EmbeddingConfig` | Exact effective configuration used by the service |
+| `vector` | `tuple[float, ...]` | One immutable query vector |
+| `retry_count` | `int` | Additional provider attempts performed for this query |
+
+Derived read-only property:
+
+- `embedding_config_id` returns `config.config_id`.
+
+Construction validation:
+
+- `config` must be an `EmbeddingConfig`.
+- `vector` is normalized to an immutable tuple of floats.
+- The vector must contain exactly `config.dimension` values.
+- Every value must be numeric, must not be a boolean, and must be finite.
+- `retry_count` must be a non-negative integer; booleans are not integers for this contract.
+- Invalid construction raises `ValueError`.
+- The result contains no raw query text, provider response, credentials, or mutable provider data.
+
+The query result deliberately carries the same `EmbeddingConfig` identity as document embeddings. Retrieval can compare `QueryEmbedding.embedding_config_id` to trusted generation metadata without inferring compatibility from vector dimensions.
+
+## A.4. Shared embedding-space identity and operation-specific prefixes
+
+The document and query operations MUST use the same effective `EmbeddingConfig` instance owned by one `EmbeddingService`:
+
+- Document input: `config.document_prefix + chunk.content`.
+- Query input: `config.query_prefix + original_query`.
+- Both results expose `config.config_id` as their `embedding_config_id`.
+- The existing deterministic `EmbeddingConfig.config_id` payload already includes provider, model, dimension, both prefixes, normalization, and algorithm version. It therefore remains the single shared embedding-space identity.
+- The operation selected (document or query) does not create a separate identity.
+- The two prefixes remain distinct and are each applied exactly once.
+- Dimension equality alone is never a compatibility proof.
+
+No new query-specific config ID, query model, provider identity, or environment override is introduced. The served digest remains excluded under approved D-1/D-2. The existing `embeddings-v1` algorithm version remains unchanged because the amendment adds a second operation using the already-pinned query prefix and the existing provider request/response contract; it does not alter document vector generation. Any future change to either prefix, model, normalization, provider request/response semantics, or other vector-affecting behavior still requires a new algorithm version and configuration identity as described in Revision 2.
+
+## A.5. Provider and composition behavior
+
+- Reuse the existing `EmbeddingProvider` protocol and configured provider instance.
+- Reuse the existing `OllamaEmbeddingProvider`; no new endpoint or provider method is required.
+- The provider continues to accept already-prefixed strings and returns vectors in input order.
+- The service sends exactly one prefixed query text per invocation.
+- Reuse the existing `EmbeddingService` instance exposed by the existing composition root. Do not create a query-only service or provider.
+- No startup network I/O is added. The provider is invoked only when `embed_query()` is called.
+- No Qdrant or Vector Storage dependency is introduced.
+
+## A.6. Validation and failure atomicity
+
+The query operation applies the same service-level vector validation as document embedding:
+
+1. The provider must return exactly one vector for the one query input.
+2. Zero vectors raise `EmbeddingResponseError("empty_embeddings")`.
+3. More than one vector raises `EmbeddingResponseError("count_mismatch")`.
+4. A vector whose length differs from `config.dimension` raises `EmbeddingResponseError("dimension_mismatch")`.
+5. Boolean or non-numeric values raise `EmbeddingResponseError("malformed_response")`.
+6. NaN or infinity raises `EmbeddingResponseError("non_finite_value")`.
+7. A valid vector is converted to an immutable tuple of floats without normalization, rounding, scaling, clipping, or truncation.
+
+Any failure returns no query result. The operation must never return an empty vector as a successful result or partial data.
+
+## A.7. Errors, timeout, retries, and cancellation
+
+The query operation MUST reuse the existing Embeddings error taxonomy and retry policy without adding a second policy:
+
+- Provider exceptions are normalized by the existing explicit provider-to-application mapping.
+- Retry only the existing retryable normalized errors: connection, timeout, rate limit, and unavailable.
+- Preserve the existing `max_retries=2`, backoff defaults, and embeddings-local retry implementation.
+- The configured per-attempt timeout is passed unchanged to the provider on every attempt.
+- `QueryEmbedding.retry_count` is the number of additional attempts made for this query. The first attempt is not a retry.
+- A terminal normalized error exposes `error.retry_count` with the number of retries already spent for this query, matching existing service semantics.
+- Validation errors, model mismatch, configuration errors, invalid requests, and unexpected internal errors are not retried.
+- `asyncio.CancelledError` propagates unchanged and is never swallowed, normalized, or retried.
+- The query operation does not introduce an overall deadline. Retrieval owns its approved overall/stage deadline and supplies a bounded timeout through the existing service boundary in a separately specified integration contract if required. The existing fixed EmbeddingService timeout behavior must not be silently redefined by this amendment.
+
+## A.8. Privacy and observability
+
+- Do not store or return the raw query string in `QueryEmbedding`.
+- Do not log the query, prefixed query, vector, provider response body, or credentials.
+- Error messages and structured metadata may include stable error category/reason and retry count only; no query text or vector content.
+- This amendment adds no logging framework, metrics, tracing, or HTTP response behavior.
+
+## A.9. Testing requirements
+
+All default tests are deterministic and offline. No test requires Ollama, Qdrant, PostgreSQL, or network access.
+
+**Contract tests**
+- `QueryEmbedding` is frozen and normalizes vectors to immutable float tuples.
+- Reject invalid config, empty vectors, wrong dimensions, booleans, non-numeric values, NaN/infinity, negative retry counts, and boolean retry counts.
+- `embedding_config_id` equals the exact `EmbeddingConfig.config_id`.
+- Query and document result contracts created from the same config expose the same config identity.
+
+**Service tests**
+- `embed_query()` rejects non-string, empty, and whitespace-only input before any provider call.
+- Original query text, including leading/trailing whitespace when non-empty, is preserved byte-for-byte at the Python string level after prefixing.
+- The exact query prefix is applied once, including its trailing space.
+- Exactly one provider input is sent; no fake `Chunk` or `ChunkEmbedding` is constructed.
+- The provider is called through the existing configured provider with the configured timeout.
+- One valid vector produces one `QueryEmbedding` with the shared config identity.
+- Empty, multiple, wrong-dimension, malformed, and non-finite provider outputs fail with the specified stable error.
+- Retryable errors follow the existing retry policy and report retry count correctly; permanent errors are not retried.
+- Timeout is applied on every attempt; cancellation propagates.
+- No Qdrant, database, HTTP framework, or `app.llm.*` import is introduced.
+- Existing `embed_chunks()` tests and document vector identity remain unchanged.
+
+**Live conformance**
+- Add an opt-in query conformance case behind the existing `RUN_LIVE_OLLAMA=1` gate.
+- Verify one query vector, expected pinned dimension, and model-name behavior against the configured Ollama model.
+- Record the observed result as conformance evidence only; do not claim served digest verification.
+- Default test execution remains offline.
+
+## A.10. File placement and task boundary
+
+Expected implementation files (not changed by T279):
+
+- `src/app/rag/embeddings/contracts.py` — add `QueryEmbedding`.
+- `src/app/rag/embeddings/service.py` — add `EmbeddingService.embed_query()`.
+- Existing provider, retry, exceptions, and composition modules are reused unless implementation evidence proves a narrowly scoped additive change is required and separately approved.
+- `tests/rag/embeddings/test_contracts.py` — query result tests.
+- `tests/rag/embeddings/test_service.py` — query operation tests.
+- `tests/rag/embeddings/test_ollama_conformance.py` — opt-in query conformance.
+
+No production code, settings, migration, Qdrant integration, retrieval implementation, or startup behavior changes are part of this amendment.
+
+## A.11. Compatibility and acceptance gate
+
+The amendment is acceptable only when all of the following hold:
+
+- Existing document embedding outputs, IDs, prefixes, batching, ordering, and retry behavior are unchanged.
+- Query and document vectors use the same provider/model/config identity and dimension, with their distinct task prefixes.
+- Query prefix is applied exactly once and the original query is otherwise unchanged.
+- Query output is immutable and exposes the shared `embedding_config_id`.
+- All query validation, response validation, errors, retries, timeout, and cancellation behavior are covered by offline tests.
+- Opt-in live conformance is documented and does not weaken offline test independence.
+- No production code or unrelated subsystem changes are included in T279.
+- T280 remains the sole implementation task for this amendment and requires explicit approval and authorization after this amendment is reviewed and approved.
+
+## A.12. Amendment approval record
+
+- **Status:** Draft for review.
+- **T279 deliverable:** This amendment plus `specs/rag/knowledge-document-embeddings-query-tasks.md`.
+- **Implementation authorized:** No.
+- **Next step:** Review and explicitly approve or request changes to this amendment. Only after approval may T280 be separately authorized.
