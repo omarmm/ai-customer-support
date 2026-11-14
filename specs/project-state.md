@@ -73,8 +73,12 @@
     `tests/rag/embeddings/test_contracts.py`,
     `tests/rag/embeddings/test_service.py`, and
     `tests/rag/embeddings/test_ollama_conformance.py`.
-- **Current branch HEAD:** `9a69d76c6ff461d7206ffe80a00089cea58c19ed`.
-  - The three commits after the prepared implementation commit are documentation-only updates to this project-state file, the T280 task breakdown, and roadmap; no production code or tests were changed after the prepared implementation snapshot.
+- **Post-preparation changes:** All commits after the prepared implementation
+  snapshot are documentation-only handoff/status updates to
+  `specs/project-state.md`, `specs/rag/knowledge-document-embeddings-query-tasks.md`,
+  and `specs/roadmap.md`. No production code or tests were changed after the
+  prepared implementation snapshot. The immutable prepared implementation
+  SHA above remains the verification anchor.
 - **Pull request:** [#11 — feat(rag): implement query embeddings operation (T280)](https://github.com/omarmm/ai-customer-support/pull/11), Draft, open, not merged.
 - **Verification status:** Not yet run locally. The working tree was reported clean by the user before this handoff repair.
 
