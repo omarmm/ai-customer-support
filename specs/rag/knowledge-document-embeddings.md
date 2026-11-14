@@ -1276,7 +1276,7 @@ The query operation MUST reuse the existing Embeddings error taxonomy and retry 
 - A terminal normalized error exposes `error.retry_count` with the number of retries already spent for this query, matching existing service semantics.
 - Validation errors, model mismatch, configuration errors, invalid requests, and unexpected internal errors are not retried.
 - `asyncio.CancelledError` propagates unchanged and is never swallowed, normalized, or retried.
-- The query operation does not introduce an overall deadline. Retrieval owns its approved overall/stage deadline and supplies a bounded timeout through the existing service boundary in a separately specified integration contract if required. The existing fixed EmbeddingService timeout behavior must not be silently redefined by this amendment.
+- The query operation does not introduce an overall deadline or per-call timeout override. Retrieval owns its approved overall/stage deadline and enforces it around the awaited query operation; cancellation of the in-flight operation must propagate through Embeddings to the provider call. The Embeddings timeout remains the existing per-attempt timeout configured on the service. The Retrieval deadline may interrupt an attempt or retry sequence, but it must not be converted into an Embeddings retry or swallowed.
 
 ## A.8. Privacy and observability
 
