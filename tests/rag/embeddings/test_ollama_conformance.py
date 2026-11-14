@@ -28,6 +28,7 @@ from app.rag.embeddings.contracts import (
     PROVISIONAL_EMBEDDING_DIMENSION,
 )
 from app.rag.embeddings.providers.ollama import OllamaEmbeddingProvider
+from app.rag.embeddings.service import EmbeddingService
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("RUN_LIVE_OLLAMA") != "1",
@@ -128,3 +129,23 @@ async def test_live_adapter_conformance():
 
     print(f"\nadapter identity: {provider.identity!r}")
     print(f"adapter vectors: {len(vectors)}")
+
+
+
+@pytest.mark.asyncio
+async def test_live_query_embedding_service_conformance():
+    """Exercise query-prefix handling and the public service contract live."""
+    provider = OllamaEmbeddingProvider(base_url=ollama_url())
+    service = EmbeddingService(provider=provider, timeout=TIMEOUT)
+
+    result = await service.embed_query(
+        "Where can I find the refund processing policy?"
+    )
+
+    assert result.embedding_config_id == service.config.config_id
+    assert len(result.vector) == PROVISIONAL_EMBEDDING_DIMENSION
+    assert all(math.isfinite(value) for value in result.vector)
+
+    print(f"\nquery embedding config id: {result.embedding_config_id}")
+    print(f"query vector dimension: {len(result.vector)}")
+    print(f"query retry count: {result.retry_count}")

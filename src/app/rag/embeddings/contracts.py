@@ -212,3 +212,43 @@ class EmbeddingResult:
         return MappingProxyType(
             {embedding.chunk_id: embedding for embedding in self.embeddings}
         )
+
+
+
+@dataclass(frozen=True)
+class QueryEmbedding:
+    """The immutable query vector and identity produced by one query operation."""
+
+    config: EmbeddingConfig
+    vector: tuple[float, ...]
+    retry_count: int = 0
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.config, EmbeddingConfig):
+            raise ValueError("config must be an EmbeddingConfig")
+
+        if isinstance(self.vector, (str, bytes, bytearray)):
+            raise ValueError("vector must be a sequence of finite numbers")
+        try:
+            vector = tuple(self.vector)
+        except TypeError:
+            raise ValueError("vector must be a sequence of finite numbers") from None
+
+        if len(vector) != self.config.dimension:
+            raise ValueError("vector length must match dimension")
+
+        normalized: list[float] = []
+        for index, value in enumerate(vector):
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(f"vector[{index}] must be a finite number")
+            if not math.isfinite(value):
+                raise ValueError(f"vector[{index}] must be finite")
+            normalized.append(float(value))
+
+        _require_non_negative_int(self.retry_count, "retry_count")
+        object.__setattr__(self, "vector", tuple(normalized))
+
+    @property
+    def embedding_config_id(self) -> str:
+        """The shared document/query embedding-space identity."""
+        return self.config.config_id

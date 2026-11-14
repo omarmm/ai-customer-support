@@ -19,6 +19,7 @@ from app.rag.embeddings.contracts import (
     ChunkEmbedding,
     EmbeddingConfig,
     EmbeddingResult,
+    QueryEmbedding,
 )
 from app.rag.embeddings.providers.base import EmbeddingProvider
 
@@ -533,3 +534,53 @@ def test_provider_protocol_declares_identity_and_embed():
 
     assert list(signature.parameters) == ["self", "texts", "timeout"]
     assert signature.parameters["timeout"].kind is inspect.Parameter.KEYWORD_ONLY
+
+
+
+# --- QueryEmbedding ---------------------------------------------------------
+
+
+def test_query_embedding_is_immutable_and_exposes_shared_config_identity():
+    result = QueryEmbedding(config=SMALL_CONFIG, vector=[1, 2.5, -3], retry_count=2)
+
+    assert result.config is SMALL_CONFIG
+    assert result.vector == (1.0, 2.5, -3.0)
+    assert isinstance(result.vector, tuple)
+    assert result.retry_count == 2
+    assert result.embedding_config_id == SMALL_CONFIG.config_id
+
+    with pytest.raises(FrozenInstanceError):
+        result.retry_count = 3
+
+
+def test_query_embedding_matches_document_embedding_configuration_identity():
+    document = make_embedding()
+    query = QueryEmbedding(config=SMALL_CONFIG, vector=(0.1, 0.2, 0.3))
+
+    assert document.embedding_config_id == query.embedding_config_id
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"config": "not-a-config"},
+        {"vector": ()},
+        {"vector": "abc"},
+        {"vector": (0.1, 0.2)},
+        {"vector": (0.1, 0.2, True)},
+        {"vector": (0.1, 0.2, "0.3")},
+        {"vector": (0.1, 0.2, None)},
+        {"vector": (0.1, float("nan"), 0.3)},
+        {"vector": (0.1, float("inf"), 0.3)},
+        {"retry_count": -1},
+        {"retry_count": 1.5},
+        {"retry_count": True},
+        {"retry_count": "0"},
+    ],
+)
+def test_query_embedding_rejects_invalid_values(overrides):
+    values = {"config": SMALL_CONFIG, "vector": (0.1, 0.2, 0.3), "retry_count": 0}
+    values.update(overrides)
+
+    with pytest.raises(ValueError):
+        QueryEmbedding(**values)

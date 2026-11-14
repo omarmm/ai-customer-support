@@ -1801,3 +1801,15 @@ specification and acceptance criteria.
 - User explicitly authorized T280 — Query operation implementation.
 - T280 is the only currently authorized implementation task. Implement only the approved query operation, contract, and tests within its file scope; do not begin T281 or Retrieval.
 - T279 remains documentation-only and contains no production code changes.
+
+
+## T280 — Query Embedding Implementation (2026-11-14)
+
+- T280 implementation is in progress on branch `feature/t280-embeddings-query-operation`.
+- Added frozen `QueryEmbedding` result contract with validated immutable vector and shared `embedding_config_id`.
+- Added `EmbeddingService.embed_query(query)` using the existing provider, query prefix, configured timeout, retry policy, and error normalization.
+- Added offline contract and service tests for input validation, exact prefix preservation, response validation, retry/error behavior, timeout, and cancellation.
+- Added opt-in live Ollama query conformance coverage under `RUN_LIVE_OLLAMA=1`.
+- Changed files are limited to the two Embeddings implementation modules and three Embeddings test modules.
+- **Tests have not been run in this environment.** Local focused tests, full regression, and `git diff --check` remain required before T280 can close.
+- **Current authorized implementation task:** T280 only. Stop after verification handoff; T281 is not authorized.
