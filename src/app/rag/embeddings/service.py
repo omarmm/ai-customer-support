@@ -20,6 +20,7 @@ from app.rag.embeddings.contracts import (
     ChunkEmbedding,
     EmbeddingConfig,
     EmbeddingResult,
+    QueryEmbedding,
 )
 from app.rag.embeddings.exceptions import (
     EmbeddingConfigurationError,
@@ -145,6 +146,88 @@ class EmbeddingService:
             embeddings=tuple(embeddings),
             retry_count=retry_count,
         )
+
+    async def embed_query(self, query: str) -> QueryEmbedding:
+        """Embed one raw query using the configured query task prefix.
+
+        The original non-empty query is preserved exactly. Only whitespace
+        emptiness is checked; no trimming or other transformation is applied.
+        """
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("query must be a non-empty string")
+
+        retry_count = 0
+        attempt = 0
+        text = self._config.query_prefix + query
+
+        while True:
+            try:
+                vectors = await self._provider.embed((text,), timeout=self._timeout)
+            except EmbeddingError:
+                # Already normalized application error; preserve existing
+                # service semantics and do not normalize or retry it again.
+                raise
+            except EmbeddingProviderError as exc:
+                error = normalize_provider_error(exc)
+                cause = exc
+            except Exception as exc:
+                unexpected = EmbeddingUnexpectedError(
+                    "unexpected error during query embedding"
+                )
+                unexpected.retry_count = retry_count
+                raise unexpected from exc
+            else:
+                normalized_vectors = self._normalize_query_response(
+                    vectors,
+                    retry_count,
+                )
+                return QueryEmbedding(
+                    config=self._config,
+                    vector=normalized_vectors,
+                    retry_count=retry_count,
+                )
+
+            if not error.retryable or attempt >= self._retry_policy.max_retries:
+                error.retry_count = retry_count
+                raise error from cause
+
+            await self._sleep(self._retry_policy.delay_for_attempt(attempt))
+            attempt += 1
+            retry_count += 1
+
+    def _normalize_query_response(
+        self,
+        vectors: Sequence[Sequence[float]],
+        retry_count: int,
+    ) -> tuple[float, ...]:
+        """Validate and normalize the one-vector query provider response."""
+        try:
+            returned = tuple(vectors)
+        except TypeError:
+            self._raise_response_error("malformed_response", retry_count)
+
+        if not returned:
+            self._raise_response_error("empty_embeddings", retry_count)
+        if len(returned) != 1:
+            self._raise_response_error("count_mismatch", retry_count)
+
+        try:
+            vector = tuple(returned[0])
+        except TypeError:
+            self._raise_response_error("malformed_response", retry_count)
+
+        if len(vector) != self._config.dimension:
+            self._raise_response_error("dimension_mismatch", retry_count)
+
+        normalized: list[float] = []
+        for value in vector:
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                self._raise_response_error("malformed_response", retry_count)
+            if not math.isfinite(value):
+                self._raise_response_error("non_finite_value", retry_count)
+            normalized.append(float(value))
+
+        return tuple(normalized)
 
     async def _embed_batch(
         self,
