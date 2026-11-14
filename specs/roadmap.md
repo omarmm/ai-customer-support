@@ -43,7 +43,7 @@ The backend remains the final authority for all business-critical decisions.
 - Embeddings
 - Qdrant integration
 - Semantic retrieval (SDD and dependency-ordered task breakdown approved; implementation blocked by Embeddings and Vector Storage amendments)
-- Embeddings query-operation amendment (T279 approved; T280 implementation in progress; verification pending)
+- Embeddings query-operation amendment (T279 approved; T280 verified and closed)
 - Metadata filtering (included in the approved Retrieval V1 contract)
 - Context construction
 - Source attribution

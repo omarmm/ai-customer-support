@@ -47,8 +47,12 @@
 - T279 — Embeddings query-operation amendment EMB-Q-001 — approved and merged
   on 2026-11-14 (merge commit
   09e8989dad844ef9f0b2e28812e2add03f8ec690).
-- T280 — Query embedding operation — is the sole active implementation task;
-  its prepared implementation is awaiting local verification.
+- T280 — Query embedding operation — complete and verified at the
+  documentation-only finalization commit on
+  `feature/t280-embeddings-query-operation`, after the prepared snapshot
+  `07fe5b8459e72164b02215f126fafef08c909a64` and base
+  `09e8989dad844ef9f0b2e28812e2add03f8ec690`. No next task was started; T281
+  is not authorized. PR #11 remains Draft, open, and unmerged.
 - Embedding/tokenizer decision approved (2026-10-23) at
   specs/rag/embedding-tokenizer-decision.md; pinned tokenizer identity:
   tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
@@ -56,70 +60,113 @@
   nomic-embed-text:v1.5, observed dimension 768, all returned values finite;
   the served model digest is evidence only, not runtime verification.
 
-## Active Implementation Handoff
+## Last Completed Task — T280
+- Task: T280 — Query embedding operation implementation and offline tests.
+- Approved specification: `specs/rag/knowledge-document-embeddings.md`,
+  Amendment EMB-Q-001. Approved task breakdown:
+  `specs/rag/knowledge-document-embeddings-query-tasks.md`, §3.
+- Prepared implementation snapshot:
+  `07fe5b8459e72164b02215f126fafef08c909a64`
+  (`test(rag): cover QueryEmbedding public export`) on
+  `feature/t280-embeddings-query-operation`, against base
+  `09e8989dad844ef9f0b2e28812e2add03f8ec690` (T279 merge commit). The head
+  verified before closure was `b34a8f3`
+  (`docs(rag): authorize T280 verification finalization`); the prepared
+  snapshot was confirmed as its ancestor.
+- Scope delivered: `src/app/rag/embeddings/contracts.py` adds the frozen
+  `QueryEmbedding` contract (exact `EmbeddingConfig` identity, immutable float
+  tuple of the configured dimension, non-negative non-boolean `retry_count`,
+  and `embedding_config_id` derived from `config.config_id`) and exports it in
+  `__all__`. `src/app/rag/embeddings/service.py` adds
+  `EmbeddingService.embed_query()`, which rejects non-string, empty, and
+  whitespace-only input before any provider call; preserves the original
+  non-empty query exactly; applies `config.query_prefix` exactly once; calls
+  the existing provider with one text and the configured per-attempt timeout;
+  validates one returned vector (count, dimension, numeric/non-boolean,
+  finite); returns a `QueryEmbedding` only on success; and reuses the existing
+  `EmbeddingRetryPolicy` and provider-error normalization with unchanged
+  `max_retries=2` semantics. `tests/rag/embeddings/test_contracts.py` adds the
+  public-export regression plus immutability, shared-identity, and invalid-value
+  tests; `tests/rag/embeddings/test_service.py` adds input, prefix, response,
+  retry, permanent-error, timeout, cancellation, privacy, and unexpected-error
+  tests; `tests/rag/embeddings/test_ollama_conformance.py` adds the opt-in
+  `RUN_LIVE_OLLAMA=1` query conformance case. No provider, composition,
+  settings, endpoint, startup, Qdrant, database, HTTP, Retrieval, or
+  `app.llm.*` changes were added.
+- Verification (2026-11-14; image `ai-customer-support-t280-verify:local`, ID
+  `sha256:a8275cab5d3d82c3dfeb930c06968ea8b5065b98ef567266a4b10b3925497bf0`;
+  Qdrant image `ai-customer-support-qdrant:v1.20.0`, ID
+  `sha256:42574bd137d89e4097ddb69965b6502ff045e7b539a4089fa0b498a04eb93be2`;
+  no repository bind mount in image verification runs):
+  - Scope review: `git status --short` was clean; the branch was
+    `feature/t280-embeddings-query-operation`;
+    `git merge-base --is-ancestor 07fe5b8 HEAD` returned exit 0. The diff
+    against the approved base changed only the five authorized
+    implementation/test files plus `specs/project-state.md`,
+    `specs/rag/knowledge-document-embeddings-query-tasks.md`, and
+    `specs/roadmap.md`. Commits after the prepared snapshot were
+    documentation-only. No secrets, configuration, or unrelated changes were
+    present.
+  - Build: `docker build -t ai-customer-support-t280-verify:local .` →
+    exit 0.
+  - Focused offline Embeddings suite: `docker run --rm --network none
+    ai-customer-support-t280-verify:local python -m pytest -q
+    tests/rag/embeddings/test_contracts.py tests/rag/embeddings/test_service.py`
+    → 215 passed, exit 0.
+  - Docker Compose validation and runtime: `docker compose config` → exit 0;
+    `docker compose up -d postgres qdrant` → exit 0 with both containers
+    reporting `healthy`. Qdrant `/readyz` returned HTTP 200
+    (`all shards are ready`). `docker compose up -d api` → exit 0; `GET
+    /health` returned HTTP 200 `{"status": "ok"}`. `docker compose down` →
+    exit 0 and removed all three containers and the project network.
+  - Full regression: `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    ai-customer-support-t280-verify:local python -m pytest tests -q` →
+    1048 passed, 9 skipped, exit 0. The skips were the 4 opt-in live Ollama
+    conformance tests (`RUN_LIVE_OLLAMA=1`), the 4 environment-conditional
+    ingestion permission fixtures (`root bypasses permission checks`), and the
+    opt-in Qdrant container integration test.
+  - Whitespace/error check:
+    `git diff --check 09e8989dad844ef9f0b2e28812e2add03f8ec690...HEAD` →
+    clean, exit 0.
+  - Startup/network boundary: an in-image `TestClient` run with `--network
+    none`, `--env-file .env`, and `socket.socket.connect`,
+    `socket.socket.connect_ex`, and `socket.create_connection` replaced by
+    failing stubs → application startup completed, `/health` returned HTTP 200
+    `{"status": "ok"}`, `app.state.embedding_service` was an
+    `EmbeddingService` exposing `embed_query`, and `QueryEmbedding` was
+    importable from the public contracts module. No network access occurred.
+  - Negative requirements: non-string, empty, and whitespace-only queries are
+    rejected before any provider call; the original query is preserved and the
+    prefix is applied exactly once; zero, multiple, wrong-dimension, malformed,
+    boolean, non-finite, and unexpected provider outputs fail with the stable
+    Embeddings errors; permanent errors are not retried; retryable errors
+    observe the existing policy and report the retry count; the configured
+    timeout is used on every attempt; cancellation propagates unchanged; error
+    messages do not contain the query; and no second provider, configuration,
+    retry policy, Qdrant, database, HTTP, Retrieval, or `app.llm.*` dependency
+    was added.
+  - Live Ollama conformance was not run: `RUN_LIVE_OLLAMA=1` was not enabled
+    and no live-model verification is claimed. The default suites remained
+    offline except for the PostgreSQL-backed domain regression.
+  - Boundary scan: changed production modules import only the standard library
+    and existing `app.rag.embeddings`/`app.rag.chunking` modules; no Qdrant,
+    SQLAlchemy, psycopg, FastAPI, HTTPX, Retrieval, or `app.llm.*` import was
+    introduced.
+- Outcome: T280 acceptance criteria in Amendment EMB-Q-001 §A.2–§A.11 and the
+  approved §3 task breakdown are met. The query operation, immutable result
+  contract, shared config identity, validation, retry/timeout/cancellation
+  behavior, privacy constraints, and offline tests are present, and the full
+  regression suite passes. T280 is closed. No next task was started, T281
+  remains unauthorized, and PR #11 remains Draft, open, and unmerged. The
+  finalization commit is this documentation-only closure commit; its SHA is
+  recorded in Git history.
+- Remaining work: T281 (Vector Storage generation-identity amendment) is not
+  authorized. Retrieval implementation remains blocked until the separately
+  approved Vector Storage amendment and its implementation and verification are
+  complete. PR #11 must not be merged without an explicit owner request.
 
-- **Task:** T280 — Query embedding operation implementation and offline tests.
-- **Authorization:** Explicitly authorized by the user on 2026-11-14 after approval of T279.
-- **Approved specification:** `specs/rag/knowledge-document-embeddings.md`, Amendment EMB-Q-001.
-- **Approved task breakdown:** `specs/rag/knowledge-document-embeddings-query-tasks.md`, §3 (T280).
-- **Base ref:** `docs/rag-retrieval-sdd-draft`.
-- **Base commit SHA:** `09e8989dad844ef9f0b2e28812e2add03f8ec690` (T279 merge commit; PR #11 base SHA).
-- **Implementation branch:** `feature/t280-embeddings-query-operation`.
-- **Prepared implementation + export-fix snapshot SHA:** `07fe5b8459e72164b02215f126fafef08c909a64`.
-  - This is the immutable implementation snapshot containing the complete T280 code and test changes, including the approved `QueryEmbedding` public export and its regression test.
-  - Compared against the base, it changes only:
-    `src/app/rag/embeddings/contracts.py`,
-    `src/app/rag/embeddings/service.py`,
-    `tests/rag/embeddings/test_contracts.py`,
-    `tests/rag/embeddings/test_service.py`, and
-    `tests/rag/embeddings/test_ollama_conformance.py`; the existing
-    `tests/rag/embeddings/test_contracts.py` file also contains the new
-    public-export regression test.
-- **Post-preparation changes:** The export fix and its regression test are included in the prepared snapshot above. Any commits after that snapshot must be documentation-only handoff/status updates to
-  `specs/project-state.md`, `specs/rag/knowledge-document-embeddings-query-tasks.md`,
-  and `specs/roadmap.md`. No production code or tests were changed after the
-  prepared implementation snapshot. The immutable prepared implementation
-  SHA above remains the verification anchor.
-- **Pull request:** [#11 — feat(rag): implement query embeddings operation (T280)](https://github.com/omarmm/ai-customer-support/pull/11), Draft, open, not merged.
-- **Verification status:** The pre-fix T280 snapshot passed local Docker verification (214 focused tests; 1047 passed, 9 skipped full regression). The `QueryEmbedding` export fix and regression test were added afterward; rerun both suites and `git diff --check` against the approved base before closure.
-
-### Exact verification plan
-
-Run from the repository root on `feature/t280-embeddings-query-operation`:
-
-1. Confirm branch and prepared snapshot ancestry:
-   ```bash
-   git status --short
-   git branch --show-current
-   git merge-base --is-ancestor 07fe5b8459e72164b02215f126fafef08c909a64 HEAD
-   ```
-2. Focused offline Embeddings suite (includes the public-export regression test):
-   ```bash
-   pytest -q tests/rag/embeddings/test_contracts.py tests/rag/embeddings/test_service.py
-   ```
-3. Full regression:
-   ```bash
-   pytest -q
-   ```
-4. Whitespace/error check against the approved base:
-   ```bash
-   git diff --check 09e8989dad844ef9f0b2e28812e2add03f8ec690...HEAD
-   ```
-5. Optional live Ollama conformance, only when the pinned model is available and the user intentionally opts in:
-   ```bash
-   RUN_LIVE_OLLAMA=1 pytest -q tests/rag/embeddings/test_ollama_conformance.py
-   ```
-
-### Verification boundaries
-
-- Verify only T280 and the approved file scope above.
-- The user has explicitly authorized the in-scope `__all__` export fix and T280 finalization: rerun focused/full suites, commit on this same branch, and record verification evidence in `specs/project-state.md`. Do not exceed that scope. No merge is authorized.
-- If a test fails, report the failure and stop for review; do not silently expand scope.
-- Do not run the live Ollama suite unless explicitly intended and the local Ollama service/model are available.
-- T281 (Vector Storage generation-identity amendment) is **not authorized** and must not start as part of T280 verification.
-- Retrieval implementation remains blocked until T280 is verified/closed and the separate Vector Storage generation-identity amendment and its implementation are completed and verified.
-
-## Last Completed Task
+## Previously Completed Task — T278
 - Task: T278 — Vector storage composition and integration verification
 - Prepared implementation commit:
   `4bd41543dde2cc4c52299cfaa0d2b702082cae6b`
@@ -1872,3 +1919,22 @@ specification and acceptance criteria.
 - Changed files are limited to the two Embeddings implementation modules and three Embeddings test modules.
 - **Tests have not been run in this environment.** Local focused tests, full regression, and `git diff --check` remain required before T280 can close.
 - **Current authorized implementation task:** T280 only. Stop after verification handoff; T281 is not authorized.
+
+
+## T280 — Verification and Closure (2026-11-14)
+
+- T280 verification completed on `feature/t280-embeddings-query-operation`.
+- Prepared snapshot `07fe5b8459e72164b02215f126fafef08c909a64` was confirmed
+  as an ancestor of the verified head
+  `b34a8f3e6d3561354e1022f08d789bc4e2968f80`.
+- Focused offline Embeddings suite (Docker, network-disabled): 215 passed.
+- Full regression (Docker, Compose network, PostgreSQL and Qdrant healthy):
+  1048 passed, 9 skipped.
+- `git diff --check` against base
+  `09e8989dad844ef9f0b2e28812e2add03f8ec690` was clean.
+- Startup/network boundary passed with failing network stubs; `/health`
+  returned HTTP 200 and `app.state.embedding_service.embed_query` was present.
+- Live Ollama conformance was not run and no live-model verification is
+  claimed.
+- T280 is closed. No next task was started; T281 is not authorized; PR #11
+  remains Draft, open, and unmerged.
