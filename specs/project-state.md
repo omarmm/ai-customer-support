@@ -72,8 +72,9 @@
     `src/app/rag/embeddings/service.py`,
     `tests/rag/embeddings/test_contracts.py`,
     `tests/rag/embeddings/test_service.py`, and
-    `tests/rag/embeddings/test_ollama_conformance.py`, and
-    `tests/rag/embeddings/test_contracts.py` (public-export regression coverage).
+    `tests/rag/embeddings/test_ollama_conformance.py`; the existing
+    `tests/rag/embeddings/test_contracts.py` file also contains the new
+    public-export regression test.
 - **Post-preparation changes:** The export fix and its regression test are included in the prepared snapshot above. Any commits after that snapshot must be documentation-only handoff/status updates to
   `specs/project-state.md`, `specs/rag/knowledge-document-embeddings-query-tasks.md`,
   and `specs/roadmap.md`. No production code or tests were changed after the
@@ -112,7 +113,7 @@ Run from the repository root on `feature/t280-embeddings-query-operation`:
 ### Verification boundaries
 
 - Verify only T280 and the approved file scope above.
-- Do not modify files, fetch/checkout branches, commit, push, or merge unless separately authorized by the user.
+- The user has explicitly authorized the in-scope `__all__` export fix and T280 finalization: rerun focused/full suites, commit on this same branch, and record verification evidence in `specs/project-state.md`. Do not exceed that scope. No merge is authorized.
 - If a test fails, report the failure and stop for review; do not silently expand scope.
 - Do not run the live Ollama suite unless explicitly intended and the local Ollama service/model are available.
 - T281 (Vector Storage generation-identity amendment) is **not authorized** and must not start as part of T280 verification.
