@@ -1780,3 +1780,24 @@ specification and acceptance criteria.
 - T282–T288 are planned in the approved task breakdown. T282 is documentation-only capacity/topology sizing; numeric per-process concurrency and queue limits must be evidence-based and explicitly approved before runtime implementation.
 - **Current authorized implementation task:** None. T279 is the next planned task and requires separate explicit authorization.
 - Approval authorizes planning only. No Retrieval or upstream implementation has been started or authorized by this approval.
+
+
+## T279 — Embeddings Query Operation Amendment (2026-11-14)
+
+- Draft amendment EMB-Q-001 appended to `specs/rag/knowledge-document-embeddings.md`.
+- Draft task breakdown added at `specs/rag/knowledge-document-embeddings-query-tasks.md`.
+- Proposed API: `EmbeddingService.embed_query(query: str) -> QueryEmbedding`.
+- The query operation reuses the existing provider, `EmbeddingConfig`, shared `embedding_config_id`, query prefix, timeout, retry policy, and normalized error taxonomy. Document embeddings remain unchanged.
+- T279 is documentation-only. No production code or tests were changed.
+- **Status:** Approved by user on 2026-11-14.
+- **T280:** Query-operation implementation explicitly authorized by user on 2026-11-14.
+- **Current authorized implementation task:** T280 — Query operation implementation only.
+- Retrieval remains blocked pending T280 implementation/verification/closure, and the separate T281 Vector Storage generation-identity amendment and its implementation/verification.
+
+
+## T279 Approval and T280 Authorization — 2026-11-14
+
+- User approved Amendment EMB-Q-001 and its T280 task breakdown.
+- User explicitly authorized T280 — Query operation implementation.
+- T280 is the only currently authorized implementation task. Implement only the approved query operation, contract, and tests within its file scope; do not begin T281 or Retrieval.
+- T279 remains documentation-only and contains no production code changes.
