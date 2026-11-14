@@ -565,6 +565,7 @@ def test_query_embedding_matches_document_embedding_configuration_identity():
     [
         {"config": "not-a-config"},
         {"vector": ()},
+        {"vector": "abc"},
         {"vector": (0.1, 0.2)},
         {"vector": (0.1, 0.2, True)},
         {"vector": (0.1, 0.2, "0.3")},
