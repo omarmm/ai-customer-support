@@ -1,6 +1,6 @@
 # Embeddings Query Operation — Amendment Task Breakdown
 
-- **Status:** Draft for review; not approved.
+- **Status:** Approved on 2026-11-14.
 - **Amendment:** `specs/rag/knowledge-document-embeddings.md`, Amendment EMB-Q-001.
 - **Parent task:** T279 — specification-only.
 - **Implementation task:** T280 — separately authorized only after amendment approval.
@@ -32,7 +32,7 @@ T280 does not start automatically when T279 is approved. It requires its own exp
 
 ## 3. T280 — Query operation implementation
 
-**Status:** Planned; not authorized.
+**Status:** Authorized by user on 2026-11-14.
 
 ### 3.1 Expected file scope
 
@@ -90,19 +90,19 @@ No provider adapter change is expected: the current provider already accepts a s
 
 ## 4. T279 acceptance checklist (documentation-only)
 
-- [ ] Amendment EMB-Q-001 appended to the authoritative Embeddings specification.
-- [ ] Immutable query result contract and exact public API defined.
-- [ ] Shared config identity and distinct prefixes explained without changing document identity.
-- [ ] Input validation, no-truncation behavior, provider contract, timeout/retry, errors, cancellation, and privacy specified.
-- [ ] Offline tests, live conformance, compatibility, and negative requirements defined.
-- [ ] T280 implementation scope and acceptance criteria defined here.
-- [ ] `specs/project-state.md` and `specs/roadmap.md` reflect the draft/pending-review state accurately.
-- [ ] No production code or test files changed.
-- [ ] No implementation task authorized.
+- [x] Amendment EMB-Q-001 appended to the authoritative Embeddings specification.
+- [x] Immutable query result contract and exact public API defined.
+- [x] Shared config identity and distinct prefixes explained without changing document identity.
+- [x] Input validation, no-truncation behavior, provider contract, timeout/retry, errors, cancellation, and privacy specified.
+- [x] Offline tests, live conformance, compatibility, and negative requirements defined.
+- [x] T280 implementation scope and acceptance criteria defined here.
+- [x] `specs/project-state.md` and `specs/roadmap.md` reflect the draft/pending-review state accurately.
+- [x] No production code or test files changed.
+- [x] No implementation was included in T279.
 
 ## 5. Approval record
 
-- **T279 status:** Draft prepared for review; approval pending.
-- **T280 status:** Planned; not authorized.
-- **Current authorized implementation task:** None.
-- **Next action:** User review and explicit approval of Amendment EMB-Q-001. Approval of the document does not itself authorize T280 implementation.
+- **T279 status:** Approved by user on 2026-11-14.
+- **T280 status:** Explicitly authorized by user on 2026-11-14; one-task scope only.
+- **Current authorized implementation task:** T280 — Query operation implementation.
+- **Stop condition:** Complete T280 implementation and its verification handoff, then stop. T281 is not authorized.
