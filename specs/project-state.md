@@ -43,8 +43,12 @@
   `b08225e864ad386f0a558620e9343d318caec903` (master).
 - The Vector Storage specification (specs/rag/knowledge-vector-storage.md)
   and task breakdown (specs/rag/knowledge-vector-storage-tasks.md) were
-  approved on 2026-11-03. T272–T278 were closed after verification. No further
-  task is authorized or active.
+  approved on 2026-11-03. T272–T278 were closed after verification.
+- T279 — Embeddings query-operation amendment EMB-Q-001 — approved and merged
+  on 2026-11-14 (merge commit
+  09e8989dad844ef9f0b2e28812e2add03f8ec690).
+- T280 — Query embedding operation — is the sole active implementation task;
+  its prepared implementation is awaiting local verification.
 - Embedding/tokenizer decision approved (2026-10-23) at
   specs/rag/embedding-tokenizer-decision.md; pinned tokenizer identity:
   tokenizers:0.23.3:nomic-ai/nomic-embed-text-v1.5@e9b6763023c676ca8431644204f50c2b100d9aab:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66
@@ -54,11 +58,61 @@
 
 ## Active Implementation Handoff
 
-- None. T278 was verified, closed, and merged on 2026-11-09. The Retrieval SDD
-  and dependency-ordered task breakdown were approved for planning on
-  2026-11-14. No implementation task is active or authorized. The next task is
-  T279, a specification-only Embeddings amendment, and requires separate
-  authorization.
+- **Task:** T280 — Query embedding operation implementation and offline tests.
+- **Authorization:** Explicitly authorized by the user on 2026-11-14 after approval of T279.
+- **Approved specification:** `specs/rag/knowledge-document-embeddings.md`, Amendment EMB-Q-001.
+- **Approved task breakdown:** `specs/rag/knowledge-document-embeddings-query-tasks.md`, §3 (T280).
+- **Base ref:** `docs/rag-retrieval-sdd-draft`.
+- **Base commit SHA:** `09e8989dad844ef9f0b2e28812e2add03f8ec690` (T279 merge commit; PR #11 base SHA).
+- **Implementation branch:** `feature/t280-embeddings-query-operation`.
+- **Prepared implementation commit SHA:** `28d9338a1268e69584a11cab8cd16b81caf5a436`.
+  - This is the immutable implementation snapshot containing the complete T280 code and test changes.
+  - Compared against the base, it changes only:
+    `src/app/rag/embeddings/contracts.py`,
+    `src/app/rag/embeddings/service.py`,
+    `tests/rag/embeddings/test_contracts.py`,
+    `tests/rag/embeddings/test_service.py`, and
+    `tests/rag/embeddings/test_ollama_conformance.py`.
+- **Current branch HEAD:** `9a69d76c6ff461d7206ffe80a00089cea58c19ed`.
+  - The three commits after the prepared implementation commit are documentation-only updates to this project-state file, the T280 task breakdown, and roadmap; no production code or tests were changed after the prepared implementation snapshot.
+- **Pull request:** [#11 — feat(rag): implement query embeddings operation (T280)](https://github.com/omarmm/ai-customer-support/pull/11), Draft, open, not merged.
+- **Verification status:** Not yet run locally. The working tree was reported clean by the user before this handoff repair.
+
+### Exact verification plan
+
+Run from the repository root on `feature/t280-embeddings-query-operation`:
+
+1. Confirm branch and prepared snapshot ancestry:
+   ```bash
+   git status --short
+   git branch --show-current
+   git merge-base --is-ancestor 28d9338a1268e69584a11cab8cd16b81caf5a436 HEAD
+   ```
+2. Focused offline Embeddings suite:
+   ```bash
+   pytest -q tests/rag/embeddings/test_contracts.py tests/rag/embeddings/test_service.py
+   ```
+3. Full regression:
+   ```bash
+   pytest -q
+   ```
+4. Whitespace/error check against the approved base:
+   ```bash
+   git diff --check 09e8989dad844ef9f0b2e28812e2add03f8ec690...HEAD
+   ```
+5. Optional live Ollama conformance, only when the pinned model is available and the user intentionally opts in:
+   ```bash
+   RUN_LIVE_OLLAMA=1 pytest -q tests/rag/embeddings/test_ollama_conformance.py
+   ```
+
+### Verification boundaries
+
+- Verify only T280 and the approved file scope above.
+- Do not modify files, fetch/checkout branches, commit, push, or merge unless separately authorized by the user.
+- If a test fails, report the failure and stop for review; do not silently expand scope.
+- Do not run the live Ollama suite unless explicitly intended and the local Ollama service/model are available.
+- T281 (Vector Storage generation-identity amendment) is **not authorized** and must not start as part of T280 verification.
+- Retrieval implementation remains blocked until T280 is verified/closed and the separate Vector Storage generation-identity amendment and its implementation are completed and verified.
 
 ## Last Completed Task
 - Task: T278 — Vector storage composition and integration verification
