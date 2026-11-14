@@ -227,6 +227,8 @@ class QueryEmbedding:
         if not isinstance(self.config, EmbeddingConfig):
             raise ValueError("config must be an EmbeddingConfig")
 
+        if isinstance(self.vector, (str, bytes, bytearray)):
+            raise ValueError("vector must be a sequence of finite numbers")
         try:
             vector = tuple(self.vector)
         except TypeError:
