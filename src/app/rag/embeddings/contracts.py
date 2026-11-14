@@ -41,6 +41,7 @@ __all__ = [
     "ChunkEmbedding",
     "EmbeddingConfig",
     "EmbeddingResult",
+    "QueryEmbedding",
 ]
 
 
