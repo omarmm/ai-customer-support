@@ -1167,7 +1167,7 @@ Revision 2 was approved on 2026-10-24.
 
 **Amendment ID:** EMB-Q-001  
 **Target revision:** Revision 2  
-**Status:** Draft for review — not approved; no implementation authorized  
+**Status:** Approved by user on 2026-11-14; T280 implementation separately authorized  
 **Task:** T279 — Embeddings query-operation amendment (specification only)  
 **Date:** 2026-11-14  
 **Scope:** Add query embedding as a first-class operation of the existing Embeddings subsystem. All Revision 2 behavior for document embeddings remains unchanged unless this amendment explicitly extends it.
@@ -1342,7 +1342,7 @@ The amendment is acceptable only when all of the following hold:
 
 ## A.12. Amendment approval record
 
-- **Status:** Draft for review.
+- **Status:** Approved by user on 2026-11-14.
 - **T279 deliverable:** This amendment plus `specs/rag/knowledge-document-embeddings-query-tasks.md`.
-- **Implementation authorized:** No.
-- **Next step:** Review and explicitly approve or request changes to this amendment. Only after approval may T280 be separately authorized.
+- **T280 implementation:** Explicitly authorized by the user on 2026-11-14 in the follow-up approval turn.
+- **Implementation boundary:** T280 only; one task, no expansion into T281 or Retrieval.
