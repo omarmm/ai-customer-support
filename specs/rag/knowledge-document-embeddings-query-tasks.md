@@ -103,6 +103,6 @@ No provider adapter change is expected: the current provider already accepts a s
 ## 5. Approval record
 
 - **T279 status:** Approved by user on 2026-11-14.
-- **T280 status:** Explicitly authorized by user on 2026-11-14; one-task scope only.
-- **Current authorized implementation task:** T280 — Query operation implementation.
+- **T280 status:** Implementation verified and closed at the documentation-only finalization commit on `feature/t280-embeddings-query-operation`, after the prepared snapshot `07fe5b8459e72164b02215f126fafef08c909a64`; verification evidence is recorded in `specs/project-state.md`.
+- **Current authorized implementation task:** None. T280 is closed; T281 is not authorized.
 - **Stop condition:** Complete T280 implementation and its verification handoff, then stop. T281 is not authorized.
