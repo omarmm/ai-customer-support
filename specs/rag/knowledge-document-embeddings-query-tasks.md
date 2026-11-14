@@ -96,7 +96,7 @@ No provider adapter change is expected: the current provider already accepts a s
 - [x] Input validation, no-truncation behavior, provider contract, timeout/retry, errors, cancellation, and privacy specified.
 - [x] Offline tests, live conformance, compatibility, and negative requirements defined.
 - [x] T280 implementation scope and acceptance criteria defined here.
-- [x] `specs/project-state.md` and `specs/roadmap.md` reflect the draft/pending-review state accurately.
+- [x] `specs/project-state.md` and `specs/roadmap.md` reflect the approval and T280 authorization accurately.
 - [x] No production code or test files changed.
 - [x] No implementation was included in T279.
 
