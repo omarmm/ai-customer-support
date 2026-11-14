@@ -815,6 +815,8 @@ async def test_embed_query_rejects_invalid_input_before_provider_call(query):
     ("vectors", "reason"),
     [
         ((), "empty_embeddings"),
+        ("not-a-vector-list", "malformed_response"),
+        (("abc",), "malformed_response"),
         (((0.1, 0.2, 0.3), (0.4, 0.5, 0.6)), "count_mismatch"),
         (((0.1, 0.2),), "dimension_mismatch"),
         (((0.1, True, 0.3),), "malformed_response"),
