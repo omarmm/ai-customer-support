@@ -21,10 +21,12 @@ from app.core.config import Settings
 from app.rag.chunking.contracts import Chunk
 from app.rag.embeddings.contracts import (
     DOCUMENT_PREFIX,
+    QUERY_PREFIX,
     EMBEDDING_IDENTITY,
     ChunkEmbedding,
     EmbeddingConfig,
     EmbeddingResult,
+    QueryEmbedding,
 )
 from app.rag.embeddings.exceptions import (
     EmbeddingAuthenticationError,
@@ -767,3 +769,160 @@ def test_policy_is_frozen():
 
     with pytest.raises(FrozenInstanceError):
         policy.max_retries = 3  # type: ignore[misc]
+
+
+
+# --- T280: first-class query embedding -------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_embed_query_applies_query_prefix_once_and_preserves_original_text():
+    query = "  Where is my refund?  "
+    provider = FakeProvider([(make_vector(),)])
+    service = make_service(provider)
+
+    result = await service.embed_query(query)
+
+    assert provider.calls == [((QUERY_PREFIX + query,), 30.0)]
+    assert result == QueryEmbedding(config=CONFIG, vector=make_vector())
+    assert result.embedding_config_id == CONFIG.config_id
+
+
+@pytest.mark.asyncio
+async def test_embed_query_returns_one_immutable_vector_with_shared_identity():
+    provider = FakeProvider([([1, 2, 3],)])
+    result = await make_service(provider).embed_query("refund policy")
+
+    assert isinstance(result, QueryEmbedding)
+    assert result.vector == (1.0, 2.0, 3.0)
+    assert result.embedding_config_id == CONFIG.config_id
+    assert result.retry_count == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("query", ["", " ", "\t\n", None, 123, True])
+async def test_embed_query_rejects_invalid_input_before_provider_call(query):
+    provider = FakeProvider([])
+
+    with pytest.raises(ValueError, match="query"):
+        await make_service(provider).embed_query(query)
+
+    assert provider.calls == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("vectors", "reason"),
+    [
+        ((), "empty_embeddings"),
+        ("not-a-vector-list", "malformed_response"),
+        (("abc",), "malformed_response"),
+        (((0.1, 0.2, 0.3), (0.4, 0.5, 0.6)), "count_mismatch"),
+        (((0.1, 0.2),), "dimension_mismatch"),
+        (((0.1, True, 0.3),), "malformed_response"),
+        (((0.1, "0.2", 0.3),), "malformed_response"),
+        (((0.1, None, 0.3),), "malformed_response"),
+        (((0.1, float("nan"), 0.3),), "non_finite_value"),
+        (((0.1, float("inf"), 0.3),), "non_finite_value"),
+    ],
+)
+async def test_embed_query_rejects_invalid_provider_responses(vectors, reason):
+    provider = FakeProvider([vectors])
+
+    with pytest.raises(EmbeddingResponseError) as caught:
+        await make_service(provider).embed_query("query")
+
+    assert caught.value.reason == reason
+    assert caught.value.retry_count == 0
+    assert len(provider.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_embed_query_retries_retryable_provider_errors_and_reports_count():
+    provider = FakeProvider(
+        [EmbeddingProviderConnectionError("offline"), (make_vector(),)]
+    )
+    sleep = SleepRecorder()
+
+    result = await make_service(provider, sleep=sleep).embed_query("query")
+
+    assert result.retry_count == 1
+    assert len(provider.calls) == 2
+    assert all(call[0] == (QUERY_PREFIX + "query",) for call in provider.calls)
+    assert sleep.delays == [0.5]
+
+
+@pytest.mark.asyncio
+async def test_embed_query_retry_exhaustion_reports_retry_count_and_cause():
+    provider_error = EmbeddingProviderTimeoutError("slow")
+    provider = FakeProvider([provider_error, provider_error, provider_error])
+    sleep = SleepRecorder()
+
+    with pytest.raises(EmbeddingTimeoutError) as caught:
+        await make_service(
+            provider,
+            retry_policy=EmbeddingRetryPolicy(max_retries=2),
+            sleep=sleep,
+        ).embed_query("query")
+
+    assert caught.value.retry_count == 2
+    assert caught.value.__cause__ is provider_error
+    assert len(provider.calls) == 3
+    assert sleep.delays == [0.5, 1.0]
+
+
+@pytest.mark.asyncio
+async def test_embed_query_does_not_retry_permanent_provider_errors():
+    provider_error = EmbeddingProviderInvalidRequestError(400)
+    provider = FakeProvider([provider_error])
+    sleep = SleepRecorder()
+
+    with pytest.raises(EmbeddingInvalidRequestError) as caught:
+        await make_service(provider, sleep=sleep).embed_query("query")
+
+    assert caught.value.retry_count == 0
+    assert caught.value.__cause__ is provider_error
+    assert len(provider.calls) == 1
+    assert sleep.delays == []
+
+
+@pytest.mark.asyncio
+async def test_embed_query_maps_unexpected_errors_without_leaking_query():
+    query = "SENSITIVE-QUERY-CONTENT"
+    original = RuntimeError("internal")
+    provider = FakeProvider([original])
+
+    with pytest.raises(EmbeddingUnexpectedError) as caught:
+        await make_service(provider).embed_query(query)
+
+    assert caught.value.__cause__ is original
+    assert query not in str(caught.value)
+    assert len(provider.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_embed_query_propagates_cancellation_unchanged():
+    import asyncio
+
+    provider = FakeProvider([asyncio.CancelledError()])
+    service = make_service(provider)
+
+    with pytest.raises(asyncio.CancelledError):
+        await service.embed_query("query")
+
+    assert len(provider.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_embed_query_passes_configured_timeout_to_every_attempt():
+    provider = FakeProvider(
+        [EmbeddingProviderTimeoutError("slow"), (make_vector(),)]
+    )
+    sleep = SleepRecorder()
+
+    result = await make_service(provider, timeout=1.25, sleep=sleep).embed_query(
+        "query"
+    )
+
+    assert result.retry_count == 1
+    assert [timeout for _, timeout in provider.calls] == [1.25, 1.25]
