@@ -201,20 +201,23 @@ class EmbeddingService:
         retry_count: int,
     ) -> tuple[float, ...]:
         """Validate and normalize the one-vector query provider response."""
-        try:
-            returned = tuple(vectors)
-        except TypeError:
+        if not isinstance(vectors, Sequence) or isinstance(
+            vectors, (str, bytes, bytearray)
+        ):
             self._raise_response_error("malformed_response", retry_count)
+        returned = tuple(vectors)
 
         if not returned:
             self._raise_response_error("empty_embeddings", retry_count)
         if len(returned) != 1:
             self._raise_response_error("count_mismatch", retry_count)
 
-        try:
-            vector = tuple(returned[0])
-        except TypeError:
+        raw_vector = returned[0]
+        if not isinstance(raw_vector, Sequence) or isinstance(
+            raw_vector, (str, bytes, bytearray)
+        ):
             self._raise_response_error("malformed_response", retry_count)
+        vector = tuple(raw_vector)
 
         if len(vector) != self._config.dimension:
             self._raise_response_error("dimension_mismatch", retry_count)
