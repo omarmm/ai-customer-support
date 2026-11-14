@@ -7,6 +7,7 @@ from dataclasses import FrozenInstanceError, fields
 
 import pytest
 
+import app.rag.embeddings.contracts as embedding_contracts
 from app.rag.embeddings.contracts import (
     DOCUMENT_PREFIX,
     EMBEDDINGS_ALGORITHM_VERSION,
@@ -538,6 +539,10 @@ def test_provider_protocol_declares_identity_and_embed():
 
 
 # --- QueryEmbedding ---------------------------------------------------------
+
+
+def test_query_embedding_is_exported():
+    assert "QueryEmbedding" in embedding_contracts.__all__
 
 
 def test_query_embedding_is_immutable_and_exposes_shared_config_identity():
