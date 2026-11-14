@@ -103,6 +103,6 @@ No provider adapter change is expected: the current provider already accepts a s
 ## 5. Approval record
 
 - **T279 status:** Approved by user on 2026-11-14.
-- **T280 status:** Implementation in progress on `feature/t280-embeddings-query-operation`; local verification pending.
+- **T280 status:** Implementation prepared at `28d9338a1268e69584a11cab8cd16b81caf5a436` on `feature/t280-embeddings-query-operation`; complete active handoff is recorded in `specs/project-state.md`; local verification pending.
 - **Current authorized implementation task:** T280 — Query operation implementation (verification handoff pending).
 - **Stop condition:** Complete T280 implementation and its verification handoff, then stop. T281 is not authorized.
