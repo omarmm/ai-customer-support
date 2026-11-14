@@ -65,22 +65,22 @@
 - **Base ref:** `docs/rag-retrieval-sdd-draft`.
 - **Base commit SHA:** `09e8989dad844ef9f0b2e28812e2add03f8ec690` (T279 merge commit; PR #11 base SHA).
 - **Implementation branch:** `feature/t280-embeddings-query-operation`.
-- **Prepared implementation commit SHA:** `28d9338a1268e69584a11cab8cd16b81caf5a436`.
-  - This is the immutable implementation snapshot containing the complete T280 code and test changes.
+- **Prepared implementation + export-fix snapshot SHA:** `07fe5b8459e72164b02215f126fafef08c909a64`.
+  - This is the immutable implementation snapshot containing the complete T280 code and test changes, including the approved `QueryEmbedding` public export and its regression test.
   - Compared against the base, it changes only:
     `src/app/rag/embeddings/contracts.py`,
     `src/app/rag/embeddings/service.py`,
     `tests/rag/embeddings/test_contracts.py`,
     `tests/rag/embeddings/test_service.py`, and
-    `tests/rag/embeddings/test_ollama_conformance.py`.
-- **Post-preparation changes:** All commits after the prepared implementation
-  snapshot are documentation-only handoff/status updates to
+    `tests/rag/embeddings/test_ollama_conformance.py`, and
+    `tests/rag/embeddings/test_contracts.py` (public-export regression coverage).
+- **Post-preparation changes:** The export fix and its regression test are included in the prepared snapshot above. Any commits after that snapshot must be documentation-only handoff/status updates to
   `specs/project-state.md`, `specs/rag/knowledge-document-embeddings-query-tasks.md`,
   and `specs/roadmap.md`. No production code or tests were changed after the
   prepared implementation snapshot. The immutable prepared implementation
   SHA above remains the verification anchor.
 - **Pull request:** [#11 — feat(rag): implement query embeddings operation (T280)](https://github.com/omarmm/ai-customer-support/pull/11), Draft, open, not merged.
-- **Verification status:** Not yet run locally. The working tree was reported clean by the user before this handoff repair.
+- **Verification status:** The pre-fix T280 snapshot passed local Docker verification (214 focused tests; 1047 passed, 9 skipped full regression). The `QueryEmbedding` export fix and regression test were added afterward; rerun both suites and `git diff --check` against the approved base before closure.
 
 ### Exact verification plan
 
@@ -90,9 +90,9 @@ Run from the repository root on `feature/t280-embeddings-query-operation`:
    ```bash
    git status --short
    git branch --show-current
-   git merge-base --is-ancestor 28d9338a1268e69584a11cab8cd16b81caf5a436 HEAD
+   git merge-base --is-ancestor 07fe5b8459e72164b02215f126fafef08c909a64 HEAD
    ```
-2. Focused offline Embeddings suite:
+2. Focused offline Embeddings suite (includes the public-export regression test):
    ```bash
    pytest -q tests/rag/embeddings/test_contracts.py tests/rag/embeddings/test_service.py
    ```
