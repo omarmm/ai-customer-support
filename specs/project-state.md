@@ -1789,7 +1789,15 @@ specification and acceptance criteria.
 - Proposed API: `EmbeddingService.embed_query(query: str) -> QueryEmbedding`.
 - The query operation reuses the existing provider, `EmbeddingConfig`, shared `embedding_config_id`, query prefix, timeout, retry policy, and normalized error taxonomy. Document embeddings remain unchanged.
 - T279 is documentation-only. No production code or tests were changed.
-- **Status:** Draft prepared for user review; not approved.
-- **T280:** Planned query-operation implementation; not authorized.
-- **Current authorized implementation task:** None.
-- Retrieval remains blocked pending T279 approval, T280 implementation/verification/closure, and the separate T281 Vector Storage generation-identity amendment and its implementation/verification.
+- **Status:** Approved by user on 2026-11-14.
+- **T280:** Query-operation implementation explicitly authorized by user on 2026-11-14.
+- **Current authorized implementation task:** T280 — Query operation implementation only.
+- Retrieval remains blocked pending T280 implementation/verification/closure, and the separate T281 Vector Storage generation-identity amendment and its implementation/verification.
+
+
+## T279 Approval and T280 Authorization — 2026-11-14
+
+- User approved Amendment EMB-Q-001 and its T280 task breakdown.
+- User explicitly authorized T280 — Query operation implementation.
+- T280 is the only currently authorized implementation task. Implement only the approved query operation, contract, and tests within its file scope; do not begin T281 or Retrieval.
+- T279 remains documentation-only and contains no production code changes.
