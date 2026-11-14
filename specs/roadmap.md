@@ -42,8 +42,8 @@ The backend remains the final authority for all business-critical decisions.
 - Chunking
 - Embeddings
 - Qdrant integration
-- Semantic retrieval
-- Metadata filtering
+- Semantic retrieval (SDD and dependency-ordered task breakdown approved; implementation blocked by Embeddings and Vector Storage amendments)
+- Metadata filtering (included in the approved Retrieval V1 contract)
 - Context construction
 - Source attribution
 - Retrieval evaluation

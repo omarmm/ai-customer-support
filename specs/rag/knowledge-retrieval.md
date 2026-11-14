@@ -1,11 +1,11 @@
 # Knowledge Retrieval Specification
 
-- **Status:** Draft — not approved; no implementation is authorized.
+- **Status:** Approved for planning (2026-11-14); implementation is not authorized.
 - **Phase:** Phase 4 — RAG
 - **Subsystem:** Knowledge Retrieval
 - **Depends on:** Approved ingestion, chunking, embeddings, and vector storage specifications and their completed implementations.
 - **Current baseline:** Vector Storage T272–T278 is complete and merged into `master` (2026-11-09).
-- **Approval rule:** This document defines a proposed contract only. Implementation requires explicit approval of this specification, followed by a separate dependency-ordered task breakdown and one-task-at-a-time authorization.
+- **Approval rule:** This specification and its dependency-ordered task breakdown are approved for planning. Implementation remains blocked by the separately approved Embeddings and Vector Storage amendment gates below and requires one-task-at-a-time authorization.
 
 ## 1. Purpose
 
@@ -323,6 +323,8 @@ Retrieval-owned categories:
 - `RetrievalEmbeddingError`: a normalized Embeddings operation fails; preserve that normalized error as `__cause__` and do not issue vector search.
 - `RetrievalVectorSearchError`: a normalized Vector Storage search operation fails; preserve that normalized error as `__cause__`.
 - `RetrievalResponseContractError`: malformed candidate payload/score, missing required provenance, or candidate generation identity inconsistent with the result envelope; fail the whole operation and return no partial results.
+- `RetrievalDeadlineExceeded`: the overall monotonic Retrieval deadline expires, including while waiting for admission capacity.
+- `RetrievalCapacityExceeded`: a new request is rejected because the finite in-process waiting queue is full.
 
 Raw Qdrant SDK, HTTPX, provider-specific, and other infrastructure exceptions must never escape Retrieval. The Retrieval layer must not import or branch on those concrete exception types; translation begins from the upstream subsystem's normalized application-owned errors. Public messages/codes must be safe and stable, and must not expose raw exception text, credentials, URLs containing secrets, or stack traces.
 
@@ -412,7 +414,7 @@ The following table records the owner decisions. Rows marked **Approved** are bi
 | R-20 | Retrieval concurrency and admission control | **Approved:** Enforce bounded in-process concurrency and a finite waiting queue. Queue waiting consumes the R-19 overall deadline. Reject immediately with `RetrievalCapacityExceeded` when the waiting queue is full; a queued request whose deadline expires receives `RetrievalDeadlineExceeded`. Numeric concurrency/queue capacities are deferred to evidence-based task breakdown and must account for deployment process/replica multiplication and upstream capacity. | Prevents unbounded resource growth while distinguishing admission rejection from expiration of an accepted request's deadline. |
 | R-21 | Retrieval caching | **Approved:** No Retrieval query-result cache in V1. Every accepted invocation performs the approved query-embedding and active-generation vector-search flow. Reconsider caching only after baseline evaluation demonstrates a measurable need and a separate design defines generation/config/filter-aware cache identity, invalidation, freshness, and bounded resource behavior. | Establishes an uncached retrieval baseline and avoids stale-generation results and premature cache-invalidation complexity. |
 
-R-1 through R-13 and R-15 through R-21 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. The specification remains a draft until the final consistency review and dependency-ordered implementation task breakdown are completed and explicitly approved. No implementation is authorized by the decision approvals alone.
+R-1 through R-13 and R-15 through R-21 are approved. R-14 is approved for sequencing only: finish Retrieval SDD and its task breakdown, then complete a separate Vector Storage amendment and its verification before any Retrieval implementation. The technical details of that amendment remain unapproved. This Retrieval specification and its dependency-ordered task breakdown were approved for planning on 2026-11-14. No implementation is authorized by this approval.
 
 ## 15. Testing and Verification Requirements
 
@@ -440,20 +442,25 @@ Tests are to be finalized in the dependency-ordered task breakdown now that deci
 
 The final task breakdown must split offline contract/unit tests from opt-in live provider/Qdrant integration where appropriate and define measurable acceptance criteria for each task.
 
-## 16. Acceptance Criteria (Draft)
+## 16. Final Approval and Implementation Gates
 
-This specification can be submitted for final approval only when:
+The Retrieval SDD and task breakdown are approved for planning as of 2026-11-14. The following implementation-readiness constraints are binding and are assigned to the tasks in `specs/rag/knowledge-retrieval-tasks.md`:
 
-- All decisions in §14 have explicit owner outcomes; R-1 through R-13 and R-15 through R-21 are approved, and R-14 sequencing is approved. The technical Vector Storage Amendment remains a blocking dependency and is not yet approved.
-- R-1 query embedding ownership is approved; the Embeddings specification amendment must be included in the approved Retrieval implementation task breakdown before implementation.
-- The separate Vector Storage Amendment must be specified, approved, implemented, verified, and closed after Retrieval SDD/task-breakdown approval but before any Retrieval implementation task is authorized.
-- The typed search request/result contracts are precise and compatible with the existing VectorStore boundary. Filter cardinality is fixed at no more than 5 allowlisted fields and 20 values per field.
-- Active-alias and missing-alias behavior, filter allowlist and composition, limit (default 5, maximum 20, no pagination), score-threshold exclusion, tie ordering, configurable query validation, full payload, and composition semantics are unambiguous.
-- Context Construction, Source Attribution, Evaluation, and RAG Failure Handling boundaries remain explicit.
-- Test and security requirements are accepted.
-- No implementation task is inferred from this draft.
+- R-1 through R-13 and R-15 through R-21 have approved owner outcomes. R-14 approves sequencing only; the technical Vector Storage Amendment remains unapproved.
+- The Embeddings query-operation amendment must be separately specified, approved, implemented, verified, and closed before the Vector Storage amendment work begins.
+- The separate Vector Storage Amendment must then be specified, approved, implemented, verified, and closed before any Retrieval implementation begins.
+- The typed VectorStore search DTOs and exact pinned Qdrant-client operation are finalized in T284 against `qdrant-client==1.20.0`; no SDK types escape the adapter.
+- The active-alias behavior, missing-alias error, exact-match filter allowlist and composition, limit (default 5, maximum 20, no pagination), score-threshold exclusion, tie ordering, query validation, full payload, and composition boundaries are fixed by this SDD.
+- Context Construction, Source Attribution, Retrieval Evaluation, and cross-stage RAG Failure Handling remain separate specifications.
+- Test, security, observability, deadline, concurrency, and cancellation requirements are assigned to the ordered tasks.
+- This approval authorizes planning only. No implementation task is authorized by it.
 
-After approval, create a separate dependency-ordered task breakdown. Implementation begins only after that breakdown is approved and a single task is explicitly authorized.
+Approval record (2026-11-14): the Retrieval SDD and `specs/rag/knowledge-retrieval-tasks.md` are approved as the source of truth for planning. This approval authorizes documentation planning only. It does not authorize any implementation task.
+
+Implementation gates, in mandatory order:
+1. Approve and implement the Embeddings query-operation amendment (T279–T280), then verify and close it.
+2. Specify and approve the separate Vector Storage generation-identity amendment (T281), then implement and verify only the tasks authorized by that amendment's own task breakdown. Retrieval remains blocked until that amendment is closed.
+3. Only after both upstream amendments are closed may a Retrieval implementation task be individually authorized. Execute one task at a time and stop for review after each task.
 
 ## 17. References
 

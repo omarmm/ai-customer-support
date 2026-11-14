@@ -54,9 +54,11 @@
 
 ## Active Implementation Handoff
 
-- None. T278 was verified, closed, and merged on 2026-11-09. No implementation
-  task is active or authorized. Retrieval and all remaining RAG work are deferred
-  until a separate SDD cycle is explicitly started.
+- None. T278 was verified, closed, and merged on 2026-11-09. The Retrieval SDD
+  and dependency-ordered task breakdown were approved for planning on
+  2026-11-14. No implementation task is active or authorized. The next task is
+  T279, a specification-only Embeddings amendment, and requires separate
+  authorization.
 
 ## Last Completed Task
 - Task: T278 — Vector storage composition and integration verification
@@ -1763,3 +1765,18 @@ specification and acceptance criteria.
 
 - R-21 Caching is approved (option A): no Retrieval query-result cache in V1. Each accepted invocation follows the approved query-embedding and active-generation vector-search flow. Caching may be reconsidered only after baseline evaluation demonstrates a measurable need and a separate design addresses generation/config/filter-aware cache identity, invalidation, freshness, and bounded resource behavior.
 - R-1 through R-13 and R-15 through R-21 are approved; R-14 is approved for sequencing only. Retrieval SDD remains a draft pending remaining decisions, final consistency review, and a dependency-ordered task breakdown. No Retrieval implementation is authorized.
+
+
+## Retrieval SDD and Task Breakdown Approval — 2026-11-14
+
+- Specification: `specs/rag/knowledge-retrieval.md`.
+- Task breakdown: `specs/rag/knowledge-retrieval-tasks.md`.
+- Decisions R-1–R-13 and R-15–R-21 are approved. R-14 is sequencing approval only; no technical Vector Storage amendment details are approved.
+- Retrieval V1 is dense semantic search through `knowledge_vectors_active`, default limit 5/max 20, exact-match allowlisted metadata filters, no score threshold, no reranking, no hybrid search, and no result cache.
+- Retrieval returns exact stored content/provenance and a trusted active-generation envelope; all operations are all-or-nothing.
+- Retrieval-owned errors include `RetrievalDeadlineExceeded` and `RetrievalCapacityExceeded`.
+- Required upstream gates: T279 Embeddings query-operation amendment (specification only), T280 its implementation/verification, then T281 separate Vector Storage generation-identity amendment (specification only) followed by its own approved implementation/verification tasks.
+- Retrieval implementation is blocked until both upstream amendments are implemented, verified, and closed.
+- T282–T288 are planned in the approved task breakdown. T282 is documentation-only capacity/topology sizing; numeric per-process concurrency and queue limits must be evidence-based and explicitly approved before runtime implementation.
+- **Current authorized implementation task:** None. T279 is the next planned task and requires separate explicit authorization.
+- Approval authorizes planning only. No Retrieval or upstream implementation has been started or authorized by this approval.
