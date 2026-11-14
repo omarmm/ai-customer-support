@@ -1338,7 +1338,7 @@ The amendment is acceptable only when all of the following hold:
 - All query validation, response validation, errors, retries, timeout, and cancellation behavior are covered by offline tests.
 - Opt-in live conformance is documented and does not weaken offline test independence.
 - No production code or unrelated subsystem changes are included in T279.
-- T280 remains the sole implementation task for this amendment and requires explicit approval and authorization after this amendment is reviewed and approved.
+- T280 is the sole implementation task for this amendment and is authorized by the approval record in §A.12.
 
 ## A.12. Amendment approval record
 
