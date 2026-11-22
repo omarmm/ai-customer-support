@@ -470,3 +470,64 @@ Implementation gates, in mandatory order:
 - `specs/rag/knowledge-document-embeddings.md` — provider/model, document/query prefixes, vector identity, and embedding behavior.
 - `specs/rag/knowledge-vector-storage.md` — active generation, payload, Qdrant boundary, and reserved search port.
 - `specs/project-state.md` — verified implementation state through T278.
+
+
+---
+
+## 18. Required Vector Storage Amendment — VS-GI-001 Resolution
+
+This section records the approved technical resolution of the former sequencing-only R-14 dependency. It supersedes the provisional statements in §4.2 and §16 that left the metadata mechanism and generation-resolution contract undecided.
+
+- **Amendment:** VS-GI-001 in specs/rag/knowledge-vector-storage.md.
+- **Approval:** The project owner approved the amendment and its implementation task breakdown on 2026-11-23.
+- **Implementation status:** Not implemented. Retrieval remains blocked until VS281-A through VS281-E are verified and closed.
+
+### 18.1 Trusted identity
+
+The active generation's embedding_config_id MUST come from validated Qdrant collection-level metadata as defined by VS-GI-001. Retrieval MUST NOT infer compatibility from point payloads, collection names, vector dimensions, or an in-memory verification cache.
+
+The query identity comes from the QueryEmbedding returned by the approved EmbeddingService.embed_query() operation. Compatibility requires exact equality of the two validated embedding_config_id values.
+
+### 18.2 Active-generation snapshot and search pinning
+
+At the beginning of a Retrieval invocation, Retrieval MUST call get_active_generation_info() and retain the returned immutable GenerationInfo as that invocation's generation snapshot.
+
+After generating the query embedding, Retrieval MUST compare its embedding_config_id with the snapshot's embedding_config_id. A mismatch or invalid/missing identity MUST fail before any vector-search call.
+
+The search request MUST carry the snapshot's generation_id. The Vector Storage adapter derives the collection name internally and searches that concrete immutable generation. Retrieval MUST NOT perform a second active-alias resolution between compatibility validation and search.
+
+This snapshot rule is intentional: if the active alias changes during an invocation, the in-flight invocation continues against the immutable generation it already validated. A later invocation resolves the then-current active generation. This prevents a time-of-check/time-of-use defect where one generation is validated but another is searched.
+
+The existing prohibition on caller-supplied collection names and arbitrary aliases remains. Retrieval obtains the generation ID only from the trusted active-generation resolution operation; callers cannot select a generation.
+
+### 18.3 Updated retrieval flow
+
+~~~text
+Receive and validate RetrievalRequest
+  ↓
+Resolve and validate active generation snapshot
+  ↓
+Generate QueryEmbedding through EmbeddingService
+  ↓
+Compare query.embedding_config_id with generation.embedding_config_id
+  ↓
+If compatible: search the pinned generation_id
+If incompatible/unverifiable: fail before search
+  ↓
+Validate candidates and generation identity
+  ↓
+Return complete RetrievalResult envelope
+~~~
+
+All-or-nothing behavior remains in force. A valid zero-point generation can produce a successful empty result only after its generation-level metadata has been validated and the query identity has matched. Missing or incompatible identity is an error, never an empty result.
+
+### 18.4 Error mapping and test requirements
+
+- Missing active alias/target maps to the Retrieval-owned ActiveGenerationNotFound error under R-16.
+- Invalid or unavailable generation metadata maps to the Retrieval-owned storage/retrieval error defined by R-16, preserving the normalized upstream cause.
+- Query/generation identity mismatch maps to IncompatibleEmbeddingSpace.
+- Compatibility failure MUST result in zero calls to VectorStore search.
+- Tests MUST cover alias changes after snapshot resolution, proving that the in-flight request searches only the pinned generation and never re-resolves the alias.
+- Tests MUST cover same dimension with different embedding identities, missing metadata, unsupported schema, malformed IDs, and valid zero-point generations.
+
+This amendment changes no Retrieval ranking, filter, score, result payload, timeout, concurrency, observability, or caching decision. Those approved R-1–R-21 outcomes remain unchanged except that the search target is the generation snapshot resolved from the active alias, rather than a second alias lookup during search.
