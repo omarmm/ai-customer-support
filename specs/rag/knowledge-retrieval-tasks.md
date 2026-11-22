@@ -89,3 +89,57 @@ The Vector Storage amendment implementation tasks are intentionally not numbered
 - Vector Storage amendment implementation is authorized only by its own approved task breakdown and individual task authorization.
 - T282–T288 remain blocked until both upstream amendments are fully verified and closed.
 - Completion of one task does not authorize the next task automatically.
+
+
+---
+
+## 7. Vector Storage Amendment Gate — Updated by VS-GI-001
+
+This section supersedes the provisional T281 wording in §§1–3 and §6 wherever it describes the technical amendment as undecided or leaves the amendment implementation tasks unspecified.
+
+### 7.1 Approved upstream gate
+
+- VS-GI-001 is approved and documented in specs/rag/knowledge-vector-storage.md.
+- Its implementation/verification tasks are VS281-A through VS281-E in specs/rag/knowledge-vector-storage-tasks.md.
+- The approved contract stores generation_id, embedding_config_id, and metadata_schema_version at Qdrant collection metadata level.
+- The approved contract adds validated identity to GenerationInfo and adds get_active_generation_info() to resolve the active alias to a pinned immutable generation snapshot.
+- Retrieval compares query and generation embedding_config_id values before search and searches only the resolved generation ID for that invocation.
+- Legacy generations without valid metadata require a full rebuild; no metadata backfill or automatic repair is allowed.
+
+### 7.2 Updated mandatory execution order
+
+~~~text
+T279 — Embeddings query-operation amendment (approved)
+  ↓
+T280 — Embeddings query-operation implementation (verified and closed)
+  ↓
+T281 — Vector Storage generation-identity amendment (approved; documentation)
+  ↓
+VS281-A — Identity contracts (requires separate authorization)
+  ↓
+VS281-B — Atomic collection metadata creation
+  ↓
+VS281-C — Generation verification identity validation
+  ↓
+VS281-D — Validated GenerationInfo and active-generation resolution
+  ↓
+VS281-E — Qdrant integration verification and amendment closure
+  ↓
+T282–T288 — Retrieval tasks, each subject to the existing gates
+~~~
+
+### 7.3 Retrieval task contract update
+
+T284's eventual typed search request MUST carry the generation_id obtained from get_active_generation_info(). The adapter derives the collection name from that ID. It MUST NOT independently resolve knowledge_vectors_active a second time during the same Retrieval invocation.
+
+T285 MUST resolve the active generation snapshot, obtain the query embedding, compare the two embedding configuration identities, and call search only after exact compatibility is established. A failed compatibility check must produce zero search calls.
+
+T285 tests MUST include an alias-switch race: once the active generation snapshot has been returned, a subsequent alias change must not cause the in-flight request to search a different generation.
+
+### 7.4 Current authorization
+
+- **Current authorized implementation task:** None.
+- VS281-A is the next planned task and requires separate explicit authorization.
+- VS281-B through VS281-E are dependency-blocked until their preceding tasks are verified and closed.
+- T282–T288 remain blocked until VS281-E closes.
+- Approval of the amendment and task breakdown is not authorization to implement any task.
