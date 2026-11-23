@@ -303,7 +303,7 @@ No Retrieval implementation task may begin until VS281-A through VS281-E are ind
 
 ### 8.8 Proposed cumulative implementation and verification protocol
 
-**Status: PROPOSED — not approved.** This section changes execution/verification mechanics only. It does not change VS-GI-001 identity semantics, task scope, acceptance criteria, or dependency order.
+**Status: APPROVED by the project owner on 2026-11-24.** This section changes execution/verification mechanics only. It does not change VS-GI-001 identity semantics, task scope, acceptance criteria, or dependency order.
 
 - Implement VS281-A through VS281-E sequentially on one cumulative integration branch created from the approved master base. Preserve a distinct prepared commit/handoff for each task and record the exact base/head relationship.
 - Authorize exactly one task at a time. After each task, run its focused offline tests, task-specific integration tests where applicable, scope review, and `git diff --check`; prepare its handoff and stop for owner review/authorization of the next task.
