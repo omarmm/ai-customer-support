@@ -161,3 +161,141 @@ T274 is technically independent of T273, but the proposed sequence is intentiona
 ## Authorization gate
 
 This task breakdown was approved by the project owner on 2026-11-03. T272–T278 have been implemented, verified, committed, and closed. T278 verification evidence is recorded in `specs/project-state.md`. No further Vector Storage task is authorized. Execute exactly one task per authorized session, verify it, update project state, and STOP.
+
+
+---
+
+## 8. Amendment VS-GI-001 — Implementation Task Breakdown
+
+- **Amendment:** VS-GI-001 in specs/rag/knowledge-vector-storage.md.
+- **Approval:** Task breakdown approved by the project owner on 2026-11-23.
+- **Implementation authorization:** None. Each task below requires separate explicit authorization.
+- **Execution rule:** Implement exactly one task per authorized session, verify it, update project state, and STOP.
+
+### 8.1 Dependencies and execution order
+
+~~~text
+VS281-A — Identity contracts and active-generation resolution contract
+  ↓
+VS281-B — Atomic collection metadata creation
+  ↓
+VS281-C — Generation verification identity validation
+  ↓
+VS281-D — Validated GenerationInfo and active-generation resolution
+  ↓
+VS281-E — Qdrant integration verification and amendment closure
+~~~
+
+No Retrieval implementation task may begin until VS281-A through VS281-E are individually verified and closed.
+
+### 8.2 VS281-A — Identity contracts
+
+**Goal:** Amend application-owned Vector Storage contracts and validation without changing Qdrant behavior.
+
+**Scope:**
+- Add embedding_config_id to VerifyGenerationRequest.
+- Add embedding_config_id to GenerationVerificationResult.
+- Add embedding_config_id to GenerationInfo.
+- Define the application-owned get_active_generation_info() operation and its result/error contract.
+- Define the pinned-generation identity carried by the future Retrieval search request, without implementing search.
+- Add validation for metadata identity values and schema version at the contract boundary where appropriate.
+
+**Acceptance criteria:**
+- DTOs are frozen and application-owned.
+- Both identity values use exactly 64 lowercase hexadecimal characters.
+- No Qdrant SDK type is introduced into application contracts.
+- Existing contracts remain backward-consistent except for the explicitly amended fields/operation.
+- Focused contract tests cover valid, invalid, missing, and immutable values.
+- No Qdrant I/O, collection mutation, Retrieval implementation, or production composition change is added.
+
+**Dependencies:** Approved VS-GI-001.
+
+### 8.3 VS281-B — Atomic collection metadata creation
+
+**Goal:** Persist generation identity as part of Qdrant collection creation.
+
+**Scope:**
+- Build the exact three-field metadata object from CreateGenerationRequest.
+- Pass metadata in the same Qdrant collection-creation operation.
+- Keep existing collection name, vector configuration, and payload-index behavior unchanged.
+- Do not add metadata update, repair, or backfill operations.
+
+**Acceptance criteria:**
+- Collection creation receives exact metadata values.
+- No follow-up metadata write is performed.
+- Invalid identity is rejected before Qdrant I/O.
+- Adapter tests cover metadata mapping, create failure, and no post-create metadata mutation.
+- Existing creation behavior and normalized errors remain correct.
+
+**Dependencies:** VS281-A.
+
+### 8.4 VS281-C — Generation verification identity validation
+
+**Goal:** Make verification prove that a generation has the expected embedding identity.
+
+**Scope:**
+- Read and validate collection metadata during verification.
+- Compare stored generation ID and embedding config ID against the request.
+- Preserve existing dimension, Cosine distance, exact point-count, and verification-cache behavior only where still valid under the amended contract.
+- Return GenerationVerificationResult with the validated embedding identity.
+
+**Acceptance criteria:**
+- Missing, malformed, unsupported, or mismatched metadata fails as VECTOR_GENERATION_BUILD_FAILED.
+- Missing collection retains VECTOR_GENERATION_NOT_FOUND where specified.
+- Zero-point valid and invalid generations are tested.
+- Failed verification cannot mark a generation verified or activate it.
+- No partial verification result is returned.
+- Focused adapter tests cover every identity failure mode.
+
+**Dependencies:** VS281-B.
+
+### 8.5 VS281-D — Validated generation information and active resolution
+
+**Goal:** Expose trusted generation identity to Retrieval without leaking Qdrant models.
+
+**Scope:**
+- Read and validate metadata in get_generation_info.
+- Return GenerationInfo.embedding_config_id from validated collection metadata.
+- Implement get_active_generation_info() by resolving knowledge_vectors_active and validating its concrete collection.
+- Ensure the result identifies the concrete generation snapshot and reports is_active=True.
+- Keep alias and collection mutation out of this operation.
+
+**Acceptance criteria:**
+- Existing generation info returns validated embedding identity.
+- Active alias resolution returns the correct concrete generation and identity.
+- Missing alias/target and malformed target follow the amended normalized error contract.
+- Tests cover alias absence, invalid target name, missing collection, invalid metadata, zero points, and successful resolution.
+- No search, Retrieval service, or endpoint is implemented.
+
+**Dependencies:** VS281-C.
+
+### 8.6 VS281-E — Integration verification and closure
+
+**Goal:** Verify the complete generation identity lifecycle against the pinned Qdrant runtime.
+
+**Scope:**
+- Add/run Qdrant-backed tests for create → upsert → verify → activate → get info → resolve active generation.
+- Verify legacy collection behavior without mutating or repairing legacy data.
+- Run focused offline tests and full regression.
+- Record exact commands, versions, outcomes, and skips in specs/project-state.md.
+
+**Acceptance criteria:**
+- New collection metadata is exact and readable from Qdrant.
+- Verification and GenerationInfo expose the same trusted identity.
+- Zero-point generation behavior is proven.
+- Missing/malformed/mismatched identity fails closed.
+- Failed verification leaves the active alias unchanged.
+- Active generation resolution returns a pinned generation ID suitable for the later Retrieval search contract.
+- No Retrieval implementation or search semantics are added.
+- Focused tests, Qdrant integration tests, full regression, and git diff --check pass.
+- Amendment tasks are closed only after evidence review; stop after closure.
+
+**Dependencies:** VS281-D.
+
+### 8.7 Authorization gate
+
+- **Current authorized implementation task:** None.
+- Approval of VS-GI-001 and this task breakdown authorizes documentation/planning only.
+- VS281-A requires separate explicit authorization.
+- Closing one task does not authorize the next task automatically.
+- T282–T288 in the Retrieval task breakdown remain blocked until all VS281 tasks are verified and closed.

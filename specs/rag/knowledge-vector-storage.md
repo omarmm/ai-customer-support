@@ -597,3 +597,178 @@ This specification is ready for approval only when:
 - **Implementation authorization:** T274 was explicitly authorized on 2026-11-06. T275, T276, and T277 are complete. This does not authorize T278.
 - **Task breakdown:** Approved on 2026-11-03.
 - **Implementation task authorization:** T276 and T277 are complete and closed; T278 remains unauthorized.
+
+
+---
+
+## 11. Amendment VS-GI-001 — Generation Identity and Embedding Compatibility
+
+- **Amendment status:** Approved by the project owner on 2026-11-23; repository review pending.
+- **Amendment scope:** Generation-level embedding identity, generation metadata validation, and safe active-generation resolution.
+- **Implementation status:** Not started. The amendment task breakdown is in specs/rag/knowledge-vector-storage-tasks.md.
+- **Implementation authorization:** None. The VS281 tasks each require separate explicit authorization.
+
+### 11.1 Purpose and compatibility invariant
+
+Every vector generation MUST carry a trusted generation-level identity for the exact embedding configuration used to create its points. A query vector MUST NOT be compared with a generation unless both expose the same embedding_config_id.
+
+Vector dimension equality is necessary for vector operation but is never sufficient evidence of embedding-space compatibility. Point payloads are not an authoritative source for generation identity because a generation may contain zero points and because point-level values cannot establish a single generation-wide identity.
+
+### 11.2 Collection metadata contract
+
+Every newly created generation collection MUST be created with the following collection-level metadata in the collection-creation operation:
+
+~~~json
+{
+  "generation_id": "<64-character-lowercase-sha256>",
+  "embedding_config_id": "<64-character-lowercase-sha256>",
+  "metadata_schema_version": "v1"
+}
+~~~
+
+Rules:
+
+- All three fields are required.
+- Both IDs MUST contain exactly 64 lowercase hexadecimal characters.
+- generation_id MUST equal the ID used to derive the collection name.
+- embedding_config_id MUST equal the value supplied in CreateGenerationRequest.
+- metadata_schema_version MUST equal v1; unknown versions fail closed.
+- No default, inference, fallback, or partial metadata is permitted.
+- Metadata MUST be supplied atomically as part of collection creation. A successful collection creation MUST never be followed by a separate metadata-write step to establish its identity.
+- The application-owned VectorStore interface MUST NOT expose a metadata mutation or repair operation.
+
+Qdrant metadata is the operational trust source in V1. This is immutability by application policy, not cryptographic protection against an administrator with direct Qdrant write access. Qdrant administrative/write access MUST therefore be restricted to trusted operators and the application adapter. Cryptographic tamper evidence is outside this amendment.
+
+### 11.3 Generation creation
+
+CreateGenerationRequest already contains generation_id, embedding_config_id, and vector_size; its shape does not change.
+
+The adapter MUST construct the exact metadata object in §11.2 from the validated request and pass it during collection creation. It MUST NOT create a collection first and populate identity metadata in a later operation.
+
+The existing point payload field embedding_config_id remains unchanged for provenance/filtering. It is not the authoritative source for generation identity.
+
+### 11.4 Generation verification
+
+VerifyGenerationRequest is amended to:
+
+~~~python
+@dataclass(frozen=True)
+class VerifyGenerationRequest:
+    generation_id: str
+    embedding_config_id: str
+    expected_point_count: int
+~~~
+
+GenerationVerificationResult is amended to include the verified identity:
+
+~~~python
+@dataclass(frozen=True)
+class GenerationVerificationResult:
+    generation_id: str
+    embedding_config_id: str
+    expected_point_count: int
+    actual_point_count: int
+    vector_size: int
+    distance: str
+~~~
+
+In addition to the existing vector dimension, Cosine distance, and exact point-count checks, verification MUST:
+
+1. Read collection-level metadata from Qdrant.
+2. Require all metadata fields defined in §11.2.
+3. Validate both digest formats and the supported schema version.
+4. Require stored generation_id to equal the requested generation ID.
+5. Require stored embedding_config_id to equal the expected ID in the request.
+6. Return the identity in GenerationVerificationResult only after every check succeeds.
+
+A zero-point generation is valid only when its metadata and vector configuration are valid and the exact actual count equals the expected count of zero. Missing, malformed, unsupported, or mismatched identity MUST raise VECTOR_GENERATION_BUILD_FAILED; no partial result is returned and the generation MUST NOT become activatable. A missing collection retains the existing VECTOR_GENERATION_NOT_FOUND behavior where applicable. A failed verification MUST NOT change the active alias.
+
+### 11.5 Generation information
+
+GenerationInfo is amended to include embedding_config_id:
+
+~~~python
+@dataclass(frozen=True)
+class GenerationInfo:
+    generation_id: str
+    embedding_config_id: str
+    collection_name: str
+    point_count: int
+    vector_size: int
+    distance: str
+    is_active: bool
+~~~
+
+get_generation_info MUST source embedding_config_id only from validated collection-level metadata. It MUST validate the complete metadata contract before returning a GenerationInfo. It MUST NOT infer identity from collection names, point payloads, vector dimensions, or an in-memory verification cache.
+
+### 11.6 Resolve the active generation as a pinned snapshot
+
+The existing get_generation_info(generation_id) operation cannot by itself tell Retrieval which generation the active alias currently targets. This amendment therefore adds an application-owned get_active_generation_info() operation.
+
+Contract:
+
+- The adapter resolves knowledge_vectors_active to its current collection target.
+- It validates that the target follows the approved generation collection naming convention and derives the generation ID from that target.
+- It loads and validates the target collection's metadata and storage configuration using the same rules as §11.5.
+- It returns the complete GenerationInfo, with is_active=True.
+- A missing alias/target is returned as the existing normalized generation-not-found condition; malformed alias state or invalid identity fails closed.
+- The operation performs no metadata repair, alias mutation, or collection mutation.
+
+The returned generation is a per-invocation snapshot. Retrieval MUST retain that generation_id and use it for the subsequent search rather than resolving the alias a second time. The vector collection is immutable, so a concurrent alias switch after resolution does not change the identity or contents of the pinned collection. This avoids a time-of-check/time-of-use mismatch in which Retrieval validates one generation and searches a different generation after an alias switch.
+
+Consequently, the application-owned search request finalized by the Retrieval SDD MUST identify the resolved generation_id; the adapter derives the collection name internally. Callers MUST NOT provide a raw collection name or arbitrary alias. Retrieval can search only the generation it just resolved from the active alias. Searching a stale snapshot is permitted only for the lifetime of that invocation; the next invocation resolves the then-current active generation.
+
+### 11.7 Retrieval compatibility invariant
+
+Before any vector search, Retrieval MUST compare:
+
+~~~python
+query_embedding.embedding_config_id == generation.embedding_config_id
+~~~
+
+The query embedding and active generation identity must both be valid and present. Any mismatch, missing identity, unsupported metadata schema, or invalid generation metadata MUST stop the operation before the search method is called. Equal vector dimensions do not override an identity mismatch.
+
+This amendment defines the storage-side identity and snapshot contract only. Retrieval owns the compatibility decision and maps upstream storage failures into its approved Retrieval error taxonomy. No query embedding, ranking, filtering, context construction, or answer-generation behavior is implemented by Vector Storage.
+
+### 11.8 Legacy generations and rebuild policy
+
+Existing generations without the metadata contract in §11.2 are unverifiable and MUST NOT be treated as compatible.
+
+- Full rebuild is required using a known embedding configuration.
+- No metadata backfill, inference from point payloads, automatic repair, or implicit migration is permitted.
+- Legacy generations remain subject to the existing explicit retention/deletion policy.
+- The amendment does not automatically delete old generations.
+- A rebuilt generation must pass the amended verification contract before activation.
+
+### 11.9 Error and failure behavior
+
+| Condition | Required behavior |
+| --- | --- |
+| Generation collection missing | Existing VECTOR_GENERATION_NOT_FOUND |
+| Active alias missing or has no target | Existing normalized generation-not-found condition |
+| Metadata missing, malformed, or incomplete | VECTOR_GENERATION_BUILD_FAILED |
+| Unsupported metadata schema | VECTOR_GENERATION_BUILD_FAILED |
+| Stored generation ID mismatch | VECTOR_GENERATION_BUILD_FAILED |
+| Expected embedding ID mismatch | VECTOR_GENERATION_BUILD_FAILED |
+| Invalid metadata during generation-info resolution | VECTOR_GENERATION_BUILD_FAILED |
+| Qdrant transport/service failure | Existing normalized storage error mapping |
+| Failed verification | No activation; active alias unchanged |
+
+No compatibility failure may be converted into an empty successful search result.
+
+### 11.10 Amendment acceptance criteria
+
+The amendment is implemented only when all of the following are verified:
+
+- New collections receive exact generation metadata at creation time.
+- The create operation does not rely on a follow-up metadata mutation.
+- Verification checks metadata, schema version, generation identity, expected embedding identity, vector configuration, and exact point count.
+- Zero-point valid generations verify successfully; zero-point generations with invalid metadata fail.
+- GenerationInfo exposes only validated metadata identity.
+- get_active_generation_info() resolves and validates the active alias target.
+- The resolved generation can be pinned for a subsequent search without a second alias resolution.
+- Legacy collections fail closed and require a full rebuild.
+- Failed verification never changes the active alias.
+- No metadata update/repair operation is exposed.
+- Focused offline tests, Qdrant-backed integration tests, and full regression pass; exact evidence is recorded in specs/project-state.md.
+- No Retrieval implementation is included in the amendment tasks.

@@ -1938,3 +1938,18 @@ specification and acceptance criteria.
   claimed.
 - T280 is closed. No next task was started; T281 is not authorized; PR #11
   remains Draft, open, and unmerged.
+
+
+## T281 — Vector Storage Generation Identity Amendment (2026-11-23)
+
+- Amendment VS-GI-001 was approved by the project owner.
+- Updated specs/rag/knowledge-vector-storage.md with the collection-level identity metadata contract: generation_id, embedding_config_id, and metadata_schema_version=v1.
+- Added generation verification requirements, trusted GenerationInfo.embedding_config_id, zero-point generation behavior, fail-closed rules, and full-rebuild policy for legacy generations.
+- Added get_active_generation_info() to resolve the active alias to a validated immutable generation snapshot. Retrieval pins the resolved generation ID for the remainder of the invocation to prevent alias-switch time-of-check/time-of-use inconsistencies.
+- Updated Retrieval SDD and its task breakdown to compare query/generation embedding identities before search and search only the pinned generation.
+- Added the implementation/verification task breakdown VS281-A through VS281-E.
+- Documentation-only change. No production code, tests, migrations, Qdrant data, or runtime configuration were changed.
+- **Amendment status:** Approved; repository review pending.
+- **Current authorized implementation task:** None. VS281-A requires separate explicit authorization.
+- **Retrieval implementation:** Blocked until VS281-A through VS281-E are individually verified and closed.
+- Historical T280 closure is confirmed by master integration commit ce5e54aa940ee63f4859c5a24ac9fe587f755d2d (2026-11-14), which integrated the approved Retrieval SDD, T279 amendment, and verified T280 implementation. This supersedes any earlier pre-merge note in this file that still described PR #11 as open/unmerged.
