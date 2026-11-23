@@ -147,7 +147,7 @@ T285 tests MUST include an alias-switch race: once the active generation snapsho
 
 ### 7.5 Proposed cumulative VS281 integration gate
 
-**Status: PROPOSED — not approved.** This clarifies the integration/merge sequence only; it does not relax the requirement that every VS281 task be individually reviewed and verified.
+**Status: APPROVED by the project owner on 2026-11-24.** This clarifies the integration/merge sequence only; it does not relax the requirement that every VS281 task be individually reviewed and verified.
 
 - VS281-A through VS281-E remain dependency-ordered and separately authorized, but are proposed to be implemented on one cumulative integration branch.
 - Intermediate task verification may classify only proven downstream VS281 dependency failures as deferred integration failures; all focused/task-specific acceptance checks must pass, and unrelated failures block progress.
