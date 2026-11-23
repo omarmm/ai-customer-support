@@ -69,3 +69,13 @@ def test_error_does_not_require_or_expose_raw_response_content():
 
     assert secret not in str(error)
     assert error.code == "VECTOR_STORE_CONFIGURATION_ERROR"
+
+
+def test_active_generation_resolution_uses_existing_normalized_errors():
+    missing = VectorGenerationNotFound("active generation is absent")
+    invalid = VectorGenerationBuildFailed("active generation metadata is invalid")
+
+    assert missing.code == "VECTOR_GENERATION_NOT_FOUND"
+    assert missing.retryable is False
+    assert invalid.code == "VECTOR_GENERATION_BUILD_FAILED"
+    assert invalid.retryable is False

@@ -15,6 +15,7 @@ from app.rag.vector_storage.contracts import (
     GenerationInfo,
     GenerationVerificationResult,
     GetGenerationInfoRequest,
+    PinnedGenerationIdentity,
     UpsertPointInput,
     UpsertPointsRequest,
     UpsertPointsResult,
@@ -209,16 +210,22 @@ def test_upsert_result_represents_only_a_fully_confirmed_batch():
 
 
 def test_verification_allows_zero_points_and_requires_matching_count():
-    request = VerifyGenerationRequest(GENERATION_ID, 0)
-    result = GenerationVerificationResult(GENERATION_ID, 0, 0, 768, "Cosine")
+    request = VerifyGenerationRequest(GENERATION_ID, EMBEDDING_CONFIG_ID, 0)
+    result = GenerationVerificationResult(
+        GENERATION_ID, EMBEDDING_CONFIG_ID, 0, 0, 768, "Cosine"
+    )
     assert request.expected_point_count == result.actual_point_count
 
     with pytest.raises(ValueError):
-        VerifyGenerationRequest(GENERATION_ID, True)
+        VerifyGenerationRequest(GENERATION_ID, EMBEDDING_CONFIG_ID, True)
     with pytest.raises(ValueError):
-        GenerationVerificationResult(GENERATION_ID, 1, 0, 768, "Cosine")
+        GenerationVerificationResult(
+            GENERATION_ID, EMBEDDING_CONFIG_ID, 1, 0, 768, "Cosine"
+        )
     with pytest.raises(ValueError):
-        GenerationVerificationResult(GENERATION_ID, 0, 0, 768, "Dot")
+        GenerationVerificationResult(
+            GENERATION_ID, EMBEDDING_CONFIG_ID, 0, 0, 768, "Dot"
+        )
 
 
 def test_activation_contract_uses_fixed_alias():
@@ -232,14 +239,36 @@ def test_activation_contract_uses_fixed_alias():
 
 def test_generation_info_requires_derived_collection_name_and_valid_counts():
     result = GenerationInfo(
-        GENERATION_ID, f"knowledge_vectors_g_{GENERATION_ID}", 0, 768, "Cosine", False
+        GENERATION_ID,
+        EMBEDDING_CONFIG_ID,
+        f"knowledge_vectors_g_{GENERATION_ID}",
+        0,
+        768,
+        "Cosine",
+        False,
     )
     assert result.is_active is False
 
     with pytest.raises(ValueError):
-        GenerationInfo(GENERATION_ID, "caller-selected", 0, 768, "Cosine", False)
+        GenerationInfo(
+            GENERATION_ID,
+            EMBEDDING_CONFIG_ID,
+            "caller-selected",
+            0,
+            768,
+            "Cosine",
+            False,
+        )
     with pytest.raises(ValueError):
-        GenerationInfo(GENERATION_ID, f"knowledge_vectors_g_{GENERATION_ID}", True, 768, "Cosine", False)
+        GenerationInfo(
+            GENERATION_ID,
+            EMBEDDING_CONFIG_ID,
+            f"knowledge_vectors_g_{GENERATION_ID}",
+            True,
+            768,
+            "Cosine",
+            False,
+        )
 
 
 def test_deletion_contract_is_explicit_and_confirmed():
@@ -261,6 +290,7 @@ def test_vector_store_protocol_exposes_storage_methods_and_reserved_search():
         "activate_generation",
         "search",
         "get_generation_info",
+        "get_active_generation_info",
         "delete_generation",
     }
     assert expected.issubset(set(VectorStore.__dict__))
@@ -279,9 +309,157 @@ def test_request_and_result_dtos_are_frozen_dataclasses():
         GenerationActivationResult,
         GetGenerationInfoRequest,
         GenerationInfo,
+        PinnedGenerationIdentity,
         DeleteGenerationRequest,
         GenerationDeletionResult,
     )
     for dto_type in dto_types:
         assert getattr(dto_type, "__dataclass_params__").frozen is True
         assert fields(dto_type)
+
+
+@pytest.mark.parametrize(
+    "invalid", ["A" * 64, "g" * 64, "a" * 63, "a" * 65, "", None, 1, True]
+)
+def test_verification_request_rejects_invalid_embedding_config_id(invalid):
+    with pytest.raises(ValueError, match="embedding_config_id"):
+        VerifyGenerationRequest(GENERATION_ID, invalid, 1)
+
+
+def test_verification_request_requires_embedding_config_id():
+    with pytest.raises(TypeError, match="embedding_config_id"):
+        VerifyGenerationRequest(GENERATION_ID, expected_point_count=1)
+
+
+def test_verification_result_rejects_invalid_or_missing_embedding_config_id():
+    with pytest.raises(ValueError, match="embedding_config_id"):
+        GenerationVerificationResult(
+            GENERATION_ID, "G" * 64, 1, 1, 768, "Cosine"
+        )
+    with pytest.raises(TypeError, match="embedding_config_id"):
+        GenerationVerificationResult(
+            generation_id=GENERATION_ID,
+            expected_point_count=1,
+            actual_point_count=1,
+            vector_size=768,
+            distance="Cosine",
+        )
+
+    result = GenerationVerificationResult(
+        GENERATION_ID, EMBEDDING_CONFIG_ID, 1, 1, 768, "Cosine"
+    )
+    assert result.embedding_config_id == EMBEDDING_CONFIG_ID
+    with pytest.raises(FrozenInstanceError):
+        result.embedding_config_id = "f" * 64
+
+
+def test_generation_info_rejects_invalid_or_missing_embedding_config_id():
+    with pytest.raises(ValueError, match="embedding_config_id"):
+        GenerationInfo(
+            GENERATION_ID,
+            "not-a-digest",
+            f"knowledge_vectors_g_{GENERATION_ID}",
+            0,
+            768,
+            "Cosine",
+            False,
+        )
+    with pytest.raises(TypeError, match="embedding_config_id"):
+        GenerationInfo(
+            generation_id=GENERATION_ID,
+            collection_name=f"knowledge_vectors_g_{GENERATION_ID}",
+            point_count=0,
+            vector_size=768,
+            distance="Cosine",
+            is_active=False,
+        )
+
+    info = GenerationInfo(
+        GENERATION_ID,
+        EMBEDDING_CONFIG_ID,
+        f"knowledge_vectors_g_{GENERATION_ID}",
+        0,
+        768,
+        "Cosine",
+        True,
+    )
+    assert info.embedding_config_id == EMBEDDING_CONFIG_ID
+    assert info.is_active is True
+    with pytest.raises(FrozenInstanceError):
+        info.embedding_config_id = "f" * 64
+
+
+@pytest.mark.parametrize(
+    "invalid", ["A" * 64, "z" * 64, "c" * 63, "", None, 7, False]
+)
+def test_pinned_generation_identity_validates_both_identity_values(invalid):
+    with pytest.raises(ValueError, match="embedding_config_id"):
+        PinnedGenerationIdentity(GENERATION_ID, invalid)
+    with pytest.raises(ValueError, match="generation_id"):
+        PinnedGenerationIdentity(invalid, EMBEDDING_CONFIG_ID)
+
+
+def test_pinned_generation_identity_is_immutable_and_has_no_collection_input():
+    with pytest.raises(TypeError, match="embedding_config_id"):
+        PinnedGenerationIdentity(GENERATION_ID)
+
+    info = GenerationInfo(
+        GENERATION_ID,
+        EMBEDDING_CONFIG_ID,
+        f"knowledge_vectors_g_{GENERATION_ID}",
+        0,
+        768,
+        "Cosine",
+        True,
+    )
+    pinned = info.pinned_identity()
+    assert pinned == PinnedGenerationIdentity(GENERATION_ID, EMBEDDING_CONFIG_ID)
+    assert pinned.generation_id == GENERATION_ID
+    assert pinned.embedding_config_id == EMBEDDING_CONFIG_ID
+    assert [field.name for field in fields(pinned)] == [
+        "generation_id",
+        "embedding_config_id",
+    ]
+    with pytest.raises(FrozenInstanceError):
+        pinned.generation_id = OTHER_GENERATION_ID
+
+
+def test_active_generation_resolution_is_a_no_argument_protocol_operation():
+    import inspect
+
+    operation = VectorStore.get_active_generation_info
+    signature = inspect.signature(operation)
+    assert list(signature.parameters) == ["self"]
+    assert "GenerationInfo" in str(signature.return_annotation)
+    assert "VECTOR_GENERATION_NOT_FOUND" in (operation.__doc__ or "")
+    assert "VECTOR_GENERATION_BUILD_FAILED" in (operation.__doc__ or "")
+    assert not any("metadata" in name for name in VectorStore.__dict__)
+
+
+def test_amended_contracts_remain_application_owned():
+    from pathlib import Path
+
+    import app.rag.vector_storage.contracts as contracts_module
+
+    source = Path(contracts_module.__file__).read_text()
+    assert "qdrant" not in source.lower()
+    assert "httpx" not in source.lower()
+    for dto_type in (
+        VerifyGenerationRequest,
+        GenerationVerificationResult,
+        GenerationInfo,
+        PinnedGenerationIdentity,
+    ):
+        assert all(
+            field.type in ("str", "int", "bool")
+            for field in fields(dto_type)
+            if field.name != "distance"
+        )
+
+
+def test_amended_contracts_are_exported_from_the_package_boundary():
+    import app.rag.vector_storage as package
+
+    assert package.PinnedGenerationIdentity is PinnedGenerationIdentity
+    assert "PinnedGenerationIdentity" in package.__all__
+    assert "get_active_generation_info" in VectorStore.__dict__

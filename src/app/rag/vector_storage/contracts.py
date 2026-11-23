@@ -200,16 +200,19 @@ class UpsertPointsResult:
 @dataclass(frozen=True)
 class VerifyGenerationRequest:
     generation_id: str
+    embedding_config_id: str
     expected_point_count: int
 
     def __post_init__(self) -> None:
         _require_generation_id(self.generation_id)
+        _require_generation_id(self.embedding_config_id, "embedding_config_id")
         _require_non_negative_int(self.expected_point_count, "expected_point_count")
 
 
 @dataclass(frozen=True)
 class GenerationVerificationResult:
     generation_id: str
+    embedding_config_id: str
     expected_point_count: int
     actual_point_count: int
     vector_size: int
@@ -217,6 +220,7 @@ class GenerationVerificationResult:
 
     def __post_init__(self) -> None:
         _require_generation_id(self.generation_id)
+        _require_generation_id(self.embedding_config_id, "embedding_config_id")
         _require_non_negative_int(self.expected_point_count, "expected_point_count")
         _require_non_negative_int(self.actual_point_count, "actual_point_count")
         _require_int(self.vector_size, "vector_size")
@@ -259,8 +263,21 @@ class GetGenerationInfoRequest:
 
 
 @dataclass(frozen=True)
+class PinnedGenerationIdentity:
+    """Immutable identity a retrieval invocation pins after active resolution."""
+
+    generation_id: str
+    embedding_config_id: str
+
+    def __post_init__(self) -> None:
+        _require_generation_id(self.generation_id)
+        _require_generation_id(self.embedding_config_id, "embedding_config_id")
+
+
+@dataclass(frozen=True)
 class GenerationInfo:
     generation_id: str
+    embedding_config_id: str
     collection_name: str
     point_count: int
     vector_size: int
@@ -269,6 +286,7 @@ class GenerationInfo:
 
     def __post_init__(self) -> None:
         _require_generation_id(self.generation_id)
+        _require_generation_id(self.embedding_config_id, "embedding_config_id")
         expected_name = f"knowledge_vectors_g_{self.generation_id}"
         if self.collection_name != expected_name:
             raise ValueError("collection_name does not match generation_id")
@@ -279,6 +297,10 @@ class GenerationInfo:
         _require_non_empty_string(self.distance, "distance")
         if not isinstance(self.is_active, bool):
             raise ValueError("is_active must be a boolean")
+
+    def pinned_identity(self) -> PinnedGenerationIdentity:
+        """Return the immutable generation identity used to pin a later search."""
+        return PinnedGenerationIdentity(self.generation_id, self.embedding_config_id)
 
 
 @dataclass(frozen=True)
@@ -323,5 +345,16 @@ class VectorStore(Protocol):
         ...
 
     def get_generation_info(self, request: GetGenerationInfoRequest) -> GenerationInfo: ...
+
+    def get_active_generation_info(self) -> GenerationInfo:
+        """Resolve ``knowledge_vectors_active`` to one validated snapshot.
+
+        The result is the complete :class:`GenerationInfo` with ``is_active``
+        True. A missing alias or target raises ``VECTOR_GENERATION_NOT_FOUND``;
+        malformed alias state or invalid identity raises
+        ``VECTOR_GENERATION_BUILD_FAILED``. This contract performs no metadata
+        repair, alias mutation, or collection mutation.
+        """
+        ...
 
     def delete_generation(self, request: DeleteGenerationRequest) -> GenerationDeletionResult: ...
