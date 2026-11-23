@@ -2002,3 +2002,11 @@ specification and acceptance criteria.
 - A documentation-only proposal is being prepared on branch `docs/vs281-cumulative-verification-amendment` in response to the VS281-A integration blocker.
 - Proposal: keep VS281-A→B→C→D→E dependency order and separate per-task authorization, but execute on one cumulative integration branch; permit only explicitly attributed downstream failures as deferred diagnostics during A–D; require focused/task-specific checks to pass for each task; require Qdrant integration plus a fully green full regression at E; prepare one cumulative PR only after E.
 - This proposal does **not** approve any implementation task, alter fail-closed identity semantics, close VS281-A, or authorize a merge. It requires explicit owner approval before it can govern execution.
+
+
+## VS281 — Cumulative verification protocol approval (2026-11-24)
+
+- The project owner explicitly approved the proposed cumulative implementation and verification protocol documented in §8.8 of `specs/rag/knowledge-vector-storage-tasks.md` and §7.5 of `specs/rag/knowledge-retrieval-tasks.md`.
+- The approval changes only execution, verification, and merge sequencing. VS-GI-001 identity semantics, VS281-A–E scope/acceptance criteria, dependency order, fail-closed behavior, and separate per-task authorization remain unchanged.
+- VS281-A remains open and unverified pending task-scoped re-verification under the approved protocol. VS281-B–E are not authorized. Retrieval remains blocked until the final VS281-E integration gate and cumulative merge/closure are complete.
+- The approved documentation is on `docs/vs281-cumulative-verification-amendment`; it has not yet been merged to master. No implementation or merge authorization is implied.
