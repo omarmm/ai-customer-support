@@ -2010,3 +2010,78 @@ specification and acceptance criteria.
 - The approval changes only execution, verification, and merge sequencing. VS-GI-001 identity semantics, VS281-A–E scope/acceptance criteria, dependency order, fail-closed behavior, and separate per-task authorization remain unchanged.
 - VS281-A remains open and unverified pending task-scoped re-verification under the approved protocol. VS281-B–E are not authorized. Retrieval remains blocked until the final VS281-E integration gate and cumulative merge/closure are complete.
 - The approved documentation was merged to master through PR #14 (merge commit `d9621aaf2e8fc0f124cb90423d387d51fc6aca55`). No implementation task beyond VS281-A is authorized.
+## VS281-A — Implementation Handoff (2026-11-24)
+
+- **Task ID:** VS281-A — Identity contracts and active-generation resolution
+  contract.
+- **Approved specification reference:** `specs/rag/knowledge-vector-storage.md`,
+  Amendment VS-GI-001, especially §11.4–§11.6 and §11.9. Approved task
+  breakdown: `specs/rag/knowledge-vector-storage-tasks.md`, §8.2.
+- **Base ref / SHA (post-rebase):** `082be660e3267eb2243343614d3c27e32c84ef79`
+  (latest `origin/master`, including PR #14 and the finalized cumulative
+  protocol documentation). Pre-rebase base:
+  `2f55f240a12dc48372b4a1c7579a4aa596b2833e`.
+- **Implementation branch:** `feature/vs281-a-identity-contracts`.
+- **Prepared implementation commit (post-rebase):**
+  `8163b239195dc0da17793bb6f696ea7dc90acb32`
+  (`feat(rag): amend vector storage identity contracts for VS281-A`).
+  Pre-rebase commit: `1445243df3cacf0824082cd16e7bee182a3df2e6`.
+- **Rebased handoff commit / branch head:** recorded in the post-rebase anchor
+  note appended below; pre-rebase handoff commit was
+  `040734969fd65eef821a36b7f2561a68a45da703`.
+- **Handoff status:** Prepared only. Local `verify-task` verification is
+  PENDING and must be run by the owner before any merge. Nothing was merged;
+  VS281-B remains unauthorized.
+- **Changed files (prepared commit):**
+  `src/app/rag/vector_storage/contracts.py`,
+  `src/app/rag/vector_storage/__init__.py`,
+  `tests/rag/vector_storage/test_contracts.py`,
+  `tests/rag/vector_storage/test_errors.py`. This documentation-only
+  handoff record follows in a separate commit.
+- **Scope delivered:** `VerifyGenerationRequest`,
+  `GenerationVerificationResult`, and `GenerationInfo` now carry a required
+  `embedding_config_id` validated as exactly 64 lowercase hexadecimal
+  characters; required fields mean missing values fail closed. New frozen
+  `PinnedGenerationIdentity` carries the validated generation and embedding
+  identities for a future Retrieval invocation; `GenerationInfo.pinned_identity()`
+  derives it without search behavior. `VectorStore` gains the no-argument
+  `get_active_generation_info()` operation returning `GenerationInfo` with
+  `is_active=True`; its documented error contract reuses
+  `VECTOR_GENERATION_NOT_FOUND` for a missing alias/target and
+  `VECTOR_GENERATION_BUILD_FAILED` for malformed/invalid identity. New contracts
+  are exported through `app.rag.vector_storage`. No Qdrant SDK type appears in
+  application contracts.
+- **Tests and actual results:**
+  - Focused offline contract suite:
+    `docker run --rm --network none -v "$PWD:/app" -w /app
+    ai-customer-support-t280-verify:local python -m pytest -q
+    tests/rag/vector_storage/test_contracts.py
+    tests/rag/vector_storage/test_errors.py`
+    → **77 passed, exit 0** (final rerun after three in-scope new-test
+    assertion corrections; the first run was 3 failed, 74 passed).
+  - Full regression:
+    `docker run --rm --network ai-customer-support_default
+    --add-host host.docker.internal:host-gateway --env-file .env
+    -v "$PWD:/app" -w /app ai-customer-support-t280-verify:local
+    python -m pytest tests -q` with PostgreSQL and Qdrant healthy
+    → **14 failed, 1057 passed, 9 skipped, exit 1**. All 14 failures are in
+    `tests/rag/vector_storage/test_generation_lifecycle.py` and
+    `tests/rag/vector_storage/test_generation_management.py`: the existing
+    Qdrant adapter still constructs the amended DTOs without the new required
+    `embedding_config_id`, so construction fails and is normalized to
+    `VectorStoreServiceError`. This is the staged adapter work explicitly
+    reserved for VS281-C (verification identity/cache) and VS281-D (validated
+    GenerationInfo and active-alias resolution) and was deliberately not
+    changed under the VS281-A exclusions.
+  - `git diff --check` against the base → clean, exit 0.
+  - Scope review: `git status --short` was clean before the prepared commit;
+    the prepared diff touched only the four listed files. No approved
+    specification was modified, and no contradiction was discovered.
+- **Exclusions respected:** No Qdrant adapter change, no Qdrant I/O, no
+  collection creation/metadata/lifecycle change, no Retrieval or search
+  behavior, no production composition change, no unrelated refactor, no
+  VS281-B work, no merge, and no verification claim.
+- **Remaining work:** VS281-C and VS281-D must update the adapter to the
+  amended contracts before the full regression suite can pass. Local
+  `verify-task` is pending; PR/merge is not requested and must not occur until
+  owner-run verification passes and the owner explicitly requests it.
