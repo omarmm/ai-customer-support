@@ -1949,7 +1949,39 @@ specification and acceptance criteria.
 - Updated Retrieval SDD and its task breakdown to compare query/generation embedding identities before search and search only the pinned generation.
 - Added the implementation/verification task breakdown VS281-A through VS281-E.
 - Documentation-only change. No production code, tests, migrations, Qdrant data, or runtime configuration were changed.
-- **Amendment status:** Approved; repository review pending.
-- **Current authorized implementation task:** None. VS281-A requires separate explicit authorization.
-- **Retrieval implementation:** Blocked until VS281-A through VS281-E are individually verified and closed.
+- **Amendment status:** Approved and merged into master via PR #12 (merge commit
+  `70143aa8cc8052a6e4c6fb7cb19c2b246de13a1f`).
+- **Implementation authorization:** VS281-A was subsequently authorized explicitly
+  by the project owner; see the authorization record below.
+- **Retrieval implementation:** Blocked until VS281-A through VS281-E are
+  individually verified and closed.
 - Historical T280 closure is confirmed by master integration commit ce5e54aa940ee63f4859c5a24ac9fe587f755d2d (2026-11-14), which integrated the approved Retrieval SDD, T279 amendment, and verified T280 implementation. This supersedes any earlier pre-merge note in this file that still described PR #11 as open/unmerged.
+
+
+## VS281-A — Explicit Implementation Authorization (2026-11-24)
+
+- **Task:** VS281-A — Identity contracts and active-generation resolution contract.
+- **Specification:** Approved amendment VS-GI-001 in
+  `specs/rag/knowledge-vector-storage.md`, especially the identity contracts
+  and active-generation snapshot requirements.
+- **Task breakdown:** `specs/rag/knowledge-vector-storage-tasks.md`, §8.2.
+- **Authorization:** The project owner explicitly authorized implementation
+  of VS281-A only on 2026-11-24.
+- **Authorized scope:** Implement the amended application-owned identity DTOs,
+  the application-owned active-generation resolution contract/result/error
+  contract, pinned-generation identity contract for future Retrieval use, and
+  appropriate boundary validation/tests exactly as specified in §8.2.
+- **Explicit exclusions:** Do not start VS281-B or later tasks. Do not add
+  Qdrant I/O, collection mutation, Retrieval implementation/search behavior,
+  production composition changes, unrelated refactors, or scope expansion.
+- **Execution requirements:** Run task-scoped tests; prepare a complete
+  implementation handoff; stop without merging. Local verification is a
+  separate owner-run gate and must happen before any implementation merge.
+- **Handoff status:** Not yet created. The implementation branch, base ref,
+  and prepared commit must be recorded after the implementation is prepared.
+  Do not represent this authorization record as an implementation handoff.
+- **Current authorized implementation task:** VS281-A only.
+- **Next task:** VS281-B remains unauthorized and blocked until VS281-A is
+  handed off, locally verified, reviewed, merged, and closed.
+- **Retrieval:** Remains blocked until VS281-A through VS281-E are individually
+  verified and closed.
