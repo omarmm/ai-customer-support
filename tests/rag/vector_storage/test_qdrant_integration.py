@@ -95,7 +95,11 @@ def test_composed_store_completes_generation_lifecycle() -> None:
             assert result.succeeded is True
             assert result.completed_count == 1
             verified = store.verify_generation(
-                VerifyGenerationRequest(generation_id, expected_point_count=1)
+                VerifyGenerationRequest(
+                    generation_id,
+                    embedding_config_id,
+                    expected_point_count=1,
+                )
             )
             assert verified.actual_point_count == 1
 

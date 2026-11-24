@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import math
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Callable, TypeVar
 
@@ -26,6 +27,7 @@ from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedR
 
 from app.rag.vector_storage.contracts import (
     ACTIVE_GENERATION_ALIAS,
+    GENERATION_ID_PATTERN,
     VECTOR_DIMENSION,
     ActivateGenerationRequest,
     CollectionInfo,
@@ -247,6 +249,52 @@ def _generation_metadata(request: CreateGenerationRequest) -> dict[str, str]:
     }
 
 
+_GENERATION_METADATA_FIELDS = frozenset(
+    {
+        "generation_id",
+        "embedding_config_id",
+        "metadata_schema_version",
+    }
+)
+
+
+def _validate_collection_metadata(
+    collection: Any, request: VerifyGenerationRequest
+) -> None:
+    """Require the exact §11.2 identity metadata before verification succeeds.
+
+    Qdrant returns collection metadata under ``config.metadata``. Nothing is
+    inferred from collection names, point payloads, dimensions, or cached state;
+    every field must be present, well formed, and match the request.
+    """
+
+    metadata = getattr(getattr(collection, "config", None), "metadata", None)
+    if not isinstance(metadata, Mapping):
+        raise ValueError("generation collection metadata is missing or invalid")
+    if set(metadata) != _GENERATION_METADATA_FIELDS:
+        raise ValueError("generation collection metadata fields do not match V1")
+
+    generation_id = metadata.get("generation_id")
+    embedding_config_id = metadata.get("embedding_config_id")
+    schema_version = metadata.get("metadata_schema_version")
+
+    for value, field in (
+        (generation_id, "generation_id"),
+        (embedding_config_id, "embedding_config_id"),
+    ):
+        if not isinstance(value, str) or GENERATION_ID_PATTERN.fullmatch(value) is None:
+            raise ValueError(f"generation metadata {field} is malformed")
+
+    if schema_version != GENERATION_METADATA_SCHEMA_VERSION:
+        raise ValueError("generation metadata schema version is unsupported")
+    if generation_id != request.generation_id:
+        raise ValueError("stored generation ID does not match the requested generation")
+    if embedding_config_id != request.embedding_config_id:
+        raise ValueError(
+            "stored embedding config ID does not match the expected identity"
+        )
+
+
 def _is_collection_not_found(exc: BaseException) -> bool:
     """Return whether a normalized/raw Qdrant error represents HTTP 404."""
 
@@ -297,9 +345,11 @@ class QdrantClientAdapter:
         self._client = client
         self._retry_policy = retry_policy or QdrantRetryPolicy()
         self._sleep = sleep
-        # Verification is an explicit lifecycle precondition. It is invalidated
-        # whenever this adapter writes to the generation.
-        self._verified_generations: dict[str, int] = {}
+        # Verification is an explicit lifecycle precondition. Cache the entire
+        # approved request so activation re-verification reuses the exact
+        # identity and count that were verified. It is invalidated whenever this
+        # adapter writes to the generation; no identity is inferred or defaulted.
+        self._verified_generations: dict[str, VerifyGenerationRequest] = {}
 
     @classmethod
     def from_config(
@@ -437,9 +487,22 @@ class QdrantClientAdapter:
 
         collection_name = f"knowledge_vectors_g_{request.generation_id}"
         try:
-            collection = self._execute(
-                lambda client: client.get_collection(collection_name=collection_name)
-            )
+            try:
+                collection = self._execute(
+                    lambda client: client.get_collection(collection_name=collection_name)
+                )
+            except Exception as exc:
+                # A genuinely absent collection is a not-found condition, not an
+                # identity-validation failure. Any other failure is handled below.
+                if _is_collection_not_found(exc) or isinstance(
+                    exc, VectorGenerationNotFound
+                ):
+                    raise VectorGenerationNotFound(
+                        "vector generation does not exist"
+                    ) from exc
+                raise
+
+            _validate_collection_metadata(collection, request)
             params = getattr(getattr(collection, "config", None), "params", None)
             vectors = getattr(params, "vectors", None)
             # V1 uses one unnamed dense vector. Named/multi-vector configurations
@@ -474,20 +537,21 @@ class QdrantClientAdapter:
 
             result = GenerationVerificationResult(
                 generation_id=request.generation_id,
+                embedding_config_id=request.embedding_config_id,
                 expected_point_count=request.expected_point_count,
                 actual_point_count=actual_point_count,
                 vector_size=vector_size,
                 distance="Cosine",
             )
         except Exception as exc:
-            if isinstance(exc, VectorGenerationBuildFailed):
+            if isinstance(exc, (VectorGenerationBuildFailed, VectorGenerationNotFound)):
                 raise
             cause = normalize_qdrant_error(exc)
             raise VectorGenerationBuildFailed(
                 "vector generation verification failed", cause=cause
             ) from cause
 
-        self._verified_generations[request.generation_id] = request.expected_point_count
+        self._verified_generations[request.generation_id] = request
         return result
 
     @staticmethod
@@ -517,19 +581,19 @@ class QdrantClientAdapter:
             raise TypeError("request must be an ActivateGenerationRequest")
         generation_id = request.generation_id
         collection_name = f"knowledge_vectors_g_{generation_id}"
-        expected_point_count = self._verified_generations.get(generation_id)
-        if expected_point_count is None:
+        verified_request = self._verified_generations.get(generation_id)
+        if verified_request is None:
             raise VectorGenerationActivationFailed(
                 "generation must pass verification before activation"
             )
 
         # Verification is a hard precondition, not part of alias-error
         # reconciliation. A failed verification must never be mistaken for an
-        # already-active or ambiguously-activated successful generation.
+        # already-active or ambiguously-activated successful generation. Reuse
+        # the exact request that was verified so the embedding identity cannot
+        # be dropped, inferred, or replaced with a default at activation time.
         try:
-            self.verify_generation(
-                VerifyGenerationRequest(generation_id, expected_point_count)
-            )
+            self.verify_generation(verified_request)
         except Exception as exc:
             cause = normalize_qdrant_error(exc)
             raise VectorGenerationActivationFailed(
