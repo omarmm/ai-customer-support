@@ -299,3 +299,19 @@ No Retrieval implementation task may begin until VS281-A through VS281-E are ind
 - VS281-A requires separate explicit authorization.
 - Closing one task does not authorize the next task automatically.
 - T282–T288 in the Retrieval task breakdown remain blocked until all VS281 tasks are verified and closed.
+
+
+### 8.8 Proposed cumulative implementation and verification protocol
+
+**Status: APPROVED by the project owner on 2026-11-24.** This section changes execution/verification mechanics only. It does not change VS-GI-001 identity semantics, task scope, acceptance criteria, or dependency order.
+
+- Implement VS281-A through VS281-E sequentially on one cumulative integration branch created from the approved master base. Preserve a distinct prepared commit/handoff for each task and record the exact base/head relationship.
+- Authorize exactly one task at a time. After each task, run its focused offline tests, task-specific integration tests where applicable, scope review, and `git diff --check`; prepare its handoff and stop for owner review/authorization of the next task.
+- Do not merge intermediate VS281 task commits to master. Later tasks may depend on the cumulative branch so that the adapter and contracts evolve together; no task may implement work owned by a later task before that later task is authorized.
+- During VS281-A through VS281-D, run the full regression suite as a diagnostic. Failures caused solely by not-yet-implemented, explicitly downstream VS281 work must be recorded with exact failing tests, error signatures, and owning task. They are **deferred integration failures**, not passing tests and not evidence that the full regression is green. Any unrelated regression failure blocks closure of the current task.
+- A task may be marked task-verified only when its own acceptance criteria and focused tests pass, scope is clean, and every full-regression failure is demonstrated to be an expected downstream dependency gap. The handoff must retain the red full-regression result and identify the task that will resolve each failure. No fallback/default identity or weakened fail-closed behavior is permitted.
+- VS281-E is the final integration gate: all VS281-A–D work must be present on the cumulative branch; Qdrant integration tests and the complete full regression must pass; no deferred failure may remain; `git diff --check` and final scope review must pass.
+- Only after VS281-E passes may one cumulative PR be prepared for owner review. No merge occurs without the owner's explicit approval. After merge, update project state to close the amendment and keep Retrieval blocked until the final merge/closure gate is satisfied.
+- If a task reveals a specification contradiction, an unrelated regression, or a failure not attributable to a documented downstream task, stop and request a specification decision. Do not expand scope or silently change acceptance criteria.
+
+**Approval required:** The project owner must approve this protocol before it governs implementation. Until approval, the existing execution and verification rules remain in force.

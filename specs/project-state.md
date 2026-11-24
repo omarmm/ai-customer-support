@@ -1985,3 +1985,28 @@ specification and acceptance criteria.
   handed off, locally verified, reviewed, merged, and closed.
 - **Retrieval:** Remains blocked until VS281-A through VS281-E are individually
   verified and closed.
+
+
+## VS281-A — Owner-run verification result (2026-11-24)
+
+- The owner reran the authoritative `verify-task` workflow after the feature branch became available on `origin`.
+- Remote tip, `origin/feature/vs281-a-identity-contracts`, and local HEAD all matched `0407349` (`docs(state): record VS281-A implementation handoff`). Prepared implementation commit `1445243df3cacf0824082cd16e7bee182a3df2e6` remained an ancestor of HEAD. Working tree was clean.
+- Focused offline contract tests: **77 passed**. `docker compose config --quiet` passed; PostgreSQL and Qdrant became healthy.
+- Full regression: **14 failed, 1057 passed, 9 skipped** (exit 1). Twelve failures came from legacy `VerifyGenerationRequest` call sites missing the newly required `expected_point_count`; two failures came from the Qdrant adapter constructing `GenerationInfo` without `embedding_config_id`. Adapter code also still constructs `GenerationVerificationResult` and `VerifyGenerationRequest` without the new identity field.
+- The failures require downstream adapter/fixture changes assigned to VS281-C and VS281-D, and cannot be fixed within the approved contract-only VS281-A scope. The verify-task workflow correctly stopped.
+- No code/specification change, commit, handoff closure, merge, or next-task authorization resulted from this verification. VS281-A remains **open and unverified**; VS281-B–E remain unauthorized.
+- Verification report is recorded as evidence, not as a passing result.
+
+## VS281 — Proposed cumulative verification amendment (2026-11-24)
+
+- A documentation-only proposal is being prepared on branch `docs/vs281-cumulative-verification-amendment` in response to the VS281-A integration blocker.
+- Proposal: keep VS281-A→B→C→D→E dependency order and separate per-task authorization, but execute on one cumulative integration branch; permit only explicitly attributed downstream failures as deferred diagnostics during A–D; require focused/task-specific checks to pass for each task; require Qdrant integration plus a fully green full regression at E; prepare one cumulative PR only after E.
+- This proposal does **not** approve any implementation task, alter fail-closed identity semantics, close VS281-A, or authorize a merge. It requires explicit owner approval before it can govern execution.
+
+
+## VS281 — Cumulative verification protocol approval (2026-11-24)
+
+- The project owner explicitly approved the proposed cumulative implementation and verification protocol documented in §8.8 of `specs/rag/knowledge-vector-storage-tasks.md` and §7.5 of `specs/rag/knowledge-retrieval-tasks.md`.
+- The approval changes only execution, verification, and merge sequencing. VS-GI-001 identity semantics, VS281-A–E scope/acceptance criteria, dependency order, fail-closed behavior, and separate per-task authorization remain unchanged.
+- VS281-A remains open and unverified pending task-scoped re-verification under the approved protocol. VS281-B–E are not authorized. Retrieval remains blocked until the final VS281-E integration gate and cumulative merge/closure are complete.
+- The approved documentation is on `docs/vs281-cumulative-verification-amendment`; it has not yet been merged to master. No implementation or merge authorization is implied.
