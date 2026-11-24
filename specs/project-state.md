@@ -2323,3 +2323,15 @@ specification and acceptance criteria.
 - **Final verification commit:** this commit (HEAD of
   `feature/vs281-a-identity-contracts`; exact SHA available via
   `git rev-parse HEAD` and in the final verification report).
+
+
+## VS281-C — Explicit implementation authorization (2026-11-24)
+
+- **Owner authorization:** The project owner explicitly authorized VS281-C only in the conversation on 2026-11-24.
+- **Task:** VS281-C — Generation verification identity validation, exactly as defined in `specs/rag/knowledge-vector-storage-tasks.md` §8.4.
+- **Cumulative integration branch:** `feature/vs281-a-identity-contracts` (continue the existing branch; do not create a new branch).
+- **Prior verified task anchor:** VS281-B verification head `0004c14c50bfe8891b0a71b9da4bcbada1468d81`.
+- **Authorization head:** `c10fb17584f49321aa315a895448a3094c7be1a8` (the §8.7 gate update authorizing VS281-C only).
+- **Authorized scope:** Read and validate collection metadata during generation verification; compare stored generation ID and embedding config ID with the request; preserve existing dimension, Cosine distance, exact point-count, and verification-cache behavior only where valid under VS-GI-001; return `GenerationVerificationResult` with validated embedding identity; implement and test all §8.4 acceptance criteria.
+- **Explicit exclusions:** No VS281-D or VS281-E work, no Retrieval/search implementation, no metadata repair/update/backfill, no fallback/default identity, no PR, no merge, and no master update. Do not alter acceptance criteria or start another task.
+- **Execution rule:** Prepare the VS281-C implementation and handoff on the same cumulative branch, run focused offline tests and the diagnostic full regression as required by §8.8, record any downstream failures exactly, then STOP for owner review and local `verify-task`.
