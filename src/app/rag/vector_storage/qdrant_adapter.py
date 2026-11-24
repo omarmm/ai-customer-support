@@ -56,6 +56,7 @@ from app.rag.vector_storage.exceptions import (
 from app.rag.vector_storage.retry import QdrantRetryPolicy
 
 DEFAULT_QDRANT_TIMEOUT_SECONDS = 10.0
+GENERATION_METADATA_SCHEMA_VERSION = "v1"
 
 T = TypeVar("T")
 
@@ -237,6 +238,15 @@ _PAYLOAD_INDEXES = (
 )
 
 
+def _generation_metadata(request: CreateGenerationRequest) -> dict[str, str]:
+    """Build the exact three-field identity metadata for atomic creation."""
+    return {
+        "generation_id": request.generation_id,
+        "embedding_config_id": request.embedding_config_id,
+        "metadata_schema_version": GENERATION_METADATA_SCHEMA_VERSION,
+    }
+
+
 def _is_collection_not_found(exc: BaseException) -> bool:
     """Return whether a normalized/raw Qdrant error represents HTTP 404."""
 
@@ -328,6 +338,7 @@ class QdrantClientAdapter:
                         size=VECTOR_DIMENSION,
                         distance=models.Distance.COSINE,
                     ),
+                    metadata=_generation_metadata(request),
                 )
             )
             if created is not True:

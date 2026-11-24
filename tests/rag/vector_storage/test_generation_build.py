@@ -61,6 +61,17 @@ class FakeQdrantClient:
         self.collection_calls = []
         self.index_calls = []
         self.upsert_calls = []
+        self.unexpected_calls = []
+
+    def __getattr__(self, name):
+        if name.startswith("__"):
+            raise AttributeError(name)
+
+        def record_unexpected_call(*args, **kwargs):
+            self.unexpected_calls.append((name, args, kwargs))
+            raise AssertionError(f"unexpected adapter call: {name}")
+
+        return record_unexpected_call
 
     def create_collection(self, **kwargs):
         self.collection_calls.append(kwargs)
@@ -120,6 +131,58 @@ def test_create_generation_uses_fixed_collection_vector_schema_and_exact_indexes
     assert all(call["wait"] is True for call in client.index_calls)
 
 
+def test_create_generation_passes_exact_three_field_metadata_in_creation_call():
+    client = FakeQdrantClient()
+
+    make_adapter(client).create_generation(
+        CreateGenerationRequest(GENERATION_ID, EMBEDDING_CONFIG_ID, VECTOR_DIMENSION)
+    )
+
+    assert len(client.collection_calls) == 1
+    assert client.collection_calls[0]["metadata"] == {
+        "generation_id": GENERATION_ID,
+        "embedding_config_id": EMBEDDING_CONFIG_ID,
+        "metadata_schema_version": "v1",
+    }
+    assert client.unexpected_calls == []
+
+
+def test_create_generation_does_not_write_metadata_after_creation():
+    client = FakeQdrantClient()
+
+    result = make_adapter(client).create_generation(
+        CreateGenerationRequest(GENERATION_ID, EMBEDDING_CONFIG_ID, VECTOR_DIMENSION)
+    )
+
+    assert result.collection_name == f"knowledge_vectors_g_{GENERATION_ID}"
+    assert len(client.collection_calls) == 1
+    assert client.unexpected_calls == []
+
+
+def test_create_generation_rejects_invalid_identity_before_qdrant_io():
+    client = FakeQdrantClient()
+
+    with pytest.raises(ValueError, match="embedding_config_id"):
+        CreateGenerationRequest(GENERATION_ID, "not-a-digest", VECTOR_DIMENSION)
+    with pytest.raises(ValueError, match="generation_id"):
+        CreateGenerationRequest("A" * 64, EMBEDDING_CONFIG_ID, VECTOR_DIMENSION)
+
+    assert client.collection_calls == []
+    assert client.index_calls == []
+    assert client.unexpected_calls == []
+
+
+def test_create_generation_rejects_non_application_request_before_qdrant_io():
+    client = FakeQdrantClient()
+
+    with pytest.raises(TypeError, match="CreateGenerationRequest"):
+        make_adapter(client).create_generation(object())
+
+    assert client.collection_calls == []
+    assert client.index_calls == []
+    assert client.unexpected_calls == []
+
+
 def test_create_generation_fails_when_collection_creation_is_not_confirmed():
     client = FakeQdrantClient(create_collection_result=False)
 
@@ -130,6 +193,7 @@ def test_create_generation_fails_when_collection_creation_is_not_confirmed():
 
     assert caught.value.code == "VECTOR_GENERATION_BUILD_FAILED"
     assert client.index_calls == []
+    assert client.unexpected_calls == []
 
 
 def test_create_generation_fails_when_any_payload_index_is_not_confirmed():
@@ -149,8 +213,9 @@ def test_create_generation_wraps_normalized_qdrant_failures():
         def create_collection(self, **kwargs):
             raise httpx.ConnectError("unavailable")
 
+    client = BrokenClient()
     with pytest.raises(VectorGenerationBuildFailed) as caught:
-        make_adapter(BrokenClient()).create_generation(
+        make_adapter(client).create_generation(
             CreateGenerationRequest(GENERATION_ID, EMBEDDING_CONFIG_ID, VECTOR_DIMENSION)
         )
 
@@ -158,6 +223,7 @@ def test_create_generation_wraps_normalized_qdrant_failures():
     assert isinstance(caught.value.underlying_error, VectorStoreUnavailable)
     assert caught.value.__cause__ is caught.value.underlying_error
     assert isinstance(caught.value.__cause__.__cause__, httpx.ConnectError)
+    assert client.unexpected_calls == []
 
 
 def test_upsert_points_preserves_batch_order_and_adds_generation_to_payload():
