@@ -2251,3 +2251,75 @@ specification and acceptance criteria.
   update, and no claim of final amendment closure.
 - **Remaining work:** owner review, then local `verify-task` under §8.8. VS281-C
   and VS281-D remain the only owners of the deferred full-regression failures.
+
+
+## VS281-B — Task verification under approved cumulative protocol (2026-11-24)
+
+- **Governing protocol:** §8.8 of `specs/rag/knowledge-vector-storage-tasks.md`
+  and §7.5 of `specs/rag/knowledge-retrieval-tasks.md`, approved 2026-11-24.
+- **Verified anchors:** branch `feature/vs281-a-identity-contracts`; base /
+  authorization head `9598bce397b961b8f2f831205f55357e26f734ef`; prepared
+  implementation commit `99e3f52d1be3b63693445a54bba0a989a90b5a00`; B handoff
+  commit `15639b44fada13668f49c331893688e7e2777712`. Fetched the exact branch;
+  local HEAD and `origin/` tip matched; working tree clean. Prepared commit is
+  an ancestor of HEAD.
+- **Focused offline tests:**
+  `docker run --rm --network none -v "$PWD:/app" -w /app ai-customer-support-t280-verify:local python -m pytest -q tests/rag/vector_storage/test_generation_build.py tests/rag/vector_storage/test_contracts.py tests/rag/vector_storage/test_errors.py`
+  → **90 passed in 1.02s, exit 0** (offline boundary verified with `--network none`).
+- **Scope review:** `git diff --name-status 9598bce...HEAD` shows only
+  `src/app/rag/vector_storage/qdrant_adapter.py`,
+  `tests/rag/vector_storage/test_generation_build.py`, and
+  `specs/project-state.md`. The only `create_collection(` call in the adapter
+  passes `metadata=_generation_metadata(request)`, producing exactly the three
+  approved fields. No metadata mutation/repair/backfill API exists (the only
+  other `update_*` call is the pre-existing alias update in activation). No
+  verification identity validation (C), no `GenerationInfo`/active-alias work
+  (D), no Retrieval/search, no unrelated refactor, and no fallback/default
+  identity. No secret-like content in the diff.
+- **`git diff --check`:** `git diff --check 9598bce...HEAD` → exit 0, clean.
+- **Docker/runtime evidence:** verify image
+  `ai-customer-support-t280-verify:local` present
+  (`sha256:a8275cab5d3d82c3dfeb930c06968ea8b5065b98ef567266a4b10b3925497bf0`);
+  `docker compose config --quiet` exit 0; `docker compose up -d postgres qdrant`
+  exit 0; both containers reported `healthy` before the regression. Temporary
+  containers were removed afterward.
+- **Full regression (DIAGNOSTIC — RED, not green):**
+  `docker run --rm --network ai-customer-support_default --add-host host.docker.internal:host-gateway --env-file .env -v "$PWD:/app" -w /app ai-customer-support-t280-verify:local python -m pytest tests -q`
+  → **14 failed, 1061 passed, 9 skipped in 16.84s, exit 1**.
+- **Deferred integration failures — every failure proven exclusively downstream
+  and byte-identical to VS281-A's verified deferred set (14 total):**
+  - **VS281-C (§8.4), 12 failures** in
+    `tests/rag/vector_storage/test_generation_lifecycle.py`:
+    `test_verify_generation_returns_result_only_for_matching_schema_and_count`;
+    `test_verify_generation_rejects_missing_or_incompatible_generation[None-3]`,
+    `[collection1-3]`, `[collection2-3]`, `[collection3-3]`;
+    `test_first_activation_creates_the_fixed_alias_atomically`;
+    `test_replacement_activation_atomically_retains_previous_generation`;
+    `test_activation_reverifies_generation_before_alias_update`;
+    `test_failed_atomic_alias_operation_preserves_previous_active_generation`;
+    `test_lost_alias_response_is_reconciled_against_server_state`;
+    `test_unconfirmed_alias_operation_without_state_change_is_not_success`;
+    `test_upsert_invalidates_prior_verification_before_activation`.
+    Signature: `TypeError: VerifyGenerationRequest.__init__() missing 1 required positional argument: 'expected_point_count'`.
+  - **VS281-D (§8.5), 2 failures** in
+    `tests/rag/vector_storage/test_generation_management.py`:
+    `test_get_generation_info_returns_actual_metadata_and_exact_count`,
+    `test_get_generation_info_marks_inactive_generation`.
+    Signature: `TypeError: GenerationInfo.__init__() missing 1 required positional argument: 'embedding_config_id'` at `qdrant_adapter.py:682`, normalized to `VectorStoreServiceError: Qdrant request failed`.
+  - A programmatic comparison of the VS281-A and VS281-B failure logs confirmed
+    the identical test set and identical signatures; no unrelated failure
+    exists, so no condition blocks VS281-B under §8.8.
+- **Verdict:** VS281-B **meets the amended task-verification criteria** of §8.8:
+  its own acceptance criteria and focused tests pass, scope is clean,
+  `git diff --check` passes, and every full-regression failure is demonstrated
+  to be an expected downstream dependency gap with an owning task. The full
+  regression remains **red** and is retained as evidence, never described as
+  green. No in-scope defect was found, so no fix was applied.
+- **Handoff status:** VS281-B is **task-verified under §8.8**; this supersedes
+  the earlier `PENDING` status above. The overall VS-GI-001 amendment and the
+  cumulative branch remain **open**; VS281-C, VS281-D, and VS281-E remain
+  unauthorized; VS281-E is the final integration gate. No merge, PR, or next
+  task was performed.
+- **Final verification commit:** this commit (HEAD of
+  `feature/vs281-a-identity-contracts`; exact SHA available via
+  `git rev-parse HEAD` and in the final verification report).
