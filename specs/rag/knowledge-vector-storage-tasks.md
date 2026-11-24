@@ -294,9 +294,10 @@ No Retrieval implementation task may begin until VS281-A through VS281-E are ind
 
 ### 8.7 Authorization gate
 
-- **Current authorized implementation task:** None.
-- Approval of VS-GI-001 and this task breakdown authorizes documentation/planning only.
-- VS281-A requires separate explicit authorization.
+- **Current authorized implementation task:** VS281-B — Atomic collection metadata creation only (explicit owner authorization, 2026-11-24; authorization record in `specs/project-state.md`).
+- VS-GI-001 and this task breakdown approval alone do not authorize implementation; each task requires separate explicit owner authorization.
+- VS281-A is task-verified under the approved cumulative protocol (§8.8).
+- VS281-B is the only currently authorized implementation task. VS281-C, VS281-D, and VS281-E remain unauthorized.
 - Closing one task does not authorize the next task automatically.
 - T282–T288 in the Retrieval task breakdown remain blocked until all VS281 tasks are verified and closed.
 
