@@ -301,7 +301,7 @@ No Retrieval implementation task may begin until VS281-A through VS281-E are ind
 - T282–T288 in the Retrieval task breakdown remain blocked until all VS281 tasks are verified and closed.
 
 
-### 8.8 Proposed cumulative implementation and verification protocol
+### 8.8 Cumulative implementation and verification protocol
 
 **Status: APPROVED by the project owner on 2026-11-24.** This section changes execution/verification mechanics only. It does not change VS-GI-001 identity semantics, task scope, acceptance criteria, or dependency order.
 
@@ -314,4 +314,4 @@ No Retrieval implementation task may begin until VS281-A through VS281-E are ind
 - Only after VS281-E passes may one cumulative PR be prepared for owner review. No merge occurs without the owner's explicit approval. After merge, update project state to close the amendment and keep Retrieval blocked until the final merge/closure gate is satisfied.
 - If a task reveals a specification contradiction, an unrelated regression, or a failure not attributable to a documented downstream task, stop and request a specification decision. Do not expand scope or silently change acceptance criteria.
 
-**Approval required:** The project owner must approve this protocol before it governs implementation. Until approval, the existing execution and verification rules remain in force.
+**Approval:** Explicitly approved by the project owner on 2026-11-24. This protocol governs VS281 implementation and verification.
