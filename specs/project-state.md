@@ -2157,3 +2157,14 @@ specification and acceptance criteria.
 - **Final verification commit:** this commit (HEAD of
   `feature/vs281-a-identity-contracts`; exact SHA in the final verification
   report and available via `git rev-parse HEAD`).
+
+## VS281-B — Explicit implementation authorization (2026-11-24)
+
+- **Owner authorization:** The project owner explicitly authorized **VS281-B — Atomic collection metadata creation** on 2026-11-24. This authorization covers VS281-B only; it does not authorize VS281-C, VS281-D, or VS281-E.
+- **Governing specification and protocol:** Approved VS-GI-001 in `specs/rag/knowledge-vector-storage.md`; task scope in `specs/rag/knowledge-vector-storage-tasks.md` §8.3; cumulative implementation and verification protocol in §8.8.
+- **Prerequisite:** VS281-A is task-verified under §8.8. Its focused offline tests passed (77); the full regression remains diagnostic RED (14 failed, 1057 passed, 9 skipped), with all failures documented as downstream gaps owned by VS281-C (12) and VS281-D (2).
+- **Cumulative branch:** Continue only on `feature/vs281-a-identity-contracts`. The verified VS281-A handoff head before this authorization record is `d537cbe2f648397a4d29ced9ac30b9bca29e6a0b`. Preserve the A commits and create a distinct prepared implementation/handoff for B on this same branch.
+- **Authorized B scope:** Build the exact three-field collection metadata object from `CreateGenerationRequest`; pass it atomically in the same Qdrant collection-creation operation; preserve collection name, vector configuration, and payload-index behavior; add focused adapter tests for exact mapping, create failure, and absence of post-create metadata mutation.
+- **Explicit exclusions:** No metadata update/repair/backfill; no verification identity validation owned by C; no GenerationInfo or active-alias resolution owned by D; no Retrieval/search implementation; no task beyond B; no intermediate merge or PR.
+- **Execution state:** B is authorized but implementation has not yet been reported or verified. After B implementation, run its focused tests, record the full-regression diagnostic and classify only proven downstream failures under §8.8, review scope and `git diff --check`, prepare the B handoff, and STOP for owner review. Do not start C automatically.
+
