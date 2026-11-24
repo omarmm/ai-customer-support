@@ -2026,8 +2026,11 @@ specification and acceptance criteria.
   `8163b239195dc0da17793bb6f696ea7dc90acb32`
   (`feat(rag): amend vector storage identity contracts for VS281-A`).
   Pre-rebase commit: `1445243df3cacf0824082cd16e7bee182a3df2e6`.
-- **Rebased handoff commit / branch head:** recorded in the post-rebase anchor
-  note appended below; pre-rebase handoff commit was
+- **Rebased handoff commit:** `50b3dddb38078dc89a542576b5f3c5353973ba45`
+  (`docs(state): record VS281-A implementation handoff`, after rebase).
+- **Branch head:** this anchor-record commit on
+  `feature/vs281-a-identity-contracts`; exact SHA is reported in the final
+  verification report and is available as `HEAD`. Pre-rebase handoff commit was
   `040734969fd65eef821a36b7f2561a68a45da703`.
 - **Handoff status:** Prepared only. Local `verify-task` verification is
   PENDING and must be run by the owner before any merge. Nothing was merged;
