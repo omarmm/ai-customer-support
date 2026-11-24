@@ -2440,3 +2440,77 @@ specification and acceptance criteria.
 - **Task status:** prepared/handoff pending owner verification. Do **not** claim
   VS281-C is task-verified. The owner will run local `verify-task` separately.
   VS281-D and VS281-E remain unauthorized; VS281-E is the final integration gate.
+
+
+## VS281-C — Task verification under approved cumulative protocol (2026-11-24)
+
+- **Governing protocol:** §8.8 of `specs/rag/knowledge-vector-storage-tasks.md`
+  and §7.5 of `specs/rag/knowledge-retrieval-tasks.md`, approved 2026-11-24.
+- **Verified anchors:** branch `feature/vs281-a-identity-contracts`; base /
+  authorization head `f2cd687ef8303f605c07675d392e33254d04eeae`; prepared
+  implementation commit `bf2f37b135b963e36bdbd0c2f53062caa130223a`; C handoff
+  commit `9ea7a734ff0d6f6cf8a6aa182c9cc33d31f88b20`. Fetched the exact branch;
+  local HEAD and `origin/` tip matched; working tree clean; prepared commit is
+  an ancestor of HEAD.
+- **Focused offline tests (re-run by verify-task):**
+  `docker run --rm --network none -v "$PWD:/app" -w /app ai-customer-support-t280-verify:local python -m pytest -q tests/rag/vector_storage/test_generation_lifecycle.py tests/rag/vector_storage/test_contracts.py tests/rag/vector_storage/test_generation_build.py tests/rag/vector_storage/test_errors.py tests/rag/vector_storage/test_qdrant_adapter.py tests/rag/vector_storage/test_qdrant_integration.py`
+  → **173 passed, 1 skipped in 0.77s, exit 0** (`--network none` confirms the
+  offline boundary; the lone skip is the opt-in Qdrant integration test).
+- **Scope review:** `git diff --name-status f2cd687...HEAD` shows only
+  `src/app/rag/vector_storage/qdrant_adapter.py`,
+  `tests/rag/vector_storage/test_generation_lifecycle.py`,
+  `tests/rag/vector_storage/test_qdrant_integration.py`, and this state file.
+  The production diff adds `config.metadata` validation (exact three §11.2
+  fields, both 64-lowercase-hex digests using the approved contracts pattern,
+  `v1` schema, stored generation/embedding ID equality), returns
+  `VECTOR_GENERATION_NOT_FOUND` for a genuine Qdrant 404 while other failures
+  still normalize to `VECTOR_GENERATION_BUILD_FAILED`, returns the validated
+  `embedding_config_id` in the result, and preserves identity through activation
+  by caching the complete approved `VerifyGenerationRequest` and re-verifying
+  with it. Existing dimension/Cosine/exact-count/zero-point/upsert-invalidation
+  behavior is unchanged. Negative checks found no metadata mutation/repair/
+  backfill/update API, no fallback/default/inferred identity, no VS281-D
+  `GenerationInfo`/active-alias resolution, no VS281-E closure, no Retrieval or
+  endpoint work, no contract-semantics change, and no secret-like content in the
+  diff.
+- **`git diff --check`:** `git diff --check f2cd687...HEAD` → exit 0, clean.
+- **Docker/runtime evidence:** verify image
+  `ai-customer-support-t280-verify:local` present
+  (`sha256:a8275cab5d3d82c3dfeb930c06968ea8b5065b98ef567266a4b10b3925497bf0`);
+  `docker compose config --quiet` exit 0; `docker compose up -d postgres qdrant`
+  exit 0; both containers reported `healthy` before the regression. Temporary
+  containers were removed afterward.
+- **Task-specific integration check (reproduced):** with the healthy local
+  Qdrant and pinned `qdrant-client==1.20.0`, a 768-dim Cosine zero-point
+  collection with valid `config.metadata` verified successfully and returned the
+  validated embedding identity; a collection with a mismatched stored embedding
+  ID was rejected with `VECTOR_GENERATION_BUILD_FAILED`. Both probe collections
+  were deleted afterward. This confirms metadata is read from
+  `collection.config.metadata`, the location used by the real Qdrant response.
+- **Full regression (DIAGNOSTIC — RED, not green):**
+  `docker run --rm --network ai-customer-support_default --add-host host.docker.internal:host-gateway --env-file .env -v "$PWD:/app" -w /app ai-customer-support-t280-verify:local python -m pytest tests -q`
+  → **2 failed, 1090 passed, 9 skipped in 16.82s, exit 1**.
+- **Deferred integration failures — every failure proven exclusively downstream
+  and byte-identical to the verified VS281-B baseline (14 failures):**
+  - `tests/rag/vector_storage/test_generation_management.py::test_get_generation_info_returns_actual_metadata_and_exact_count`
+  - `tests/rag/vector_storage/test_generation_management.py::test_get_generation_info_marks_inactive_generation`
+  - Both signatures:
+    `TypeError: GenerationInfo.__init__() missing 1 required positional argument: 'embedding_config_id'` → `VectorStoreServiceError: Qdrant request failed`; owner **VS281-D §8.5**.
+  - All 12 VS281-C-owned lifecycle failures from the baseline
+    (`TypeError: VerifyGenerationRequest.__init__() missing 1 required positional argument: 'expected_point_count'`) are resolved. A programmatic comparison
+    confirmed the remaining two are an exact subset of the baseline with
+    identical signatures; no unrelated regression exists. The full regression
+    remains red and is retained as evidence, never described as green.
+- **Verdict:** VS281-C **meets the amended task-verification criteria** of §8.8:
+  its own acceptance criteria and focused tests pass, scope is clean,
+  `git diff --check` passes, runtime/integration checks pass, and every
+  full-regression failure is a demonstrated expected downstream dependency gap
+  with an owning task. No in-scope defect was found, so no fix was applied.
+- **Handoff status:** VS281-C is **task-verified under §8.8**; this supersedes
+  the `prepared/handoff pending owner verification` status above. The overall
+  VS-GI-001 amendment and the cumulative branch remain **open**; VS281-D and
+  VS281-E remain unauthorized; VS281-E is the final integration gate. No merge,
+  PR, next task, or master update was performed.
+- **Final verification commit:** this commit (HEAD of
+  `feature/vs281-a-identity-contracts`; exact SHA available via
+  `git rev-parse HEAD` and in the final verification report).
