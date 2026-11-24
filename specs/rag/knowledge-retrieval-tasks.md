@@ -145,13 +145,13 @@ T285 tests MUST include an alias-switch race: once the active generation snapsho
 - Approval of the amendment and task breakdown is not authorization to implement any task.
 
 
-### 7.5 Proposed cumulative VS281 integration gate
+### 7.5 Cumulative VS281 integration gate
 
 **Status: APPROVED by the project owner on 2026-11-24.** This clarifies the integration/merge sequence only; it does not relax the requirement that every VS281 task be individually reviewed and verified.
 
-- VS281-A through VS281-E remain dependency-ordered and separately authorized, but are proposed to be implemented on one cumulative integration branch.
+- VS281-A through VS281-E remain dependency-ordered and separately authorized, but are implemented on one cumulative integration branch.
 - Intermediate task verification may classify only proven downstream VS281 dependency failures as deferred integration failures; all focused/task-specific acceptance checks must pass, and unrelated failures block progress.
 - The complete Retrieval prerequisite gate remains closed until VS281-E passes the full regression and Qdrant integration checks, the cumulative PR is reviewed and explicitly approved by the owner, and the amendment is closed on master.
 - T282–T288 remain blocked. This proposal does not authorize Retrieval implementation or any VS281 task.
 
-Until this proposal is approved, §7.2–§7.4 and the existing one-task verification/merge gates remain authoritative.
+This approved gate governs the VS281 execution sequence.
